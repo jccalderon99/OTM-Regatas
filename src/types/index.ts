@@ -1,0 +1,164 @@
+export type UserRole = 'requester' | 'supervisor' | 'technician' | 'jefatura' | 'admin';
+
+export type OTMStatus =
+  | 'pending'
+  | 'scheduled'
+  | 'in_progress'
+  | 'awaiting_conformity'
+  | 'closed'
+  | 'cancelled';
+
+export type Urgency = 'low' | 'medium' | 'high';
+
+export type AttachmentPhase = 'request' | 'execution' | 'conformity';
+export type AttachmentType = 'before_photo' | 'after_photo' | 'document' | 'other';
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: UserRole;
+  area_sector: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  // User Management extra fields
+  position?: string;
+  jefatura_name?: string;
+  jefatura_position?: string;
+  jefatura_email?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Area {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+}
+
+export interface OTMRequest {
+  id: string;
+  otm_code: string;
+  requester_id: string;
+  requester_name: string;
+  area_sector: string;
+  exact_location: string | null;
+  failure_type: string;
+  asset: string | null;
+  description: string;
+  urgency: Urgency;
+  location: string | null;
+  supervisor_id: string | null;
+  supervisor_notes: string | null;
+  scheduled_date: string | null;
+  technician_id: string | null;
+  technician_notes: string | null;
+  status: OTMStatus;
+  conformity_rating: number | null;
+  conformity_notes: string | null;
+  conformity_signature_url: string | null;
+  conformity_date: string | null;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+  // Joined data
+  supervisor?: Profile;
+  technician?: Profile;
+  attachments?: OTMAttachment[];
+  status_log?: OTMStatusLog[];
+}
+
+export interface OTMStatusLog {
+  id: string;
+  otm_id: string;
+  previous_status: string | null;
+  new_status: string;
+  changed_by: string;
+  notes: string | null;
+  created_at: string;
+  changed_by_profile?: Profile;
+}
+
+export interface OTMAttachment {
+  id: string;
+  otm_id: string;
+  uploaded_by: string;
+  file_url: string;
+  file_name: string;
+  file_type: AttachmentType | null;
+  phase: AttachmentPhase | null;
+  created_at: string;
+}
+
+export interface KPIData {
+  total_requests: number;
+  resolved: number;
+  avg_completion_hours: number;
+  pending: number;
+  scheduled: number;
+  in_progress: number;
+  awaiting_conformity: number;
+  closed: number;
+  cancelled: number;
+}
+
+export const STATUS_LABELS: Record<OTMStatus, string> = {
+  pending: 'Pendiente',
+  scheduled: 'Programado',
+  in_progress: 'En Progreso',
+  awaiting_conformity: 'Esperando Conformidad',
+  closed: 'Cerrado',
+  cancelled: 'Cancelado',
+};
+
+export const URGENCY_LABELS: Record<Urgency, string> = {
+  low: 'Baja (6 - 10 días)',
+  medium: 'Media (3 - 5 días)',
+  high: 'Alta (1 - 2 días)',
+};
+
+export const FAILURE_TYPES = [
+  '01. Albañilería',
+  '02. Carpintería',
+  '03. Electricidad',
+  '04. Gasfitería',
+  '05. Pintura',
+  '06. Jardinería',
+  '07. Otros',
+];
+
+export const AREAS = [
+  '01. ACTIVIDADES CULTURALES',
+  '02. ADMINISTRACIÓN Y FINANZAS',
+  '03. CONTABILIDAD',
+  '04. CONTROL DE BIENES PATRIMONIAL',
+  '05. PRESUPUESTO',
+  '06. TESORERÍA Y CUENTAS POR COBRAR',
+  '07. ALOJAMIENTO',
+  '08. BAÑOS TURCOS',
+  '09. COMUNICACIONES',
+  '10. CONCESIONES',
+  '11. CONSEJO DIRECTIVO',
+  '12. CONTROL Y AUDITORIA',
+  '13. DEPORTES',
+  '14. EVENTOS',
+  '15. GERENCIA GENERAL',
+  '16. GESTIÓN HUMANA',
+  '17. HOSPITALIDAD',
+  '18. INFORMÁTICA',
+  '19. JUNTA CALIFICADORA',
+  '20. LEGAL',
+  '21. LOGÍSTICA',
+  '22. MANTENIMIENTO',
+  '23. PROGRAMA ADULTO MAYOR',
+  '24. PROYECTOS',
+  '25. REGISTRO DE ASOCIADOS',
+  '26. REMO',
+  '27. SEGURIDAD',
+  '28. SERVICIOS AL ASOCIADO',
+  '29. SERVICIOS GENERALES',
+  '30. TRANSPORTE',
+  '31. URGENCIAS MÉDICAS',
+  '32. VICEPRESIDENCIA'
+];
