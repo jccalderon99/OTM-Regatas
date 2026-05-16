@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OTMProvider } from './context/OTMContext';
 import Login from './pages/Login';
@@ -17,7 +17,7 @@ function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
 
   // Reset view when user role changes to avoid "stuck" interfaces
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentView('dashboard');
   }, [user?.id, user?.role]);
 
