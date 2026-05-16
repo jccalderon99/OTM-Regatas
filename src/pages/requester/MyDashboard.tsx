@@ -76,8 +76,7 @@ export default function MyDashboard() {
         <p className="page-subtitle">📍 Área: {user?.area_sector} — {user?.role === 'jefatura' ? 'Supervisión de carga de trabajo del área' : 'Seguimiento de tus solicitudes'}</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="kpi-grid" style={{ marginBottom: 28 }}>
+      <div className="kpi-mobile-small" style={{ marginBottom: 20 }}>
         {[
           { label: 'Total', value: counts.total, color: 'var(--accent-blue)' },
           { label: 'Pendientes', value: counts.pending, color: 'var(--accent-amber)' },
@@ -92,57 +91,90 @@ export default function MyDashboard() {
         ))}
       </div>
 
-      {/* Advanced Filters */}
-      <div className="glass-card" style={{ marginBottom: 28, padding: 16 }}>
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="form-group" style={{ minWidth: 160 }}>
-            <label className="form-label" style={{ fontSize: '0.75rem' }}>Visualizar</label>
-            <select className="form-select" value={scopeFilter} onChange={e => setScopeFilter(e.target.value as any)}>
-              <option value="mine">Mis Solicitudes</option>
-              <option value="area">Toda el Área</option>
-            </select>
-          </div>
-
-          {user?.role === 'jefatura' && (
-            <div className="form-group" style={{ minWidth: 180 }}>
-              <label className="form-label" style={{ fontSize: '0.75rem' }}>Personal del Área</label>
-              <select className="form-select" value={selectedUser} onChange={e => setSelectedUser(e.target.value)}>
-                <option value="">Todo el personal</option>
-                {areaPeople.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </select>
+      <div className="dashboard-main-grid" style={{ marginBottom: 28 }}>
+        <div className="responsive-chart-container" style={{ order: 1 }}>
+          <div className="glass-card" style={{ height: 'fit-content' }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Distribución por Prioridad</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <svg width="100" height="100" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="6" />
+                <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-rose)" strokeWidth="6"
+                  strokeDasharray={`${(priorityData.high / (priorityData.total || 1)) * 100} 100`} />
+              </svg>
+              <div className="flex-col gap-2">
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-rose)', fontWeight: 700 }}>Alta: {priorityData.high}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 700 }}>Media: {priorityData.medium}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 700 }}>Baja: {priorityData.low}</div>
+              </div>
             </div>
-          )}
-
-          <div className="form-group" style={{ minWidth: 160 }}>
-            <label className="form-label" style={{ fontSize: '0.75rem' }}>Estado</label>
-            <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
-              <option value="">Todos los estados</option>
-              <option value="pending">Pendiente</option>
-              <option value="rq">Requerimiento (RQ)</option>
-              <option value="scheduled">Programado</option>
-              <option value="in_progress">En Progreso</option>
-              <option value="awaiting_supervisor">Finalizado - Visto Bueno</option>
-              <option value="awaiting_conformity">Esperando Conformidad</option>
-              <option value="closed">Cerrado</option>
-            </select>
           </div>
 
-          <div className="form-group" style={{ minWidth: 160 }}>
-            <label className="form-label" style={{ fontSize: '0.75rem' }}>Periodo</label>
-            <select className="form-select" value={dateRange} onChange={e => setDateRange(e.target.value as any)}>
-              <option value="week">Esta semana</option>
-              <option value="month">Este mes</option>
-              <option value="3months">Últimos 3 meses</option>
-              <option value="6months">Últimos 6 meses</option>
-              <option value="year">Este año</option>
-            </select>
+          <div className="glass-card" style={{ height: 'fit-content' }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Top Especialidades</h3>
+            <div className="flex-col gap-3">
+              {specialtyData.slice(0, 5).map(([name, count]) => (
+                <div key={name}>
+                  <div className="flex justify-between" style={{ fontSize: '0.7rem', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>{name}</span>
+                    <span>{count}</span>
+                  </div>
+                  <div style={{ height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: 'var(--accent-blue)', width: `${(count / (counts.total || 1)) * 100}%` }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-6" style={{ alignItems: 'start' }}>
-        {/* Left Column: List */}
-        <div style={{ flex: '1 1 600px' }}>
+        <div style={{ order: 2 }}>
+          <div className="glass-card" style={{ marginBottom: 20, padding: 16 }}>
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="form-group" style={{ minWidth: 160 }}>
+                <label className="form-label" style={{ fontSize: '0.75rem' }}>Visualizar</label>
+                <select className="form-select" value={scopeFilter} onChange={e => setScopeFilter(e.target.value as any)}>
+                  <option value="mine">Mis Solicitudes</option>
+                  <option value="area">Toda el Área</option>
+                </select>
+              </div>
+
+              {user?.role === 'jefatura' && (
+                <div className="form-group" style={{ minWidth: 180 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Personal del Área</label>
+                  <select className="form-select" value={selectedUser} onChange={e => setSelectedUser(e.target.value)}>
+                    <option value="">Todo el personal</option>
+                    {areaPeople.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group" style={{ minWidth: 160 }}>
+                <label className="form-label" style={{ fontSize: '0.75rem' }}>Estado</label>
+                <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
+                  <option value="">Todos los estados</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="rq">Requerimiento (RQ)</option>
+                  <option value="scheduled">Programado</option>
+                  <option value="in_progress">En Progreso</option>
+                  <option value="awaiting_supervisor">Finalizado - Visto Bueno</option>
+                  <option value="awaiting_conformity">Esperando Conformidad</option>
+                  <option value="closed">Cerrado</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ minWidth: 160 }}>
+                <label className="form-label" style={{ fontSize: '0.75rem' }}>Periodo</label>
+                <select className="form-select" value={dateRange} onChange={e => setDateRange(e.target.value as any)}>
+                  <option value="week">Esta semana</option>
+                  <option value="month">Este mes</option>
+                  <option value="3months">Últimos 3 meses</option>
+                  <option value="6months">Últimos 6 meses</option>
+                  <option value="year">Este año</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {filtered.length === 0 ? (
             <div className="empty-state glass-card">
               <div className="empty-state-icon">📭</div>
@@ -150,21 +182,15 @@ export default function MyDashboard() {
               <div className="empty-state-text">Ajusta los filtros para ver más resultados</div>
             </div>
           ) : (
-            <div className="flex-col gap-3 scrollable-list-container" style={{ padding: '4px 10px', maxHeight: 'calc(100vh - 340px)', minHeight: 400 }}>
+            <div className="flex-col gap-3 scrollable-list-container" style={{ padding: '4px 10px', maxHeight: 'calc(100vh - 400px)', minHeight: 400 }}>
               {filtered.map(otm => (
-                <div key={otm.id} className="glass-card" style={{ cursor: 'pointer', padding: 20 }}
+                <div key={otm.id} className="glass-card" style={{ cursor: 'pointer', padding: 20, marginBottom: 12 }}
                   onClick={() => setSelectedOTM(selectedOTM?.id === otm.id ? null : otm)}>
                   <div className="flex justify-between items-center">
                     <div>
                       <div className="flex items-center gap-2">
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>{otm.otm_code}</span>
                         <StatusBadge status={otm.status} />
-                        <span className={`urgency-badge urgency-${otm.urgency}`}>{URGENCY_LABELS[otm.urgency]}</span>
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>
-                        <span style={{ fontWeight: 600 }}>{otm.requester_name}</span> — {otm.failure_type}
-                      </div>
-                    </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(otm.created_at).toLocaleDateString('es')}</span>
                   </div>
 

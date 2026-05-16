@@ -371,3 +371,40 @@ a:hover { color: var(--accent-blue-hover); }
 .scrollable-list-container .data-table th {
   top: 0;
 }
+
+/* Dashboard Layout Tweaks for Mobile */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 28px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi-mobile-small {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .kpi-mobile-small .kpi-card {
+    padding: 12px 16px;
+  }
+  .kpi-mobile-small .kpi-value {
+    font-size: 1.4rem;
+  }
+  .kpi-mobile-small .kpi-label {
+    font-size: 0.65rem;
+  }
+}
+
+.responsive-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}

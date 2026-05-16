@@ -16,6 +16,11 @@ function AppContent() {
   const { user } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
 
+  // Reset view when user role changes to avoid "stuck" interfaces
+  React.useEffect(() => {
+    setCurrentView('dashboard');
+  }, [user?.id, user?.role]);
+
   if (!user) return <Login />;
 
   const defaultView = () => {

@@ -252,28 +252,22 @@ export default function CommandCenter() {
       </div>
 
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 16, marginBottom: 32 }}>
+      <div className="kpi-mobile-small" style={{ marginBottom: 32 }}>
         {[
-          { label: 'Total OTMs en Curso', value: activeOTMs.length, color: pastel.blue, icon: '📊' },
-          { label: 'OTMs Vencidas', sub: 'Tiempo máximo según prioridad', value: overdueOTMs.length, color: pastel.coral, icon: '⏰' },
-          { label: 'Prioridad Alta', value: highPriority.length, color: pastel.orange, icon: '🔥' },
+          { label: 'En Curso', value: activeOTMs.length, color: pastel.blue, icon: '📊' },
+          { label: 'Vencidas', value: overdueOTMs.length, color: pastel.coral, icon: '⏰' },
+          { label: 'Alta Prioridad', value: highPriority.length, color: pastel.orange, icon: '🔥' },
           { label: 'En Proceso', value: inProgress.length, color: pastel.green, icon: '⚙️' },
-          { label: 'Requerimiento', value: rqOTMs.length, color: pastel.yellow, icon: '📋' },
-          { label: 'Total vs Cerradas', sub: 'Este mes', value: `${newThisMonth.length} vs ${closedThisMonth.length}`, color: pastel.purple, icon: '📈' },
+          { label: 'RQ', value: rqOTMs.length, color: pastel.yellow, icon: '📋' },
+          { label: 'Total vs Cerradas', value: `${newThisMonth.length} / ${closedThisMonth.length}`, color: pastel.purple, icon: '📈' },
         ].map((kpi, i) => (
-          <div key={i} style={{
-            background: 'white', border: '1px solid #e8ecf1', borderRadius: 14,
-            padding: '18px 20px', position: 'relative', overflow: 'hidden',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
-          }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: kpi.color }}></div>
+          <div key={i} className="kpi-card" style={{ '--kpi-color': kpi.color } as any}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
               <div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{kpi.label}</div>
-                {kpi.sub && <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: 2 }}>{kpi.sub}</div>}
-                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e293b', marginTop: 6, letterSpacing: '-0.02em' }}>{kpi.value}</div>
+                <div className="kpi-label">{kpi.label}</div>
+                <div className="kpi-value" style={{ fontSize: '1.5rem' }}>{kpi.value}</div>
               </div>
-              <span style={{ fontSize: '1.6rem', opacity: 0.7 }}>{kpi.icon}</span>
+              <span style={{ fontSize: '1.2rem', opacity: 0.5 }}>{kpi.icon}</span>
             </div>
           </div>
         ))}

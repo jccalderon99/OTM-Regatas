@@ -79,7 +79,10 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
           <div className="flex items-center gap-3" style={{ marginBottom: 12 }}>
             <div className="avatar">{initials}</div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.full_name}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: user.role === 'admin' ? 'var(--accent-rose)' : 'inherit' }}>
+                {user.role === 'admin' && <span style={{ fontSize: '0.7rem', verticalAlign: 'middle', marginRight: 4 }}>👑</span>}
+                {user.full_name}
+              </div>
               <span className={`role-badge role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
             </div>
           </div>
