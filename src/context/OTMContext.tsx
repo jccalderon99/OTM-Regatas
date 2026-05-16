@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { OTMRequest, OTMStatusLog, OTMStatus, Profile } from '../types';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode, getDemoOTMsForUser } from '../lib/demoData';
 import { useAuth } from './AuthContext';
 import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
@@ -12,12 +12,17 @@ interface OTMContextType {
   createOTM: (data: Partial<OTMRequest>) => OTMRequest;
   updateOTMStatus: (otmId: string, newStatus: OTMStatus, notes?: string) => void;
   assignOTM: (otmId: string, technicianId: string, scheduledDate: string, supervisorNotes?: string) => void;
+  assignSupervisor: (otmId: string, supervisorId: string) => void;
+  assignContractor: (otmId: string, name: string, date: string, detail: string) => void;
+  createRQ: (otmId: string, rqType: 'supply' | 'service', data: { materials?: string; quantities?: string; serviceDesc?: string; magnitude?: 'puntual' | 'integral' }) => void;
+  cancelOTM: (otmId: string, reason: string, detail?: string) => void;
+  updateOTMFields: (otmId: string, fields: Partial<OTMRequest>) => void;
   addTechnicianNotes: (otmId: string, notes: string) => void;
-  submitConformity: (otmId: string, rating: number, notes: string, signatureUrl?: string | null) => void;
   submitConformity: (otmId: string, rating: number, notes: string, signatureUrl?: string | null) => void;
   refreshOTMs: () => void;
   // Master Data
   users: Profile[];
+  supervisors: Profile[];
   addUser: (user: Profile) => void;
   updateUser: (user: Profile) => void;
   areas: string[];
@@ -48,6 +53,8 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const [specialties, setSpecialties] = useState<string[]>([...INITIAL_FAILURES]);
   const [locations, setLocations] = useState<string[]>([...INITIAL_LOCATIONS]);
 
+  const supervisors = useMemo(() => users.filter(u => u.role === 'supervisor'), [users]);
+
   const addUser = useCallback((newUser: Profile) => setUsers(prev => [...prev, newUser]), []);
   const updateUser = useCallback((updated: Profile) => setUsers(prev => prev.map(u => u.id === updated.id ? updated : u)), []);
   const addArea = useCallback((area: string) => setAreas(prev => [...prev, area]), []);
@@ -74,7 +81,8 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const addLog = (otmId: string, prevStatus: string | null, newStatus: string, notes?: string) => {
     if (!user) return;
     const log: OTMStatusLog = {
-      id: `log-${Date.now()}`, otm_id: otmId, previous_status: prevStatus,
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      otm_id: otmId, previous_status: prevStatus,
       new_status: newStatus, changed_by: user.id, notes: notes || null,
       created_at: new Date().toISOString(),
     };
@@ -97,7 +105,11 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       status: 'pending',
       conformity_rating: null, conformity_notes: null,
       conformity_signature_url: null, conformity_date: null,
+      assignment_type: null, contractor_name: null, contractor_date: null, contractor_detail: null,
+      rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
+      cancellation_reason: null, cancellation_detail: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(), closed_at: null,
+      attachments: data.attachments || [],
     };
     setOTMs(prev => [newOTM, ...prev]);
     addLog(newOTM.id, null, 'pending', 'Solicitud creada');
@@ -114,17 +126,74 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     }));
   }, [user]);
 
+  const assignSupervisor = useCallback((otmId: string, supervisorId: string) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      return { ...o, supervisor_id: supervisorId, updated_at: new Date().toISOString() };
+    }));
+  }, []);
+
   const assignOTM = useCallback((otmId: string, technicianId: string, scheduledDate: string, supervisorNotes?: string) => {
     setOTMs(prev => prev.map(o => {
       if (o.id !== otmId) return o;
-      addLog(otmId, o.status, 'scheduled', `Asignado. ${supervisorNotes || ''}`);
+      addLog(otmId, o.status, 'scheduled', `Asignado (Personal Propio). ${supervisorNotes || ''}`);
       return {
         ...o, technician_id: technicianId, scheduled_date: scheduledDate,
-        supervisor_id: user!.id, supervisor_notes: supervisorNotes || o.supervisor_notes,
+        supervisor_id: o.supervisor_id || user!.id, supervisor_notes: supervisorNotes || o.supervisor_notes,
+        assignment_type: 'own' as AssignmentType,
         status: 'scheduled' as OTMStatus, updated_at: new Date().toISOString(),
       };
     }));
   }, [user]);
+
+  const assignContractor = useCallback((otmId: string, name: string, date: string, detail: string) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      addLog(otmId, o.status, 'scheduled', `Asignado (Tercero: ${name})`);
+      return {
+        ...o, assignment_type: 'contractor' as AssignmentType,
+        contractor_name: name, contractor_date: date, contractor_detail: detail,
+        supervisor_id: o.supervisor_id || user!.id,
+        status: 'scheduled' as OTMStatus, updated_at: new Date().toISOString(),
+      };
+    }));
+  }, [user]);
+
+  const createRQ = useCallback((otmId: string, rqType: 'supply' | 'service', data: { materials?: string; quantities?: string; serviceDesc?: string; magnitude?: 'puntual' | 'integral' }) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      const label = rqType === 'supply' ? 'RQ Suministro' : 'RQ Servicio';
+      addLog(otmId, o.status, 'rq', `${label} registrado`);
+      return {
+        ...o, rq_type: rqType as RQType,
+        rq_date: new Date().toISOString(),
+        rq_materials: data.materials || null, rq_quantities: data.quantities || null,
+        rq_service_desc: data.serviceDesc || null, rq_magnitude: (data.magnitude || null) as RQMagnitude,
+        status: 'rq' as OTMStatus,
+        updated_at: new Date().toISOString(),
+      };
+    }));
+  }, [user]);
+
+  const cancelOTM = useCallback((otmId: string, reason: string, detail?: string) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      addLog(otmId, o.status, 'cancelled', `Cancelado: ${reason}${detail ? ' — ' + detail : ''}`);
+      return {
+        ...o, status: 'cancelled' as OTMStatus,
+        cancellation_reason: reason as CancellationReason,
+        cancellation_detail: detail || null,
+        updated_at: new Date().toISOString(),
+      };
+    }));
+  }, [user]);
+
+  const updateOTMFields = useCallback((otmId: string, fields: Partial<OTMRequest>) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      return { ...o, ...fields, updated_at: new Date().toISOString() };
+    }));
+  }, []);
 
   const addTechnicianNotes = useCallback((otmId: string, notes: string) => {
     setOTMs(prev => prev.map(o =>
@@ -149,8 +218,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   return (
     <OTMContext.Provider value={{
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
-      createOTM, updateOTMStatus, assignOTM, addTechnicianNotes, submitConformity, refreshOTMs,
-      users, addUser, updateUser,
+      createOTM, updateOTMStatus, assignOTM, assignSupervisor, assignContractor,
+      createRQ, cancelOTM, updateOTMFields,
+      addTechnicianNotes, submitConformity, refreshOTMs,
+      users, supervisors, addUser, updateUser,
       areas, addArea, updateArea,
       specialties, addSpecialty, updateSpecialty,
       locations, addLocation, updateLocation,

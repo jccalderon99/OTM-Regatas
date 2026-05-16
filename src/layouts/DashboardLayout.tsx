@@ -44,7 +44,18 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
   return (
     <div className="app-layout">
       {/* Mobile overlay */}
-      {sidebarOpen && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 49 }} onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && (
+        <div 
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            background: 'rgba(0,0,0,0.5)', 
+            zIndex: 49,
+            backdropFilter: 'blur(2px)'
+          }} 
+          onClick={() => setSidebarOpen(false)} 
+        />
+      )}
 
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
@@ -67,12 +78,12 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
         <div className="sidebar-footer">
           <div className="flex items-center gap-3" style={{ marginBottom: 12 }}>
             <div className="avatar">{initials}</div>
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.full_name}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.full_name}</div>
               <span className={`role-badge role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
             </div>
           </div>
-          {user.area_sector && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8 }}>📍 {user.area_sector}</div>}
+          {user.area_sector && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {user.area_sector}</div>}
           <button className="btn btn-ghost btn-sm w-full" onClick={logout}>Cerrar Sesión</button>
         </div>
       </aside>
@@ -81,8 +92,13 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
       <div className="main-content">
         <header className="topbar">
           <div className="flex items-center gap-3">
-            <button className="btn btn-icon btn-ghost" onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{ display: 'none' }} id="mobile-menu-btn">☰</button>
+            <button 
+              className="btn btn-icon btn-ghost" 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              id="mobile-menu-btn"
+            >
+              {sidebarOpen ? '✕' : '☰'}
+            </button>
             <span className="topbar-title">
               {visibleNav.find(n => n.id === currentView)?.icon} {visibleNav.find(n => n.id === currentView)?.label || 'Dashboard'}
             </span>
@@ -96,7 +112,12 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
         </main>
       </div>
 
-      <style>{`@media(max-width:768px){#mobile-menu-btn{display:flex!important}}`}</style>
+      <style>{`
+        #mobile-menu-btn { display: none; }
+        @media(max-width:1024px) {
+          #mobile-menu-btn { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

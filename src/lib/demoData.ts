@@ -1,13 +1,15 @@
 import { Profile, OTMRequest, OTMStatusLog } from '../types';
 
 const techNames = [
-  "Ciro Diaz Sifuentes", "Diego Nolasco Mendoza", "Julio Briceño Llerena", "John Hurtado Quintanilla",
-  "Franco Ccatamayo Quispe", "Juan Enciso Guzman", "Eustaquio Ñahuis Cuya", "Cirilo Huanca Ramos",
-  "Julio Hernandez Fernandez", "Luis Zamata Canaza", "Rene Roca Esquivel", "Mishell Cavero Cenepo",
-  "Saúl Castro Curahua", "Eduardo Jorge Rivera", "Eliseo Cuadros Moya", "Martin Salazar Salcedo",
-  "Jose Canchari Sanchez", "Jose Anculli Rojas", "Rogelio Herrera Lazaro", "Maximo Rodriguez Huamani",
-  "Elizabeth Panez Abollaneda", "Cirilo Inca Taquire", "Jeyson Palomino Rodriguez", "Juan Soto Sanchez",
-  "Moises Andia Sanchez", "Antonio Angulo Malasquez"
+  "Antonio Angulo Malasquez", "Cirilo Huanca Ramos", "Cirilo Inca Taquire",
+  "Ciro Diaz Sifuentes", "Diego Nolasco Mendoza", "Eduardo Jorge Rivera",
+  "Eliseo Cuadros Moya", "Elizabeth Panez Abollaneda", "Eustaquio Ñahuis Cuya",
+  "Franco Ccatamayo Quispe", "Jeyson Palomino Rodriguez", "John Hurtado Quintanilla",
+  "Jose Anculli Rojas", "Jose Canchari Sanchez", "Juan Enciso Guzman",
+  "Juan Soto Sanchez", "Julio Briceño Llerena", "Julio Hernandez Fernandez",
+  "Luis Zamata Canaza", "Martin Salazar Salcedo", "Maximo Rodriguez Huamani",
+  "Mishell Cavero Cenepo", "Moises Andia Sanchez", "Rene Roca Esquivel",
+  "Rogelio Herrera Lazaro", "Saúl Castro Curahua"
 ];
 
 const technicians: Profile[] = techNames.map((name, i) => ({
@@ -193,7 +195,11 @@ export const DEMO_OTMS: OTMRequest[] = [
     supervisor_id: null, supervisor_notes: null, scheduled_date: null,
     technician_id: null, technician_notes: null,
     conformity_rating: null, conformity_notes: null, conformity_signature_url: null, conformity_date: null,
+    assignment_type: null, contractor_name: null, contractor_date: null, contractor_detail: null,
+    rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
+    cancellation_reason: null, cancellation_detail: null,
     created_at: d1.toISOString(), updated_at: d1.toISOString(), closed_at: null,
+    attachments: [],
   },
   {
     id: 'otm-2',
@@ -214,7 +220,11 @@ export const DEMO_OTMS: OTMRequest[] = [
     technician_id: 'tech-1',
     technician_notes: 'He cerrado la llave de paso temporalmente. Necesito cambiar la trampa tipo P.',
     conformity_rating: null, conformity_notes: null, conformity_signature_url: null, conformity_date: null,
+    assignment_type: 'own', contractor_name: null, contractor_date: null, contractor_detail: null,
+    rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
+    cancellation_reason: null, cancellation_detail: null,
     created_at: d2.toISOString(), updated_at: new Date().toISOString(), closed_at: null,
+    attachments: [],
   },
   {
     id: 'otm-3',
@@ -235,7 +245,11 @@ export const DEMO_OTMS: OTMRequest[] = [
     technician_id: 'tech-3',
     technician_notes: 'Se reemplazaron 3 luminarias LED de 40W. Tablero eléctrico revisado sin problemas.',
     conformity_rating: null, conformity_notes: null, conformity_signature_url: null, conformity_date: null,
+    assignment_type: 'own', contractor_name: null, contractor_date: null, contractor_detail: null,
+    rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
+    cancellation_reason: null, cancellation_detail: null,
     created_at: d3.toISOString(), updated_at: new Date().toISOString(), closed_at: null,
+    attachments: [],
   }
 ];
 

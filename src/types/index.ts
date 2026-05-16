@@ -4,6 +4,7 @@ export type OTMStatus =
   | 'pending'
   | 'scheduled'
   | 'in_progress'
+  | 'rq'
   | 'awaiting_conformity'
   | 'closed'
   | 'cancelled';
@@ -37,6 +38,18 @@ export interface Area {
   active: boolean;
 }
 
+export type AssignmentType = 'own' | 'contractor' | null;
+export type RQType = 'supply' | 'service' | null;
+export type RQMagnitude = 'puntual' | 'integral' | null;
+export type CancellationReason = 'not_maintenance' | 'wrong_request' | 'duplicate' | 'other' | null;
+
+export const CANCELLATION_LABELS: Record<string, string> = {
+  not_maintenance: 'No pertenece a mantenimiento',
+  wrong_request: 'Solicitud errónea',
+  duplicate: 'Solicitud duplicada',
+  other: 'Otros',
+};
+
 export interface OTMRequest {
   id: string;
   otm_code: string;
@@ -62,6 +75,22 @@ export interface OTMRequest {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+  // Assignment type
+  assignment_type: AssignmentType;
+  // Contractor (Personal tercero)
+  contractor_name: string | null;
+  contractor_date: string | null;
+  contractor_detail: string | null;
+  // RQ (Requerimiento)
+  rq_type: RQType;
+  rq_date: string | null;
+  rq_materials: string | null;
+  rq_quantities: string | null;
+  rq_service_desc: string | null;
+  rq_magnitude: RQMagnitude;
+  // Cancellation
+  cancellation_reason: CancellationReason;
+  cancellation_detail: string | null;
   // Joined data
   supervisor?: Profile;
   technician?: Profile;
@@ -107,6 +136,7 @@ export const STATUS_LABELS: Record<OTMStatus, string> = {
   pending: 'Pendiente',
   scheduled: 'Programado',
   in_progress: 'En Progreso',
+  rq: 'Requerimiento',
   awaiting_conformity: 'Esperando Conformidad',
   closed: 'Cerrado',
   cancelled: 'Cancelado',

@@ -48,7 +48,8 @@ export default function UserManagement() {
   
   const technicians = users
     .filter(u => u.role === 'technician')
-    .filter(u => !techSpecialtyFilter || (u.position && u.position.toLowerCase().includes(techSpecialtyFilter.toLowerCase())));
+    .filter(u => !techSpecialtyFilter || (u.position && u.position.toLowerCase().includes(techSpecialtyFilter.toLowerCase())))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
     
   const generalUsers = users
     .filter(u => u.role === 'requester' || u.role === 'jefatura' || u.role === 'admin')
@@ -164,21 +165,32 @@ export default function UserManagement() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <div className="page-header flex justify-between items-center">
+      <div className="page-header responsive-header">
         <div>
           <h1 className="page-title">Panel de Administración</h1>
           <p className="page-subtitle">Configuración Maestra: Áreas, Especialidades y Gestión de Personal</p>
         </div>
       </div>
 
+      <style>{`
+        .responsive-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .responsive-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        @media (max-width: 768px) {
+          .responsive-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+          .responsive-actions { width: 100%; justify-content: space-between; }
+          .responsive-actions select { flex: 1; min-width: 120px; }
+          .responsive-actions button { flex: 1; }
+        }
+      `}</style>
+
       {/* Tabs */}
       <div className="tabs">
-        <button className={`tab ${activeTab === 'areas' ? 'active' : ''}`} onClick={() => setActiveTab('areas')}>Áreas Solicitantes</button>
+        <button className={`tab ${activeTab === 'areas' ? 'active' : ''}`} onClick={() => setActiveTab('areas')}>Áreas</button>
         <button className={`tab ${activeTab === 'especialidades' ? 'active' : ''}`} onClick={() => setActiveTab('especialidades')}>Especialidades</button>
         <button className={`tab ${activeTab === 'ubicaciones' ? 'active' : ''}`} onClick={() => setActiveTab('ubicaciones')}>Ubicaciones</button>
         <button className={`tab ${activeTab === 'supervisores' ? 'active' : ''}`} onClick={() => setActiveTab('supervisores')}>Supervisores</button>
-        <button className={`tab ${activeTab === 'tecnicos' ? 'active' : ''}`} onClick={() => setActiveTab('tecnicos')}>Personal Técnico</button>
-        <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Personal Usuario</button>
+        <button className={`tab ${activeTab === 'tecnicos' ? 'active' : ''}`} onClick={() => setActiveTab('tecnicos')}>Técnicos</button>
+        <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Usuarios</button>
       </div>
 
       <div className="glass-card slide-up" style={{ minHeight: 400 }}>
@@ -188,7 +200,7 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Directorio de Áreas del Club ({areas.length})</h3>
-              <div className="flex gap-2">
+              <div className="responsive-actions">
                 {selectedIds.size > 0 && (
                   <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
                     🗑️ Eliminar ({selectedIds.size})
@@ -225,7 +237,7 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Especialidades de Mantenimiento ({specialties.length})</h3>
-              <div className="flex gap-2">
+              <div className="responsive-actions">
                 {selectedIds.size > 0 && (
                   <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
                     🗑️ Eliminar ({selectedIds.size})
@@ -262,7 +274,7 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Directorio de Ubicaciones del Club ({locations.length})</h3>
-              <div className="flex gap-2">
+              <div className="responsive-actions">
                 {selectedIds.size > 0 && (
                   <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
                     🗑️ Eliminar ({selectedIds.size})
@@ -299,7 +311,7 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Registro de Supervisores ({supervisors.length})</h3>
-              <div className="flex gap-2">
+              <div className="responsive-actions">
                 {selectedIds.size > 0 && (
                   <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
                     🗑️ Eliminar ({selectedIds.size})
@@ -338,7 +350,7 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Registro de Personal Técnico ({technicians.length})</h3>
-              <div className="flex gap-3 items-center">
+              <div className="responsive-actions">
                 <select className="form-select" style={{ width: 220, fontSize: '0.85rem' }} value={techSpecialtyFilter} onChange={e => setTechSpecialtyFilter(e.target.value)}>
                   <option value="">Todas las especialidades</option>
                   {specialties.map(s => <option key={s} value={s.split('. ')[1] || s}>{s.split('. ')[1] || s}</option>)}
@@ -380,7 +392,7 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Personal Usuario del Sistema ({generalUsers.length})</h3>
-              <div className="flex gap-3 items-center">
+              <div className="responsive-actions">
                 <select className="form-select" style={{ width: 180, fontSize: '0.85rem' }} value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}>
                   <option value="">Todos los roles</option>
                   <option value="requester">Solicitante</option>

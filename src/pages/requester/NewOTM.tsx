@@ -41,9 +41,21 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   };
 
   const handleSubmit = () => {
-    const otm = createOTM(form);
+    const attachments = images.map((img, i) => ({
+      id: `att-${Date.now()}-${i}`,
+      otm_id: '',
+      uploaded_by: user!.id,
+      file_url: URL.createObjectURL(img),
+      file_name: img.name,
+      file_type: 'other' as const,
+      phase: 'request' as const,
+      created_at: new Date().toISOString(),
+    }));
+    
+    const otm = createOTM({ ...form, attachments });
     setCreatedCode(otm.otm_code);
     setSubmitted(true);
+    setImages([]); // clear for next time
   };
 
   if (submitted) {
@@ -71,20 +83,37 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
       </div>
 
       {/* Progress Steps */}
-      <div style={{ display: 'flex', marginBottom: 32 }}>
+      <div className="progress-steps">
         {steps.map((s, i) => (
-          <div key={i} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%', margin: '0 auto 6px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700,
-              background: i <= step ? 'linear-gradient(135deg, var(--accent-blue), #2563eb)' : 'var(--bg-secondary)',
-              color: i <= step ? 'white' : 'var(--text-muted)',
-              border: `2px solid ${i <= step ? 'var(--accent-blue)' : 'var(--border)'}`,
-              transition: 'all 0.3s'
-            }}>{i + 1}</div>
-            <div style={{ fontSize: '0.7rem', color: i <= step ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: i === step ? 600 : 400 }}>{s.title}</div>
+          <div key={i} className={`progress-step ${i <= step ? 'completed' : ''} ${i === step ? 'active' : ''}`}>
+            <div className="step-number">{i + 1}</div>
+            <div className="step-title">{s.title}</div>
           </div>
         ))}
+        <style>{`
+          .progress-steps { display: flex; margin-bottom: 32px; gap: 8px; }
+          .progress-step { flex: 1; textAlign: center; position: relative; }
+          .step-number {
+            width: 32px; height: 32px; border-radius: 50%; margin: 0 auto 6px;
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
+            background: var(--bg-secondary); color: var(--text-muted); border: 2px solid var(--border);
+            transition: all 0.3s;
+          }
+          .step-title { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; transition: all 0.3s; }
+          
+          .progress-step.completed .step-number {
+            background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+            color: white; border-color: var(--accent-blue);
+          }
+          .progress-step.completed .step-title { color: var(--text-primary); }
+          .progress-step.active .step-title { font-weight: 700; }
+          
+          @media (max-width: 480px) {
+            .step-title { display: none; }
+            .progress-step.active .step-title { display: block; position: absolute; top: 38px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+            .progress-steps { margin-bottom: 48px; }
+          }
+        `}</style>
       </div>
 
       <div className="glass-card slide-up">
@@ -127,23 +156,34 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
 
         {/* Step 2: Urgency */}
         {step === 2 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div className="priority-grid">
             {[
               { key: 'low', label: 'Baja', icon: '🛠️', desc: 'Mantenimiento preventivo / leve' },
               { key: 'medium', label: 'Media', icon: '👷', desc: 'Requiere atención en el día' },
               { key: 'high', label: 'Alta', icon: '💥', desc: 'Urgente / Riesgo inminente' },
             ].map((p) => (
-              <button key={p.key} className={`glass-card`} onClick={() => set('urgency', p.key as Urgency)}
-                style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 12px',
-                  borderColor: form.urgency === p.key ? 'var(--accent-blue)' : undefined,
-                  boxShadow: form.urgency === p.key ? 'var(--shadow-glow)' : undefined,
-                  transform: form.urgency === p.key ? 'scale(1.05)' : 'scale(1)',
-                  transition: 'all 0.2s' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>{p.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: '1rem' }}>{p.label}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 8 }}>{p.desc}</div>
+              <button key={p.key} className={`glass-card priority-btn ${form.urgency === p.key ? 'active' : ''}`} 
+                onClick={() => set('urgency', p.key as Urgency)}>
+                <div className="priority-icon">{p.icon}</div>
+                <div className="priority-label">{p.label}</div>
+                <div className="priority-desc">{p.desc}</div>
               </button>
             ))}
+            <style>{`
+              .priority-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+              .priority-btn { cursor: pointer; textAlign: center; padding: 24px 12px; transition: all 0.2s; }
+              .priority-btn.active { border-color: var(--accent-blue); box-shadow: var(--shadow-glow); transform: scale(1.05); }
+              .priority-icon { font-size: 48px; margin-bottom: 12px; }
+              .priority-label { font-weight: 700; font-size: 1rem; }
+              .priority-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; }
+              
+              @media (max-width: 640px) {
+                .priority-grid { grid-template-columns: 1fr; }
+                .priority-btn { display: flex; align-items: center; text-align: left; padding: 16px; gap: 16px; }
+                .priority-icon { font-size: 32px; margin-bottom: 0; }
+                .priority-desc { display: none; }
+              }
+            `}</style>
           </div>
         )}
 
