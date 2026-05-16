@@ -1,4 +1,4 @@
-import { Profile, OTMRequest, OTMStatusLog } from '../types';
+import { Profile, OTMRequest, OTMStatusLog, OTMStatus, Urgency, AssignmentType, RQType, RQMagnitude } from '../types';
 
 const techNames = [
   "Antonio Angulo Malasquez", "Cirilo Huanca Ramos", "Cirilo Inca Taquire",
@@ -62,11 +62,6 @@ const rawUsersData = [
 
 const generalUsers: Profile[] = rawUsersData.map((d, i) => {
   const isJefatura = d.nm === d.jnm;
-  const isSupervisorGenerales = d.cg.includes('Supervisor Servicios Generales') || d.cg.includes('Supervisor de concesiones');
-  
-  // They are technically "requesters" of OTMs, but within the system maybe they should be Jefatura if they are bosses.
-  // The system's 'supervisor' role is specifically for Mantenimiento technicians.
-  // So we will map them to 'jefatura' if isJefatura, else 'requester'.
   
   return {
     id: `usr-${i + 1}`,
@@ -86,7 +81,6 @@ const generalUsers: Profile[] = rawUsersData.map((d, i) => {
 });
 
 export let DEMO_USERS: Profile[] = [
-  // Admin (Kept exactly as requested, but updated with his new details from the image)
   {
     id: 'admin-1',
     full_name: 'Jose Calderon',
@@ -102,7 +96,6 @@ export let DEMO_USERS: Profile[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   },
-  // The 4 Maintenance Supervisors
   {
     id: 'sup-1',
     full_name: 'Diana Altamirano',
@@ -174,94 +167,106 @@ export const generateOTMCode = (area?: string, specialty?: string, sequence: num
   return `OTM${aa}${ee}-${nn}`;
 };
 
-const d1 = new Date(); d1.setDate(d1.getDate() - 2);
-const d2 = new Date(); d2.setDate(d2.getDate() - 1);
-const d3 = new Date(); d3.setHours(d3.getHours() - 4);
+// Helper for dates
+const getDateShift = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const statuses: OTMStatus[] = ['pending', 'scheduled', 'in_progress', 'rq', 'awaiting_supervisor', 'awaiting_conformity', 'closed', 'cancelled'];
+const urgencies: Urgency[] = ['high', 'medium', 'low'];
+const specialties = ['01. Albañilería', '02. Carpintería', '03. Electricidad', '04. Gasfitería', '05. Pintura', '06. Cerrajería', '07. Aire Acondicionado'];
+
+const generatedOTMs: OTMRequest[] = [];
+const generatedLogs: OTMStatusLog[] = [];
+
+// Generate 30 OTMs
+for (let i = 1; i <= 35; i++) {
+  const status = statuses[i % statuses.length];
+  const urgency = urgencies[i % urgencies.length];
+  const specialty = specialties[i % specialties.length];
+  const requester = generalUsers[i % generalUsers.length];
+  const supervisor = DEMO_USERS.find(u => u.role === 'supervisor' && u.id === `sup-${(i % 4) + 1}`);
+  const technician = technicians[i % technicians.length];
+  
+  // Shift dates from -7 to +10 days
+  const dayShift = (i % 18) - 7;
+  const createdAt = getDateShift(dayShift);
+  const updatedAt = new Date(createdAt);
+  updatedAt.setHours(updatedAt.getHours() + 2);
+  
+  const id = `otm-gen-${i}`;
+  const code = generateOTMCode(requester.area_sector, specialty, 2000 + i);
+  
+  const otm: OTMRequest = {
+    id,
+    otm_code: code,
+    requester_id: requester.id,
+    requester_name: requester.full_name,
+    area_sector: requester.area_sector,
+    exact_location: `Ubicación ${i}`,
+    failure_type: specialty,
+    asset: `Equipo ${i}`,
+    description: `Descripción detallada de la solicitud generada número ${i}. Requiere atención en ${requester.area_sector}.`,
+    urgency,
+    location: null,
+    status,
+    supervisor_id: (status !== 'pending' && status !== 'cancelled') ? (supervisor?.id || null) : null,
+    supervisor_notes: (status !== 'pending') ? 'Revisado y procesado por supervisión.' : null,
+    scheduled_date: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? getDateShift(dayShift + 1).toISOString() : null,
+    technician_id: (status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? technician.id : null,
+    technician_notes: (status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? 'Trabajo completado según lo solicitado.' : null,
+    maintenance_type: (status === 'closed' || status === 'awaiting_supervisor') ? 'corrective' : null,
+    job_start_time: (status === 'closed' || status === 'awaiting_supervisor') ? createdAt.toISOString() : null,
+    job_end_time: (status === 'closed' || status === 'awaiting_supervisor') ? updatedAt.toISOString() : null,
+    closed_at: status === 'closed' ? updatedAt.toISOString() : null,
+    conformity_rating: status === 'closed' ? 5 : null,
+    conformity_notes: status === 'closed' ? 'Excelente trabajo, gracias.' : null,
+    conformity_date: status === 'closed' ? updatedAt.toISOString() : null,
+    assignment_type: (status !== 'pending' && status !== 'cancelled') ? 'own' : null,
+    rq_type: status === 'rq' ? (i % 2 === 0 ? 'supply' : 'service') : null,
+    rq_date: status === 'rq' ? createdAt.toISOString() : null,
+    rq_materials: status === 'rq' ? 'Materiales varios' : null,
+    rq_quantities: status === 'rq' ? '10 unidades' : null,
+    attachments: [],
+    cancellation_reason: status === 'cancelled' ? 'duplicate' : null,
+    created_at: createdAt.toISOString(),
+    updated_at: updatedAt.toISOString(),
+  };
+  
+  generatedOTMs.push(otm);
+  
+  // Basic log
+  generatedLogs.push({
+    id: `log-gen-${i}-1`,
+    otm_id: id,
+    previous_status: null,
+    new_status: 'pending',
+    changed_by: requester.id,
+    notes: 'Solicitud creada',
+    created_at: createdAt.toISOString()
+  });
+  
+  if (status !== 'pending') {
+    generatedLogs.push({
+      id: `log-gen-${i}-2`,
+      otm_id: id,
+      previous_status: 'pending',
+      new_status: status,
+      changed_by: supervisor?.id || 'admin-1',
+      notes: 'Estado actualizado',
+      created_at: updatedAt.toISOString()
+    });
+  }
+}
 
 export const DEMO_OTMS: OTMRequest[] = [
-  {
-    id: 'otm-1',
-    otm_code: 'OTM-20260512-1042',
-    requester_id: 'usr-4', // Sonia Masias
-    requester_name: 'Sonia Masias Luna',
-    area_sector: '13. DEPORTES',
-    exact_location: 'Cancha de Frontón N° 3',
-    failure_type: '01. Albañilería',
-    asset: 'Pared Principal',
-    description: 'La pared presenta una grieta profunda en el lado izquierdo. Requiere resane urgente para evitar accidentes.',
-    urgency: 'high',
-    location: null,
-    status: 'pending',
-    supervisor_id: null, supervisor_notes: null, scheduled_date: null,
-    technician_id: null, technician_notes: null,
-    conformity_rating: null, conformity_notes: null, conformity_signature_url: null, conformity_date: null,
-    assignment_type: null, contractor_name: null, contractor_date: null, contractor_detail: null,
-    rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
-    cancellation_reason: null, cancellation_detail: null,
-    created_at: d1.toISOString(), updated_at: d1.toISOString(), closed_at: null,
-    attachments: [],
-  },
-  {
-    id: 'otm-2',
-    otm_code: 'OTM-20260513-2051',
-    requester_id: 'usr-1', // Claudia Pulache
-    requester_name: 'Claudia Pulache',
-    area_sector: '22. MANTENIMIENTO',
-    exact_location: 'Baño Principal - Nivel 2',
-    failure_type: '04. Gasfitería',
-    asset: 'Lavadero',
-    description: 'Fuga de agua en la tubería debajo del lavadero principal. El suelo está inundado.',
-    urgency: 'high',
-    location: null,
-    status: 'in_progress',
-    supervisor_id: 'sup-1',
-    supervisor_notes: 'Prioridad máxima por riesgo de resbalones.',
-    scheduled_date: new Date().toISOString(),
-    technician_id: 'tech-1',
-    technician_notes: 'He cerrado la llave de paso temporalmente. Necesito cambiar la trampa tipo P.',
-    conformity_rating: null, conformity_notes: null, conformity_signature_url: null, conformity_date: null,
-    assignment_type: 'own', contractor_name: null, contractor_date: null, contractor_detail: null,
-    rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
-    cancellation_reason: null, cancellation_detail: null,
-    created_at: d2.toISOString(), updated_at: new Date().toISOString(), closed_at: null,
-    attachments: [],
-  },
-  {
-    id: 'otm-3',
-    otm_code: 'OTM-20260514-0012',
-    requester_id: 'usr-4', // Sonia Masias
-    requester_name: 'Sonia Masias Luna',
-    area_sector: '13. DEPORTES',
-    exact_location: 'Gimnasio Nivel 2',
-    failure_type: '03. Electricidad',
-    asset: 'Iluminación',
-    description: 'Tres fluorescentes del sector de pesas libres están parpadeando o quemados.',
-    urgency: 'medium',
-    location: null,
-    status: 'awaiting_conformity',
-    supervisor_id: 'sup-1',
-    supervisor_notes: 'Cambiar por luces LED.',
-    scheduled_date: d3.toISOString(),
-    technician_id: 'tech-3',
-    technician_notes: 'Se reemplazaron 3 luminarias LED de 40W. Tablero eléctrico revisado sin problemas.',
-    conformity_rating: null, conformity_notes: null, conformity_signature_url: null, conformity_date: null,
-    assignment_type: 'own', contractor_name: null, contractor_date: null, contractor_detail: null,
-    rq_type: null, rq_date: null, rq_materials: null, rq_quantities: null, rq_service_desc: null, rq_magnitude: null,
-    cancellation_reason: null, cancellation_detail: null,
-    created_at: d3.toISOString(), updated_at: new Date().toISOString(), closed_at: null,
-    attachments: [],
-  }
+  ...generatedOTMs
 ];
 
 export const DEMO_STATUS_LOGS: OTMStatusLog[] = [
-  { id: 'log-1', otm_id: 'otm-1', previous_status: null, new_status: 'pending', changed_by: 'usr-4', notes: 'Solicitud creada', created_at: d1.toISOString() },
-  { id: 'log-2', otm_id: 'otm-2', previous_status: null, new_status: 'pending', changed_by: 'usr-1', notes: 'Solicitud creada', created_at: d2.toISOString() },
-  { id: 'log-3', otm_id: 'otm-2', previous_status: 'pending', new_status: 'scheduled', changed_by: 'sup-1', notes: 'Asignado a Gasfitería', created_at: d2.toISOString() },
-  { id: 'log-4', otm_id: 'otm-2', previous_status: 'scheduled', new_status: 'in_progress', changed_by: 'tech-1', notes: 'Iniciando inspección', created_at: new Date().toISOString() },
-  { id: 'log-5', otm_id: 'otm-3', previous_status: null, new_status: 'pending', changed_by: 'usr-4', notes: 'Solicitud creada', created_at: d3.toISOString() },
-  { id: 'log-6', otm_id: 'otm-3', previous_status: 'pending', new_status: 'scheduled', changed_by: 'sup-1', notes: 'Asignado a Electricidad', created_at: d3.toISOString() },
-  { id: 'log-7', otm_id: 'otm-3', previous_status: 'scheduled', new_status: 'in_progress', changed_by: 'tech-3', notes: 'Atendiendo cambio de luces', created_at: new Date().toISOString() },
-  { id: 'log-8', otm_id: 'otm-3', previous_status: 'in_progress', new_status: 'awaiting_conformity', changed_by: 'tech-3', notes: 'Luces cambiadas. Operativo.', created_at: new Date().toISOString() }
+  ...generatedLogs
 ];
 
 export const getDemoUser = (email: string) => DEMO_USERS.find(u => u.email === email);

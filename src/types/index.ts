@@ -5,9 +5,19 @@ export type OTMStatus =
   | 'scheduled'
   | 'in_progress'
   | 'rq'
+  | 'awaiting_supervisor'
   | 'awaiting_conformity'
   | 'closed'
   | 'cancelled';
+
+export type MaintenanceType = 'corrective' | 'preventive' | 'emergency' | 'support' | null;
+
+export const MAINTENANCE_LABELS: Record<string, string> = {
+  corrective: 'Correctivo',
+  preventive: 'Preventivo',
+  emergency: 'Emergencia',
+  support: 'Soporte',
+};
 
 export type Urgency = 'low' | 'medium' | 'high';
 
@@ -68,6 +78,9 @@ export interface OTMRequest {
   technician_id: string | null;
   technician_notes: string | null;
   status: OTMStatus;
+  maintenance_type: MaintenanceType;
+  job_start_time: string | null;
+  job_end_time: string | null;
   conformity_rating: number | null;
   conformity_notes: string | null;
   conformity_signature_url: string | null;
@@ -135,9 +148,10 @@ export interface KPIData {
 export const STATUS_LABELS: Record<OTMStatus, string> = {
   pending: 'Pendiente',
   scheduled: 'Programado',
-  in_progress: 'En Progreso',
+  in_progress: 'En Proceso',
   rq: 'Requerimiento',
-  awaiting_conformity: 'Esperando Conformidad',
+  awaiting_supervisor: 'Finalizado - Visto Bueno',
+  awaiting_conformity: 'Finalizado - Conformidad',
   closed: 'Cerrado',
   cancelled: 'Cancelado',
 };

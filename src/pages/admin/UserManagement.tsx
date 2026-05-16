@@ -209,25 +209,27 @@ export default function UserManagement() {
                 <button className="btn btn-primary" onClick={() => openForm('area')}>+ Nueva Área</button>
               </div>
             </div>
-            <div className="data-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === areas.length} onChange={() => toggleAll(areas)} /></th>
-                    <th>N° / Código</th><th>Nombre del Área</th><th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {areas.map((a, i) => (
-                    <tr key={i}>
-                      <td><input type="checkbox" checked={selectedIds.has(a)} onChange={() => toggleSelection(a)} /></td>
-                      <td style={{ color: 'var(--text-muted)' }}>{a.split('.')[0] || String(i+1).padStart(2, '0')}</td>
-                      <td style={{ fontWeight: 600 }}>{a.replace(/^\d+\.\s*/, '')}</td>
-                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('area', a)}>Editar</button></td>
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === areas.length} onChange={() => toggleAll(areas)} /></th>
+                      <th>N° / Código</th><th>Nombre del Área</th><th>Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {areas.map((a, i) => (
+                      <tr key={i}>
+                        <td><input type="checkbox" checked={selectedIds.has(a)} onChange={() => toggleSelection(a)} /></td>
+                        <td style={{ color: 'var(--text-muted)' }}>{a.split('.')[0] || String(i+1).padStart(2, '0')}</td>
+                        <td style={{ fontWeight: 600 }}>{a.replace(/^\d+\.\s*/, '')}</td>
+                        <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('area', a)}>Editar</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -246,25 +248,27 @@ export default function UserManagement() {
                 <button className="btn btn-primary" onClick={() => openForm('specialty')}>+ Nueva Especialidad</button>
               </div>
             </div>
-            <div className="data-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === specialties.length} onChange={() => toggleAll(specialties)} /></th>
-                    <th>Código</th><th>Especialidad</th><th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {specialties.map((f, i) => (
-                    <tr key={i}>
-                      <td><input type="checkbox" checked={selectedIds.has(f)} onChange={() => toggleSelection(f)} /></td>
-                      <td style={{ color: 'var(--text-muted)' }}>{f.split('.')[0] || String(i+1).padStart(2, '0')}</td>
-                      <td style={{ fontWeight: 600 }}>{f.split('. ')[1] || f}</td>
-                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('specialty', f)}>Editar</button></td>
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === specialties.length} onChange={() => toggleAll(specialties)} /></th>
+                      <th>Código</th><th>Especialidad</th><th>Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {specialties.map((f, i) => (
+                      <tr key={i}>
+                        <td><input type="checkbox" checked={selectedIds.has(f)} onChange={() => toggleSelection(f)} /></td>
+                        <td style={{ color: 'var(--text-muted)' }}>{f.split('.')[0] || String(i+1).padStart(2, '0')}</td>
+                        <td style={{ fontWeight: 600 }}>{f.split('. ')[1] || f}</td>
+                        <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('specialty', f)}>Editar</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -283,25 +287,27 @@ export default function UserManagement() {
                 <button className="btn btn-primary" onClick={() => openForm('location')}>+ Nueva Ubicación</button>
               </div>
             </div>
-            <div className="data-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === locations.length} onChange={() => toggleAll(locations)} /></th>
-                    <th>N°</th><th>Nombre de la Ubicación</th><th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {locations.map((l, i) => (
-                    <tr key={i}>
-                      <td><input type="checkbox" checked={selectedIds.has(l)} onChange={() => toggleSelection(l)} /></td>
-                      <td style={{ color: 'var(--text-muted)' }}>{l.split('.')[0] || String(i+1).padStart(2, '0')}</td>
-                      <td style={{ fontWeight: 600 }}>{l.replace(/^\d+\.\s*/, '')}</td>
-                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('location', l)}>Editar</button></td>
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === locations.length} onChange={() => toggleAll(locations)} /></th>
+                      <th>N°</th><th>Nombre de la Ubicación</th><th>Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {locations.map((l, i) => (
+                      <tr key={i}>
+                        <td><input type="checkbox" checked={selectedIds.has(l)} onChange={() => toggleSelection(l)} /></td>
+                        <td style={{ color: 'var(--text-muted)' }}>{l.split('.')[0] || String(i+1).padStart(2, '0')}</td>
+                        <td style={{ fontWeight: 600 }}>{l.replace(/^\d+\.\s*/, '')}</td>
+                        <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('location', l)}>Editar</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -320,27 +326,29 @@ export default function UserManagement() {
                 <button className="btn btn-primary" onClick={() => openForm('supervisor')}>+ Nuevo Supervisor</button>
               </div>
             </div>
-            <div className="data-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === supervisors.length} onChange={() => toggleAll(supervisors.map(s => s.id))} /></th>
-                    <th>Nombre</th><th>Cargo</th><th>Correo</th><th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {supervisors.map(u => (
-                    <tr key={u.id}>
-                      <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
-                      <td style={{ fontWeight: 600 }}>{u.full_name}</td>
-                      <td>{u.position || 'Supervisor de Área'}</td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
-                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('supervisor', u)}>Editar</button></td>
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === supervisors.length} onChange={() => toggleAll(supervisors.map(s => s.id))} /></th>
+                      <th>Nombre</th><th>Cargo</th><th>Correo</th><th>Acciones</th>
                     </tr>
-                  ))}
-                  {supervisors.length === 0 && <tr><td colSpan={4} className="text-center" style={{ padding: 40 }}>No hay supervisores registrados</td></tr>}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {supervisors.map(u => (
+                      <tr key={u.id}>
+                        <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
+                        <td style={{ fontWeight: 600 }}>{u.full_name}</td>
+                        <td>{u.position || 'Supervisor de Área'}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
+                        <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('supervisor', u)}>Editar</button></td>
+                      </tr>
+                    ))}
+                    {supervisors.length === 0 && <tr><td colSpan={4} className="text-center" style={{ padding: 40 }}>No hay supervisores registrados</td></tr>}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -363,26 +371,28 @@ export default function UserManagement() {
                 <button className="btn btn-primary" onClick={() => openForm('technician')}>+ Nuevo Técnico</button>
               </div>
             </div>
-            <div className="data-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === technicians.length} onChange={() => toggleAll(technicians.map(t => t.id))} /></th>
-                    <th>Nombre</th><th>Especialidad / Cargo</th><th>Correo Institucional</th><th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {technicians.map(u => (
-                    <tr key={u.id}>
-                      <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
-                      <td style={{ fontWeight: 600 }}>{u.full_name}</td>
-                      <td>{u.position || 'Técnico Especialista'}</td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
-                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('technician', u)}>Editar</button></td>
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === technicians.length} onChange={() => toggleAll(technicians.map(t => t.id))} /></th>
+                      <th>Nombre</th><th>Especialidad / Cargo</th><th>Correo Institucional</th><th>Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {technicians.map(u => (
+                      <tr key={u.id}>
+                        <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
+                        <td style={{ fontWeight: 600 }}>{u.full_name}</td>
+                        <td>{u.position || 'Técnico Especialista'}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
+                        <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('technician', u)}>Editar</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -411,36 +421,38 @@ export default function UserManagement() {
                 <button className="btn btn-primary" onClick={() => openForm('user')}>+ Nuevo Usuario</button>
               </div>
             </div>
-            <div className="data-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === generalUsers.length} onChange={() => toggleAll(generalUsers.map(u => u.id))} /></th>
-                    <th>Usuario</th><th>Rol</th><th>Área</th><th>Jefatura Asignada</th><th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {generalUsers.map(u => (
-                    <tr key={u.id}>
-                      <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{u.full_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.position || 'Colaborador'} | {u.email}</div>
-                      </td>
-                      <td>
-                        <span className={`role-badge role-${u.role}`}>{u.role === 'admin' ? 'Administrador' : u.role === 'jefatura' ? 'Jefatura' : 'Solicitante'}</span>
-                      </td>
-                      <td style={{ fontSize: '0.8rem' }}>{u.area_sector || 'Global'}</td>
-                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {u.jefatura_name ? (
-                          <><div>{u.jefatura_name}</div><div style={{ fontSize: '0.7rem' }}>{u.jefatura_position}</div></>
-                        ) : '—'}
-                      </td>
-                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('user', u)}>Editar</button></td>
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === generalUsers.length} onChange={() => toggleAll(generalUsers.map(u => u.id))} /></th>
+                      <th>Usuario</th><th>Rol</th><th>Área</th><th>Jefatura Asignada</th><th>Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {generalUsers.map(u => (
+                      <tr key={u.id}>
+                        <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{u.full_name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.position || 'Colaborador'} | {u.email}</div>
+                        </td>
+                        <td>
+                          <span className={`role-badge role-${u.role}`}>{u.role === 'admin' ? 'Administrador' : u.role === 'jefatura' ? 'Jefatura' : 'Solicitante'}</span>
+                        </td>
+                        <td style={{ fontSize: '0.8rem' }}>{u.area_sector || 'Global'}</td>
+                        <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {u.jefatura_name ? (
+                            <><div>{u.jefatura_name}</div><div style={{ fontSize: '0.7rem' }}>{u.jefatura_position}</div></>
+                          ) : '—'}
+                        </td>
+                        <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('user', u)}>Editar</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

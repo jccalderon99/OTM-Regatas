@@ -17,7 +17,9 @@ interface OTMContextType {
   createRQ: (otmId: string, rqType: 'supply' | 'service', data: { materials?: string; quantities?: string; serviceDesc?: string; magnitude?: 'puntual' | 'integral' }) => void;
   cancelOTM: (otmId: string, reason: string, detail?: string) => void;
   updateOTMFields: (otmId: string, fields: Partial<OTMRequest>) => void;
-  addTechnicianNotes: (otmId: string, notes: string) => void;
+  startTechnicianWork: (otmId: string) => void;
+  finishTechnicianWork: (otmId: string, notes: string, photos: { file_url: string, file_name: string }[]) => void;
+  approveWork: (otmId: string, notes?: string, start_time?: string, end_time?: string) => void;
   submitConformity: (otmId: string, rating: number, notes: string, signatureUrl?: string | null) => void;
   refreshOTMs: () => void;
   // Master Data
@@ -71,7 +73,9 @@ export function OTMProvider({ children }: { children: ReactNode }) {
 
   const getOTMsForCurrentUser = useCallback(() => {
     if (!user) return [];
-    if (user.role === 'requester') return otms.filter(o => o.area_sector === user.area_sector);
+    if (user.role === 'requester') {
+      return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);
+    }
     if (user.role === 'technician') return otms.filter(o => o.technician_id === user.id);
     return otms;
   }, [otms, user]);
@@ -103,6 +107,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       supervisor_id: null, supervisor_notes: null, scheduled_date: null,
       technician_id: null, technician_notes: null,
       status: 'pending',
+      maintenance_type: null, job_start_time: null, job_end_time: null,
       conformity_rating: null, conformity_notes: null,
       conformity_signature_url: null, conformity_date: null,
       assignment_type: null, contractor_name: null, contractor_date: null, contractor_detail: null,
@@ -195,11 +200,55 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const addTechnicianNotes = useCallback((otmId: string, notes: string) => {
-    setOTMs(prev => prev.map(o =>
-      o.id === otmId ? { ...o, technician_notes: notes, updated_at: new Date().toISOString() } : o
-    ));
-  }, []);
+  const startTechnicianWork = useCallback((otmId: string) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      addLog(otmId, o.status, 'in_progress', 'Técnico inició el trabajo');
+      return { ...o, status: 'in_progress' as OTMStatus, job_start_time: new Date().toISOString(), updated_at: new Date().toISOString() };
+    }));
+  }, [user]);
+
+  const finishTechnicianWork = useCallback((otmId: string, notes: string, photos: { file_url: string, file_name: string }[]) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      addLog(otmId, o.status, 'awaiting_supervisor', 'Trabajo finalizado por técnico, esperando visto bueno');
+      
+      const newAttachments = photos.map((p, i) => ({
+        id: `att-tech-${Date.now()}-${i}`,
+        otm_id: otmId,
+        uploaded_by: user!.id,
+        file_url: p.file_url,
+        file_name: p.file_name,
+        file_type: 'other' as const,
+        phase: 'execution' as const,
+        created_at: new Date().toISOString(),
+      }));
+
+      return { 
+        ...o, 
+        technician_notes: notes, 
+        status: 'awaiting_supervisor' as OTMStatus, 
+        job_end_time: new Date().toISOString(), 
+        attachments: [...(o.attachments || []), ...newAttachments],
+        updated_at: new Date().toISOString() 
+      };
+    }));
+  }, [user]);
+
+  const approveWork = useCallback((otmId: string, notes?: string, start_time?: string, end_time?: string) => {
+    setOTMs(prev => prev.map(o => {
+      if (o.id !== otmId) return o;
+      addLog(otmId, o.status, 'awaiting_conformity', 'Visto bueno del supervisor');
+      return { 
+        ...o, 
+        status: 'awaiting_conformity' as OTMStatus, 
+        technician_notes: notes !== undefined ? notes : o.technician_notes,
+        job_start_time: start_time !== undefined ? start_time : o.job_start_time,
+        job_end_time: end_time !== undefined ? end_time : o.job_end_time,
+        updated_at: new Date().toISOString() 
+      };
+    }));
+  }, [user]);
 
   const submitConformity = useCallback((otmId: string, rating: number, notes: string, signatureUrl: string | null = null) => {
     setOTMs(prev => prev.map(o => {
@@ -220,7 +269,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
       createOTM, updateOTMStatus, assignOTM, assignSupervisor, assignContractor,
       createRQ, cancelOTM, updateOTMFields,
-      addTechnicianNotes, submitConformity, refreshOTMs,
+      startTechnicianWork, finishTechnicianWork, approveWork, submitConformity, refreshOTMs,
       users, supervisors, addUser, updateUser,
       areas, addArea, updateArea,
       specialties, addSpecialty, updateSpecialty,

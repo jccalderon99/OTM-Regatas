@@ -208,6 +208,7 @@ a:hover { color: var(--accent-blue-hover); }
   color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;
   background: var(--bg-primary); border-bottom: 1px solid var(--border); cursor: pointer;
   user-select: none; white-space: nowrap;
+  position: sticky; top: 0; z-index: 10;
 }
 .data-table th:hover { color: var(--text-primary); }
 .data-table td {
@@ -353,3 +354,20 @@ a:hover { color: var(--accent-blue-hover); }
 /* Filter Bar */
 .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px 0; }
 .filter-bar .form-input, .filter-bar .form-select { max-width: 220px; padding: 8px 12px; font-size: 0.85rem; }
+
+/* Scrollable List Pattern */
+.scrollable-list-container {
+  max-height: 560px; /* Approximately 8-9 items */
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: white;
+  box-shadow: var(--shadow-sm);
+}
+.scrollable-list-container .data-table-wrapper {
+  border: none;
+  border-radius: 0;
+}
+.scrollable-list-container .data-table th {
+  top: 0;
+}

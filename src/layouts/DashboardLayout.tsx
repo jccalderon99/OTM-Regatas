@@ -12,7 +12,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'] },
-  { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin'] },
+  { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
   { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
   { id: 'my-tasks', label: 'Mis Tareas', icon: '🔧', roles: ['technician'] },
   { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },

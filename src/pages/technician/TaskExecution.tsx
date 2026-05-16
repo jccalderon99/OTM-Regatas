@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { OTMRequest, URGENCY_LABELS } from '../../types';
+import { OTMRequest, URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
 
 export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack: () => void }) {
-  const { updateOTMStatus, addTechnicianNotes } = useOTM();
+  const { startTechnicianWork, finishTechnicianWork } = useOTM();
   const [notes, setNotes] = useState(otm.technician_notes || '');
   const [photos, setPhotos] = useState<{ name: string; type: string; url: string }[]>([]);
   const [completing, setCompleting] = useState(false);
@@ -19,12 +19,11 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
   };
 
   const handleStartWork = () => {
-    updateOTMStatus(otm.id, 'in_progress', 'Técnico inició el trabajo');
+    startTechnicianWork(otm.id);
   };
 
   const handleComplete = () => {
-    addTechnicianNotes(otm.id, notes);
-    updateOTMStatus(otm.id, 'awaiting_conformity', 'Trabajo completado por técnico');
+    finishTechnicianWork(otm.id, notes, photos.map(p => ({ file_url: p.url, file_name: p.name })));
     setCompleting(true);
   };
 
@@ -33,7 +32,7 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
       <div className="fade-in" style={{ textAlign: 'center', paddingTop: 60 }}>
         <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, marginBottom: 20 }}>✅</div>
         <h2 style={{ fontWeight: 700 }}>Tarea Completada</h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>La OTM {otm.otm_code} ha sido enviada para conformidad del solicitante.</p>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>La OTM {otm.otm_code} ha sido enviada para revisión del supervisor.</p>
         <button className="btn btn-primary" style={{ marginTop: 24 }} onClick={onBack}>Volver a Mis Tareas</button>
       </div>
     );
@@ -52,6 +51,11 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
             <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
               <StatusBadge status={otm.status} />
               <span className={`urgency-badge urgency-${otm.urgency}`}>{URGENCY_LABELS[otm.urgency]}</span>
+              {otm.maintenance_type && (
+                <span className="urgency-badge" style={{ background: '#f8fafc', color: '#334155', borderColor: '#cbd5e1' }}>
+                  {MAINTENANCE_LABELS[otm.maintenance_type]}
+                </span>
+              )}
             </div>
           </div>
           {isScheduled && (
@@ -60,9 +64,9 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
         </div>
 
         <div className="grid-2" style={{ gap: 12, fontSize: '0.85rem' }}>
-          <div><span style={{ color: 'var(--text-muted)' }}>Área:</span> {otm.area_sector}</div>
+          <div><span style={{ color: 'var(--text-muted)' }}>Solicitante:</span> {otm.requester_name}</div>
           <div><span style={{ color: 'var(--text-muted)' }}>Especialidad:</span> {otm.failure_type}</div>
-          <div><span style={{ color: 'var(--text-muted)' }}>Activo:</span> {otm.asset || '—'}</div>
+          <div><span style={{ color: 'var(--text-muted)' }}>Área:</span> {otm.area_sector}</div>
           <div><span style={{ color: 'var(--text-muted)' }}>Ubicación Exacta:</span> {otm.exact_location || '—'}</div>
         </div>
 
@@ -110,7 +114,7 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
 
           {/* Complete */}
           <button className="btn btn-primary btn-lg w-full" onClick={handleComplete} disabled={notes.length < 5}>
-            ✓ Completar Trabajo y Enviar a Conformidad
+            ✓ Completar Trabajo y Enviar a Supervisor
           </button>
         </div>
       )}

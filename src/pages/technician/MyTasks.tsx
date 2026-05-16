@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
-import { URGENCY_LABELS } from '../../types';
+import { URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import TaskExecution from './TaskExecution';
 
 export default function MyTasks() {
@@ -42,7 +42,7 @@ export default function MyTasks() {
           <div className="empty-state-title">{tab === 'active' ? 'No tienes tareas activas' : 'Sin tareas completadas aún'}</div>
         </div>
       ) : (
-        <div className="flex-col gap-3">
+        <div className="flex-col gap-3 scrollable-list-container" style={{ padding: 10, maxHeight: 'calc(100vh - 300px)' }}>
           {list.map(otm => (
             <div key={otm.id} className="glass-card" style={{ padding: 20, cursor: tab === 'active' ? 'pointer' : 'default' }}
               onClick={() => tab === 'active' && setActiveTaskId(otm.id)}>
@@ -52,11 +52,19 @@ export default function MyTasks() {
                     <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>{otm.otm_code}</span>
                     <StatusBadge status={otm.status} />
                     <span className={`urgency-badge urgency-${otm.urgency}`}>{URGENCY_LABELS[otm.urgency]}</span>
+                    {otm.maintenance_type && (
+                      <span className="urgency-badge" style={{ background: '#f8fafc', color: '#334155', borderColor: '#cbd5e1' }}>
+                        {MAINTENANCE_LABELS[otm.maintenance_type]}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>
-                    {otm.failure_type} — {otm.area_sector}
+                    <span style={{ fontWeight: 600 }}>{otm.requester_name}</span> — {otm.failure_type}
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>{otm.description.slice(0, 120)}{otm.description.length > 120 ? '...' : ''}</p>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {otm.area_sector}{otm.exact_location ? ` — ${otm.exact_location}` : ''}
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 6 }}>{otm.description.slice(0, 120)}{otm.description.length > 120 ? '...' : ''}</p>
                 </div>
                 {tab === 'active' && <span style={{ fontSize: '1.2rem' }}>→</span>}
               </div>

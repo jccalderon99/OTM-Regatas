@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
-import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS } from '../../types';
+import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 type ManageAction = 'none' | 'assign' | 'rq' | 'cancel';
@@ -10,9 +10,10 @@ type RQSubAction = 'none' | 'supply' | 'service';
 
 export default function OTMManagement() {
   const { user } = useAuth();
-  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMStatus, users, supervisors } = useOTM();
+  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors } = useOTM();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | ''>('');
+  const [supervisorFilter, setSupervisorFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<'created_at' | 'urgency' | 'status'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -43,10 +44,15 @@ export default function OTMManagement() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelDetail, setCancelDetail] = useState('');
 
+  // Supervisor Approval fields
+  const [editTechNotes, setEditTechNotes] = useState('');
+  const [editTechStart, setEditTechStart] = useState('');
+  const [editTechEnd, setEditTechEnd] = useState('');
+
   const technicians = users.filter(u => u.role === 'technician').sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   const urgencyOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-  const statusOrder: Record<OTMStatus, number> = { pending: 0, scheduled: 1, in_progress: 2, awaiting_conformity: 3, closed: 4, cancelled: 5 };
+  const statusOrder: Record<OTMStatus, number> = { pending: 0, scheduled: 1, in_progress: 2, rq: 3, awaiting_supervisor: 4, awaiting_conformity: 5, closed: 6, cancelled: 7 };
 
   let filtered = otms
     .filter(o => !statusFilter || o.status === statusFilter)
@@ -78,6 +84,9 @@ export default function OTMManagement() {
     setContractorName(''); setContractorDate(''); setContractorDetail('');
     setRQMaterials(''); setRQQuantities(''); setRQServiceDesc(''); setRQMagnitude('puntual');
     setCancelReason(''); setCancelDetail('');
+    setEditTechNotes(otm.technician_notes || '');
+    setEditTechStart(otm.job_start_time ? new Date(otm.job_start_time).toISOString().slice(0, 16) : '');
+    setEditTechEnd(otm.job_end_time ? new Date(otm.job_end_time).toISOString().slice(0, 16) : '');
   };
 
   const handleAssignOwn = () => {
@@ -110,6 +119,14 @@ export default function OTMManagement() {
     setManageOTM(null);
   };
 
+  const handleApprove = () => {
+    if (!manageOTM) return;
+    const s = editTechStart ? new Date(editTechStart).toISOString() : undefined;
+    const e = editTechEnd ? new Date(editTechEnd).toISOString() : undefined;
+    approveWork(manageOTM.id, editTechNotes, s, e);
+    setManageOTM(null);
+  };
+
   const urgencyIcons: Record<string, string> = { low: '🛠️', medium: '👷', high: '💥' };
 
   return (
@@ -122,6 +139,10 @@ export default function OTMManagement() {
       {/* Filters */}
       <div className="filter-bar responsive-actions" style={{ marginBottom: 20 }}>
         <input className="form-input" placeholder="🔍 Buscar código, solicitante, área..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 300, flex: 1, minWidth: 180 }} />
+        <select className="form-select" value={supervisorFilter} onChange={e => setSupervisorFilter(e.target.value)}>
+          <option value="">Todos los Supervisores</option>
+          {supervisors.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+        </select>
         <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
           <option value="">Todos los estados</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -134,8 +155,46 @@ export default function OTMManagement() {
       </div>
 
       {/* Table */}
-      <div className="data-table-wrapper">
-        <table className="data-table">
+      {(() => {
+        const assignedOTMs = supervisorFilter ? filtered.filter(o => o.supervisor_id === supervisorFilter) : filtered;
+        const unassignedOTMs = supervisorFilter ? filtered.filter(o => !o.supervisor_id) : [];
+        const supName = supervisorFilter ? supervisors.find(s => s.id === supervisorFilter)?.full_name : null;
+
+        const renderTableRows = (rows: typeof filtered) => rows.map(otm => (
+          <tr key={otm.id}>
+            <td><span style={{ fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{otm.otm_code}</span></td>
+            <td style={{ fontSize: '0.85rem' }}>{otm.requester_name}</td>
+            <td style={{ fontSize: '0.8rem' }}>{otm.failure_type}</td>
+            <td title={URGENCY_LABELS[otm.urgency]}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {otm.urgency === 'high' ? 'Alta' : otm.urgency === 'medium' ? 'Media' : 'Baja'}
+                <span style={{ fontSize: '1.2rem' }}>{urgencyIcons[otm.urgency] || '❓'}</span>
+              </span>
+            </td>
+            <td><StatusBadge status={otm.status} /></td>
+            <td>
+              <select className="form-select" style={{ fontSize: '0.75rem', padding: '4px 8px', minWidth: 110 }}
+                value={otm.maintenance_type || ''}
+                onChange={e => updateOTMFields(otm.id, { maintenance_type: e.target.value as any })}>
+                <option value="">Sin definir</option>
+                {Object.entries(MAINTENANCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </td>
+            <td>
+              <select className="form-select" style={{ fontSize: '0.75rem', padding: '4px 8px', minWidth: 130 }}
+                value={otm.supervisor_id || ''}
+                onChange={e => assignSupervisor(otm.id, e.target.value)}>
+                <option value="">Sin asignar</option>
+                {supervisors.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+            </td>
+            <td>
+              <button className="btn btn-primary btn-sm" onClick={() => openManage(otm)}>Gestionar</button>
+            </td>
+          </tr>
+        ));
+
+        const tableHead = (
           <thead>
             <tr>
               <th onClick={() => handleSort('created_at')}>Código {sortField === 'created_at' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</th>
@@ -143,45 +202,45 @@ export default function OTMManagement() {
               <th>Especialidad</th>
               <th onClick={() => handleSort('urgency')}>Urg. {sortField === 'urgency' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</th>
               <th onClick={() => handleSort('status')}>Estado {sortField === 'status' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</th>
+              <th>Tipo Manten.</th>
               <th>Supervisor</th>
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            {filtered.map(otm => {
-              const sup = supervisors.find(s => s.id === otm.supervisor_id);
-              return (
-                <tr key={otm.id}>
-                  <td><span style={{ fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{otm.otm_code}</span></td>
-                  <td style={{ fontSize: '0.85rem' }}>{otm.requester_name}</td>
-                  <td style={{ fontSize: '0.8rem' }}>{otm.failure_type}</td>
-                  <td title={URGENCY_LABELS[otm.urgency]}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {otm.urgency === 'high' ? 'Alta' : otm.urgency === 'medium' ? 'Media' : 'Baja'}
-                      <span style={{ fontSize: '1.2rem' }}>{urgencyIcons[otm.urgency] || '❓'}</span>
-                    </span>
-                  </td>
-                  <td><StatusBadge status={otm.status} /></td>
-                  <td>
-                    <select
-                      className="form-select"
-                      style={{ fontSize: '0.75rem', padding: '4px 8px', minWidth: 130 }}
-                      value={otm.supervisor_id || ''}
-                      onChange={e => assignSupervisor(otm.id, e.target.value)}
-                    >
-                      <option value="">Sin asignar</option>
-                      {supervisors.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <button className="btn btn-primary btn-sm" onClick={() => openManage(otm)}>Gestionar</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+        );
+
+        return (
+          <>
+            {supName && <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-blue)', marginBottom: 12 }}>📋 OTMs asignadas a: {supName} ({assignedOTMs.length})</div>}
+            <div className="scrollable-list-container">
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  {tableHead}
+                  <tbody>{renderTableRows(assignedOTMs)}</tbody>
+                </table>
+              </div>
+            </div>
+
+            {supervisorFilter && unassignedOTMs.length > 0 && (
+              <>
+                <div style={{ margin: '28px 0 12px', padding: '12px 20px', background: 'rgba(245,158,11,0.06)', border: '1px dashed var(--accent-amber)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-amber)' }}>Sin Supervisor Asignado ({unassignedOTMs.length})</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 8 }}>Estas solicitudes requieren asignación de supervisor</span>
+                </div>
+                <div className="scrollable-list-container">
+                  <div className="data-table-wrapper">
+                    <table className="data-table">
+                      {tableHead}
+                      <tbody>{renderTableRows(unassignedOTMs)}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* GESTIONAR Panel */}
       {manageOTM && (
@@ -261,17 +320,83 @@ export default function OTMManagement() {
               </div>
             )}
 
-            {/* Action Buttons */}
-            {action === 'none' && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && (
+            {/* Technician Work Data & Approval */}
+            {(manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'closed') && manageOTM.technician_notes && (
+              <div style={{ marginBottom: 16, padding: 16, background: 'rgba(16,185,129,0.08)', borderRadius: 8, border: '1px solid rgba(16,185,129,0.2)' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-emerald)', marginBottom: 12 }}>
+                  ✅ Trabajo Finalizado por Técnico
+                </div>
+                
+                {manageOTM.status === 'awaiting_supervisor' ? (
+                  <div className="flex-col gap-3">
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Inicio Trabajo</label>
+                        <input className="form-input" type="datetime-local" style={{ fontSize: '0.8rem', padding: '6px 10px' }} value={editTechStart} onChange={e => setEditTechStart(e.target.value)} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Fin Trabajo</label>
+                        <input className="form-input" type="datetime-local" style={{ fontSize: '0.8rem', padding: '6px 10px' }} value={editTechEnd} onChange={e => setEditTechEnd(e.target.value)} />
+                      </div>
+                    </div>
+                    
+                    {editTechStart && editTechEnd && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Tiempo total: {Math.round((new Date(editTechEnd).getTime() - new Date(editTechStart).getTime()) / 60000)} minutos
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Comentario del Técnico (Editable)</label>
+                      <textarea className="form-textarea" style={{ fontSize: '0.8rem', minHeight: 60 }} value={editTechNotes} onChange={e => setEditTechNotes(e.target.value)} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-col gap-2">
+                    {manageOTM.job_start_time && manageOTM.job_end_time && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        🕒 {new Date(manageOTM.job_start_time).toLocaleString('es')} - {new Date(manageOTM.job_end_time).toLocaleString('es')} 
+                        <span style={{ marginLeft: 8, fontWeight: 600 }}>
+                          ({Math.round((new Date(manageOTM.job_end_time).getTime() - new Date(manageOTM.job_start_time).getTime()) / 60000)} min)
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', background: 'var(--bg-secondary)', padding: 10, borderRadius: 6 }}>
+                      {manageOTM.technician_notes}
+                    </div>
+                  </div>
+                )}
+
+                {manageOTM.attachments && manageOTM.attachments.filter(a => a.phase === 'execution').length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Fotos de ejecución:</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {manageOTM.attachments.filter(a => a.phase === 'execution').map(att => (
+                        <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                          <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Adjunto" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {manageOTM.status === 'awaiting_supervisor' && (
+                  <button className="btn btn-primary w-full" style={{ marginTop: 16 }} onClick={handleApprove}>
+                    ✓ Aprobado (Dar Visto Bueno)
+                  </button>
+                )}
+              </div>
+            )}
+
+            {action === 'none' && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_supervisor' && manageOTM.status !== 'awaiting_conformity' && (
               <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                 <button className="btn btn-primary" style={{ flex: 1, minWidth: 100 }} onClick={() => setAction('assign')}>🔧 ASIGNAR</button>
                 <button className="btn btn-secondary" style={{ flex: 1, minWidth: 100, borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)' }} onClick={() => setAction('rq')}>📋 RQ</button>
-                <button className="btn btn-danger" style={{ flex: 1, minWidth: 100 }} onClick={() => setAction('cancel')}>❌ CANCELAR</button>
               </div>
             )}
 
             {/* Modify button for already processed OTMs */}
-            {action === 'none' && (manageOTM.rq_type || manageOTM.assignment_type) && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && (
+            {action === 'none' && (manageOTM.rq_type || manageOTM.assignment_type) && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_supervisor' && manageOTM.status !== 'awaiting_conformity' && (
               <div style={{ marginBottom: 16 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => setAction('assign')} style={{ marginRight: 8 }}>✏️ Modificar Asignación</button>
               </div>
@@ -420,6 +545,17 @@ export default function OTMManagement() {
                     <button className="btn btn-danger" onClick={handleCancel} disabled={!cancelReason || (cancelReason === 'other' && !cancelDetail)}>✓ Confirmar Cancelación</button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Floating Cancel Button (Bottom Right) */}
+            {manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_conformity' && action !== 'cancel' && (
+              <div style={{ position: 'sticky', bottom: -28, left: 0, right: 0, background: 'linear-gradient(transparent, var(--bg-card) 20%)', padding: '40px 0 20px', marginTop: 40, display: 'flex', justifyContent: 'flex-end', pointerEvents: 'none' }}>
+                <button className="btn btn-danger" 
+                  style={{ pointerEvents: 'auto', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)', padding: '12px 24px' }} 
+                  onClick={() => setAction('cancel')}>
+                  ❌ CANCELAR SOLICITUD
+                </button>
               </div>
             )}
 
