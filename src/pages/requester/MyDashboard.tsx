@@ -316,7 +316,6 @@ export default function MyDashboard() {
             </div>
           )}
         </div>
-        </div>
       </div>
 
       {showConformity && (
