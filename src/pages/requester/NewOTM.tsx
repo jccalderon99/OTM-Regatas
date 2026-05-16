@@ -4,19 +4,19 @@ import { useOTM } from '../../context/OTMContext';
 import { Urgency, URGENCY_LABELS } from '../../types';
 
 interface FormData {
-  area_sector: string;
+  area_sector: string; // Used for "Ubicación" dropdown
   failure_type: string;
-  asset: string;
   description: string;
   urgency: Urgency;
   exact_location: string;
 }
 
-const INITIAL: FormData = { area_sector: '', failure_type: '', asset: '', description: '', urgency: 'medium', exact_location: '' };
+const INITIAL: FormData = { area_sector: '', failure_type: '', description: '', urgency: 'medium', exact_location: '' };
 
 export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   const { user } = useAuth();
-  const { createOTM, areas, specialties } = useOTM();
+  const { createOTM, areas, specialties, locations } = useOTM();
+  const [images, setImages] = useState<File[]>([]);
   const [form, setForm] = useState<FormData>({ ...INITIAL, area_sector: user?.area_sector || '' });
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -28,13 +28,15 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
     { title: 'Ubicación', subtitle: 'Área y ubicación del problema' },
     { title: 'Problema', subtitle: 'Tipo de falla y descripción' },
     { title: 'Prioridad', subtitle: 'Nivel de urgencia' },
+    { title: 'Imágenes', subtitle: 'Adjunte fotos (opcional)' },
     { title: 'Confirmar', subtitle: 'Revisión y envío' },
   ];
 
   const canNext = () => {
     if (step === 0) return form.area_sector.length > 0;
-    if (step === 1) return form.failure_type.length > 0 && form.description.length >= 10;
+    if (step === 1) return form.failure_type.length > 0 && form.description.length > 0;
     if (step === 2) return true;
+    if (step === 3) return true;
     return true;
   };
 
@@ -93,10 +95,10 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
         {step === 0 && (
           <div className="flex-col gap-4">
             <div className="form-group">
-              <label className="form-label">Área / Sector *</label>
+              <label className="form-label">Ubicación *</label>
               <select className="form-select" value={form.area_sector} onChange={e => set('area_sector', e.target.value)}>
-                <option value="">Seleccionar área...</option>
-                {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                <option value="">Seleccionar ubicación...</option>
+                {locations.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -117,46 +119,72 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Activo / Equipo</label>
-              <input className="form-input" placeholder="Ej: Motor Banda #3, Compresor de aire..." value={form.asset} onChange={e => set('asset', e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Descripción del problema * (mín. 10 caracteres)</label>
-              <textarea className="form-textarea" placeholder="Describa detalladamente el problema..." value={form.description} onChange={e => set('description', e.target.value)} />
-              <span style={{ fontSize: '0.7rem', color: form.description.length >= 10 ? 'var(--accent-emerald)' : 'var(--text-muted)' }}>{form.description.length}/10+ caracteres</span>
+              <label className="form-label">Descripción del problema *</label>
+              <textarea className="form-textarea" placeholder="Describa brevemente el problema..." value={form.description} onChange={e => set('description', e.target.value)} />
             </div>
           </div>
         )}
 
         {/* Step 2: Urgency */}
         {step === 2 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-            {(Object.entries(URGENCY_LABELS) as [Urgency, string][]).map(([key, label]) => (
-              <button key={key} className={`glass-card`} onClick={() => set('urgency', key)}
-                style={{ cursor: 'pointer', textAlign: 'center', padding: 20,
-                  borderColor: form.urgency === key ? 'var(--accent-blue)' : undefined,
-                  boxShadow: form.urgency === key ? 'var(--shadow-glow)' : undefined }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>
-                  {key === 'low' ? '🟢' : key === 'medium' ? '🔵' : '🟠'}
-                </div>
-                <div style={{ fontWeight: 600 }}>{label.split(' (')[0]}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {label.includes('(') ? '(' + label.split(' (')[1] : ''}
-                </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            {[
+              { key: 'low', label: 'Baja', icon: '🛠️', desc: 'Mantenimiento preventivo / leve' },
+              { key: 'medium', label: 'Media', icon: '👷', desc: 'Requiere atención en el día' },
+              { key: 'high', label: 'Alta', icon: '💥', desc: 'Urgente / Riesgo inminente' },
+            ].map((p) => (
+              <button key={p.key} className={`glass-card`} onClick={() => set('urgency', p.key as Urgency)}
+                style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 12px',
+                  borderColor: form.urgency === p.key ? 'var(--accent-blue)' : undefined,
+                  boxShadow: form.urgency === p.key ? 'var(--shadow-glow)' : undefined,
+                  transform: form.urgency === p.key ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'all 0.2s' }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>{p.icon}</div>
+                <div style={{ fontWeight: 700, fontSize: '1rem' }}>{p.label}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 8 }}>{p.desc}</div>
               </button>
             ))}
           </div>
         )}
 
-        {/* Step 3: Confirm */}
+        {/* Step 3: Images */}
         {step === 3 && (
+          <div className="flex-col gap-4">
+            <div style={{ border: '2px dashed var(--border)', borderRadius: 12, padding: 32, textAlign: 'center' }}>
+              <input type="file" multiple accept="image/*" id="img-upload" style={{ display: 'none' }} 
+                onChange={e => {
+                  const files = Array.from(e.target.files || []).filter(f => f.size <= 100 * 1024 * 1024);
+                  setImages(prev => [...prev, ...files].slice(0, 2));
+                }} />
+              <label htmlFor="img-upload" style={{ cursor: 'pointer' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
+                <div style={{ fontWeight: 600 }}>Haga clic para subir imágenes</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>Máximo 2 imágenes (100MB cada una)</div>
+              </label>
+            </div>
+            {images.length > 0 && (
+              <div className="flex gap-3 flex-wrap">
+                {images.map((img, i) => (
+                  <div key={i} style={{ position: 'relative', width: 100, height: 100, borderRadius: 8, overflow: 'hidden' }}>
+                    <img src={URL.createObjectURL(img)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 12, cursor: 'pointer' }}
+                      onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Confirm */}
+        {step === 4 && (
           <div className="flex-col gap-3">
             {[
-              ['Área', form.area_sector],
+              ['Ubicación', form.area_sector],
               ['Ubicación Exacta', form.exact_location || '—'],
               ['Especialidad', form.failure_type],
-              ['Activo', form.asset || '—'],
               ['Urgencia', URGENCY_LABELS[form.urgency]],
+              ['Imágenes', `${images.length} adjunta(s)`],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{k}</span>
@@ -173,7 +201,7 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
         {/* Nav Buttons */}
         <div className="flex justify-between" style={{ marginTop: 28 }}>
           {step > 0 ? <button className="btn btn-secondary" onClick={() => setStep(s => s - 1)}>← Anterior</button> : <div />}
-          {step < 3 ? (
+          {step < 4 ? (
             <button className="btn btn-primary" onClick={() => setStep(s => s + 1)} disabled={!canNext()}>Siguiente →</button>
           ) : (
             <button className="btn btn-primary btn-lg" onClick={handleSubmit}>✓ Enviar Solicitud</button>

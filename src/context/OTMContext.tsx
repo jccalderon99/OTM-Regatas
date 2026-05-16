@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import { OTMRequest, OTMStatusLog, OTMStatus, Profile } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode, getDemoOTMsForUser } from '../lib/demoData';
 import { useAuth } from './AuthContext';
-import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES } from '../types';
+import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
 
 interface OTMContextType {
   otms: OTMRequest[];
@@ -26,6 +26,13 @@ interface OTMContextType {
   specialties: string[];
   addSpecialty: (specialty: string) => void;
   updateSpecialty: (oldSpecialty: string, newSpecialty: string) => void;
+  locations: string[];
+  addLocation: (location: string) => void;
+  updateLocation: (oldLocation: string, newLocation: string) => void;
+  deleteUser: (id: string) => void;
+  deleteArea: (name: string) => void;
+  deleteSpecialty: (name: string) => void;
+  deleteLocation: (name: string) => void;
 }
 
 const OTMContext = createContext<OTMContextType | null>(null);
@@ -39,6 +46,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<Profile[]>([...DEMO_USERS]);
   const [areas, setAreas] = useState<string[]>([...INITIAL_AREAS]);
   const [specialties, setSpecialties] = useState<string[]>([...INITIAL_FAILURES]);
+  const [locations, setLocations] = useState<string[]>([...INITIAL_LOCATIONS]);
 
   const addUser = useCallback((newUser: Profile) => setUsers(prev => [...prev, newUser]), []);
   const updateUser = useCallback((updated: Profile) => setUsers(prev => prev.map(u => u.id === updated.id ? updated : u)), []);
@@ -46,6 +54,13 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const updateArea = useCallback((oldArea: string, newArea: string) => setAreas(prev => prev.map(a => a === oldArea ? newArea : a)), []);
   const addSpecialty = useCallback((spec: string) => setSpecialties(prev => [...prev, spec]), []);
   const updateSpecialty = useCallback((oldSpec: string, newSpec: string) => setSpecialties(prev => prev.map(s => s === oldSpec ? newSpec : s)), []);
+  const addLocation = useCallback((loc: string) => setLocations(prev => [...prev, loc]), []);
+  const updateLocation = useCallback((oldLoc: string, newLoc: string) => setLocations(prev => prev.map(l => l === oldLoc ? newLoc : l)), []);
+
+  const deleteUser = useCallback((id: string) => setUsers(prev => prev.filter(u => u.id !== id)), []);
+  const deleteArea = useCallback((name: string) => setAreas(prev => prev.filter(a => a !== name)), []);
+  const deleteSpecialty = useCallback((name: string) => setSpecialties(prev => prev.filter(s => s !== name)), []);
+  const deleteLocation = useCallback((name: string) => setLocations(prev => prev.filter(l => l !== name)), []);
 
   const getOTMsForCurrentUser = useCallback(() => {
     if (!user) return [];
@@ -67,12 +82,14 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   };
 
   const createOTM = useCallback((data: Partial<OTMRequest>): OTMRequest => {
+    const finalArea = data.area_sector || user!.area_sector || '';
+    const finalSpecialty = data.failure_type || '';
     const newOTM: OTMRequest = {
-      id: `otm-${Date.now()}`, otm_code: generateOTMCode(),
+      id: `otm-${Date.now()}`, otm_code: generateOTMCode(finalArea, finalSpecialty, otms.length + 1),
       requester_id: user!.id, requester_name: user!.full_name,
-      area_sector: user!.area_sector || data.area_sector || '',
+      area_sector: finalArea,
       exact_location: data.exact_location || null,
-      failure_type: data.failure_type || '', asset: data.asset || null,
+      failure_type: finalSpecialty, asset: data.asset || null,
       description: data.description || '', urgency: data.urgency || 'medium',
       location: data.location || null,
       supervisor_id: null, supervisor_notes: null, scheduled_date: null,
@@ -85,7 +102,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     setOTMs(prev => [newOTM, ...prev]);
     addLog(newOTM.id, null, 'pending', 'Solicitud creada');
     return newOTM;
-  }, [user]);
+  }, [user, otms]);
 
   const updateOTMStatus = useCallback((otmId: string, newStatus: OTMStatus, notes?: string) => {
     setOTMs(prev => prev.map(o => {
@@ -135,7 +152,9 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       createOTM, updateOTMStatus, assignOTM, addTechnicianNotes, submitConformity, refreshOTMs,
       users, addUser, updateUser,
       areas, addArea, updateArea,
-      specialties, addSpecialty, updateSpecialty
+      specialties, addSpecialty, updateSpecialty,
+      locations, addLocation, updateLocation,
+      deleteUser, deleteArea, deleteSpecialty, deleteLocation
     }}>
       {children}
     </OTMContext.Provider>

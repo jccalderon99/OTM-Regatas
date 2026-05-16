@@ -165,11 +165,11 @@ export let DEMO_USERS: Profile[] = [
   ...generalUsers
 ];
 
-export const generateOTMCode = () => {
-  const date = new Date();
-  const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  const randomNum = Math.floor(Math.random() * 9000) + 1000;
-  return `OTM-${dateStr}-${randomNum}`;
+export const generateOTMCode = (area?: string, specialty?: string, sequence: number = 1) => {
+  const aa = area ? area.split('.')[0].trim().padStart(2, '0') : '00';
+  const ee = specialty ? specialty.split('.')[0].trim().padStart(2, '0') : '00';
+  const nn = String(sequence).padStart(4, '0');
+  return `OTM${aa}${ee}-${nn}`;
 };
 
 const d1 = new Date(); d1.setDate(d1.getDate() - 2);

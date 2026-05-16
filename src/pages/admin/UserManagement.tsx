@@ -5,15 +5,17 @@ import { UserRole, Profile } from '../../types';
 export default function UserManagement() {
   const { 
     users, addUser, updateUser,
-    areas, addArea, updateArea,
-    specialties, addSpecialty, updateSpecialty
+    areas, addArea, updateArea, deleteArea,
+    specialties, addSpecialty, updateSpecialty, deleteSpecialty,
+    locations, addLocation, updateLocation, deleteLocation,
+    deleteUser
   } = useOTM();
 
-  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'supervisores' | 'tecnicos' | 'usuarios'>('areas');
+  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios'>('areas');
 
   // Unified Form States
   const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState<'supervisor' | 'technician' | 'user' | 'area' | 'specialty'>('user');
+  const [formType, setFormType] = useState<'supervisor' | 'technician' | 'user' | 'area' | 'specialty' | 'location'>('user');
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -32,6 +34,15 @@ export default function UserManagement() {
   const [techSpecialtyFilter, setTechSpecialtyFilter] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('');
   const [userAreaFilter, setUserAreaFilter] = useState('');
+  
+  // Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Clear selection on tab change
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeTab]);
 
   const supervisors = users.filter(u => u.role === 'supervisor');
   
@@ -50,6 +61,7 @@ export default function UserManagement() {
     setSingleValue('');
     setIsEditing(false);
     setEditId(null);
+    setSelectedIds(new Set());
   };
 
   const openForm = (type: typeof formType, itemToEdit?: any) => {
@@ -58,7 +70,7 @@ export default function UserManagement() {
     
     if (itemToEdit) {
       setIsEditing(true);
-      if (type === 'area' || type === 'specialty') {
+      if (type === 'area' || type === 'specialty' || type === 'location') {
         setSingleValue(itemToEdit);
         setEditId(itemToEdit); // Using original string as ID to find and replace
       } else {
@@ -87,6 +99,10 @@ export default function UserManagement() {
     else if (formType === 'specialty') {
       if (isEditing && editId) updateSpecialty(editId, singleValue);
       else addSpecialty(singleValue);
+    } 
+    else if (formType === 'location') {
+      if (isEditing && editId) updateLocation(editId, singleValue);
+      else addLocation(singleValue);
     } 
     else {
       const targetRole = formType === 'supervisor' ? 'supervisor' : formType === 'technician' ? 'technician' : role;
@@ -123,6 +139,29 @@ export default function UserManagement() {
     setShowForm(false);
   };
 
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = (ids: string[]) => {
+    if (selectedIds.size === ids.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(ids));
+  };
+
+  const handleDelete = () => {
+    selectedIds.forEach(id => {
+      if (activeTab === 'areas') deleteArea(id);
+      else if (activeTab === 'especialidades') deleteSpecialty(id);
+      else if (activeTab === 'ubicaciones') deleteLocation(id);
+      else deleteUser(id);
+    });
+    setSelectedIds(new Set());
+    setShowDeleteConfirm(false);
+  };
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-header flex justify-between items-center">
@@ -136,6 +175,7 @@ export default function UserManagement() {
       <div className="tabs">
         <button className={`tab ${activeTab === 'areas' ? 'active' : ''}`} onClick={() => setActiveTab('areas')}>Áreas Solicitantes</button>
         <button className={`tab ${activeTab === 'especialidades' ? 'active' : ''}`} onClick={() => setActiveTab('especialidades')}>Especialidades</button>
+        <button className={`tab ${activeTab === 'ubicaciones' ? 'active' : ''}`} onClick={() => setActiveTab('ubicaciones')}>Ubicaciones</button>
         <button className={`tab ${activeTab === 'supervisores' ? 'active' : ''}`} onClick={() => setActiveTab('supervisores')}>Supervisores</button>
         <button className={`tab ${activeTab === 'tecnicos' ? 'active' : ''}`} onClick={() => setActiveTab('tecnicos')}>Personal Técnico</button>
         <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Personal Usuario</button>
@@ -148,14 +188,27 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Directorio de Áreas del Club ({areas.length})</h3>
-              <button className="btn btn-primary" onClick={() => openForm('area')}>+ Nueva Área</button>
+              <div className="flex gap-2">
+                {selectedIds.size > 0 && (
+                  <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
+                    🗑️ Eliminar ({selectedIds.size})
+                  </button>
+                )}
+                <button className="btn btn-primary" onClick={() => openForm('area')}>+ Nueva Área</button>
+              </div>
             </div>
             <div className="data-table-wrapper">
               <table className="data-table">
-                <thead><tr><th>N° / Código</th><th>Nombre del Área</th><th>Acciones</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === areas.length} onChange={() => toggleAll(areas)} /></th>
+                    <th>N° / Código</th><th>Nombre del Área</th><th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {areas.map((a, i) => (
                     <tr key={i}>
+                      <td><input type="checkbox" checked={selectedIds.has(a)} onChange={() => toggleSelection(a)} /></td>
                       <td style={{ color: 'var(--text-muted)' }}>{a.split('.')[0] || String(i+1).padStart(2, '0')}</td>
                       <td style={{ fontWeight: 600 }}>{a.replace(/^\d+\.\s*/, '')}</td>
                       <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('area', a)}>Editar</button></td>
@@ -172,14 +225,27 @@ export default function UserManagement() {
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Especialidades de Mantenimiento ({specialties.length})</h3>
-              <button className="btn btn-primary" onClick={() => openForm('specialty')}>+ Nueva Especialidad</button>
+              <div className="flex gap-2">
+                {selectedIds.size > 0 && (
+                  <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
+                    🗑️ Eliminar ({selectedIds.size})
+                  </button>
+                )}
+                <button className="btn btn-primary" onClick={() => openForm('specialty')}>+ Nueva Especialidad</button>
+              </div>
             </div>
             <div className="data-table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Código</th><th>Especialidad</th><th>Acciones</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === specialties.length} onChange={() => toggleAll(specialties)} /></th>
+                    <th>Código</th><th>Especialidad</th><th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {specialties.map((f, i) => (
                     <tr key={i}>
+                      <td><input type="checkbox" checked={selectedIds.has(f)} onChange={() => toggleSelection(f)} /></td>
                       <td style={{ color: 'var(--text-muted)' }}>{f.split('.')[0] || String(i+1).padStart(2, '0')}</td>
                       <td style={{ fontWeight: 600 }}>{f.split('. ')[1] || f}</td>
                       <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('specialty', f)}>Editar</button></td>
@@ -191,19 +257,69 @@ export default function UserManagement() {
           </div>
         )}
 
-        {/* TAB 3: SUPERVISORES */}
+        {/* TAB 3: UBICACIONES */}
+        {activeTab === 'ubicaciones' && (
+          <div>
+            <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Directorio de Ubicaciones del Club ({locations.length})</h3>
+              <div className="flex gap-2">
+                {selectedIds.size > 0 && (
+                  <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
+                    🗑️ Eliminar ({selectedIds.size})
+                  </button>
+                )}
+                <button className="btn btn-primary" onClick={() => openForm('location')}>+ Nueva Ubicación</button>
+              </div>
+            </div>
+            <div className="data-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === locations.length} onChange={() => toggleAll(locations)} /></th>
+                    <th>N°</th><th>Nombre de la Ubicación</th><th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {locations.map((l, i) => (
+                    <tr key={i}>
+                      <td><input type="checkbox" checked={selectedIds.has(l)} onChange={() => toggleSelection(l)} /></td>
+                      <td style={{ color: 'var(--text-muted)' }}>{l.split('.')[0] || String(i+1).padStart(2, '0')}</td>
+                      <td style={{ fontWeight: 600 }}>{l.replace(/^\d+\.\s*/, '')}</td>
+                      <td><button className="btn btn-sm btn-ghost" onClick={() => openForm('location', l)}>Editar</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: SUPERVISORES */}
         {activeTab === 'supervisores' && (
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Registro de Supervisores ({supervisors.length})</h3>
-              <button className="btn btn-primary" onClick={() => openForm('supervisor')}>+ Nuevo Supervisor</button>
+              <div className="flex gap-2">
+                {selectedIds.size > 0 && (
+                  <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
+                    🗑️ Eliminar ({selectedIds.size})
+                  </button>
+                )}
+                <button className="btn btn-primary" onClick={() => openForm('supervisor')}>+ Nuevo Supervisor</button>
+              </div>
             </div>
             <div className="data-table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Nombre</th><th>Cargo</th><th>Correo</th><th>Acciones</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === supervisors.length} onChange={() => toggleAll(supervisors.map(s => s.id))} /></th>
+                    <th>Nombre</th><th>Cargo</th><th>Correo</th><th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {supervisors.map(u => (
                     <tr key={u.id}>
+                      <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
                       <td style={{ fontWeight: 600 }}>{u.full_name}</td>
                       <td>{u.position || 'Supervisor de Área'}</td>
                       <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
@@ -217,7 +333,7 @@ export default function UserManagement() {
           </div>
         )}
 
-        {/* TAB 4: TECNICOS */}
+        {/* TAB 5: TECNICOS */}
         {activeTab === 'tecnicos' && (
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
@@ -227,15 +343,26 @@ export default function UserManagement() {
                   <option value="">Todas las especialidades</option>
                   {specialties.map(s => <option key={s} value={s.split('. ')[1] || s}>{s.split('. ')[1] || s}</option>)}
                 </select>
+                {selectedIds.size > 0 && (
+                  <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
+                    🗑️ Eliminar ({selectedIds.size})
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={() => openForm('technician')}>+ Nuevo Técnico</button>
               </div>
             </div>
             <div className="data-table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Nombre</th><th>Especialidad / Cargo</th><th>Correo Institucional</th><th>Acciones</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === technicians.length} onChange={() => toggleAll(technicians.map(t => t.id))} /></th>
+                    <th>Nombre</th><th>Especialidad / Cargo</th><th>Correo Institucional</th><th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {technicians.map(u => (
                     <tr key={u.id}>
+                      <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
                       <td style={{ fontWeight: 600 }}>{u.full_name}</td>
                       <td>{u.position || 'Técnico Especialista'}</td>
                       <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
@@ -248,7 +375,7 @@ export default function UserManagement() {
           </div>
         )}
 
-        {/* TAB 5: USUARIOS */}
+        {/* TAB 6: USUARIOS */}
         {activeTab === 'usuarios' && (
           <div>
             <div className="flex justify-between items-center mb-4" style={{ marginBottom: 20 }}>
@@ -264,15 +391,26 @@ export default function UserManagement() {
                   <option value="">Todas las áreas</option>
                   {areas.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
+                {selectedIds.size > 0 && (
+                  <button className="btn btn-ghost" style={{ color: 'var(--accent-red)' }} onClick={() => setShowDeleteConfirm(true)}>
+                    🗑️ Eliminar ({selectedIds.size})
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={() => openForm('user')}>+ Nuevo Usuario</button>
               </div>
             </div>
             <div className="data-table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Usuario</th><th>Rol</th><th>Área</th><th>Jefatura Asignada</th><th>Acciones</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === generalUsers.length} onChange={() => toggleAll(generalUsers.map(u => u.id))} /></th>
+                    <th>Usuario</th><th>Rol</th><th>Área</th><th>Jefatura Asignada</th><th>Acciones</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {generalUsers.map(u => (
                     <tr key={u.id}>
+                      <td><input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelection(u.id)} /></td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{u.full_name}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.position || 'Colaborador'} | {u.email}</div>
@@ -305,17 +443,18 @@ export default function UserManagement() {
               {isEditing ? 'Editar Registro' : 
                 formType === 'area' ? 'Registrar Nueva Área' :
                 formType === 'specialty' ? 'Registrar Nueva Especialidad' :
+                formType === 'location' ? 'Registrar Nueva Ubicación' :
                 formType === 'supervisor' ? 'Registrar Supervisor' : 
                 formType === 'technician' ? 'Registrar Técnico' : 'Registrar Personal Usuario'}
             </h3>
             
             <form onSubmit={handleAddSubmit} className="flex-col gap-4">
               
-              {/* Single String Field (Areas & Specialties) */}
-              {(formType === 'area' || formType === 'specialty') && (
+              {/* Single String Field (Areas, Specialties & Locations) */}
+              {(formType === 'area' || formType === 'specialty' || formType === 'location') && (
                 <div className="form-group">
                   <label className="form-label">Nombre Completo (incluir número si aplica) *</label>
-                  <input className="form-input" required value={singleValue} onChange={e => setSingleValue(e.target.value)} placeholder={formType === 'area' ? 'Ej: 33. NUEVA ÁREA' : 'Ej: 08. Gasfitería Especial'} />
+                  <input className="form-input" required value={singleValue} onChange={e => setSingleValue(e.target.value)} placeholder={formType === 'area' ? 'Ej: 33. NUEVA ÁREA' : formType === 'location' ? 'Ej: 57. NUEVA UBICACIÓN' : 'Ej: 08. Gasfitería Especial'} />
                 </div>
               )}
 
@@ -389,6 +528,22 @@ export default function UserManagement() {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">Confirmar Eliminación</h3>
+            <p style={{ margin: '16px 0', color: 'var(--text-secondary)' }}>
+              ¿Estás seguro de que deseas eliminar los {selectedIds.size} registros seleccionados? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button className="btn btn-secondary" onClick={() => setShowDeleteConfirm(false)}>Cancelar</button>
+              <button className="btn btn-primary" style={{ background: 'var(--accent-red)' }} onClick={handleDelete}>✓ Sí, Eliminar</button>
+            </div>
           </div>
         </div>
       )}
