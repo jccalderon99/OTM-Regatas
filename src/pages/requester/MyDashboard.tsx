@@ -192,9 +192,14 @@ export default function MyDashboard() {
                       <div className="flex items-center gap-2">
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>{otm.otm_code}</span>
                         <StatusBadge status={otm.status} />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(otm.created_at).toLocaleDateString('es')}</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                        {otm.failure_type} | {new Date(otm.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(otm.created_at).toLocaleDateString('es')}</div>
                   </div>
-
+                  
                   {/* Expanded Details */}
                   {selectedOTM?.id === otm.id && (
                     <div className="slide-up" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
