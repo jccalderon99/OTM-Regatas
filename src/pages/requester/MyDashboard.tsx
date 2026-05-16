@@ -96,7 +96,7 @@ export default function MyDashboard() {
         <div className="responsive-chart-container" style={{ order: 1 }}>
           <div className="glass-card" style={{ height: 'fit-content' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Distribución por Prioridad</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div className="chart-content-mobile" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <svg width="100" height="100" viewBox="0 0 40 40">
                 <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="6" />
                 <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-rose)" strokeWidth="6"

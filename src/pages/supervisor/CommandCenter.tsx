@@ -247,7 +247,7 @@ export default function CommandCenter() {
       {/* Welcome Banner */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          BIENVENIDO SUPERVISOR {(currentSupervisorName || '').toUpperCase()}
+          BIENVENIDO {user.role === 'admin' ? 'ADMIN' : 'SUPERVISOR'} {(currentSupervisorName || '').toUpperCase()}
         </h1>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>Panel analítico de operaciones de mantenimiento — Club de Regatas Lima</p>
       </div>

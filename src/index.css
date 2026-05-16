@@ -403,8 +403,18 @@ a:hover { color: var(--accent-blue-hover); }
   }
 }
 
+
 .responsive-chart-container {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+@media (max-width: 640px) {
+  .chart-content-mobile {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
 }
