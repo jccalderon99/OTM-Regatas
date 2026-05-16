@@ -93,7 +93,7 @@ export default function MyDashboard() {
       </div>
 
       <div className="dashboard-main-grid" style={{ marginBottom: 28 }}>
-        <div className="responsive-chart-container" style={{ order: 1 }}>
+        <div className="responsive-chart-container dashboard-charts-col">
           <div className="glass-card" style={{ height: 'fit-content' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Distribución por Prioridad</h3>
             <div className="chart-content-mobile" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
@@ -128,7 +128,7 @@ export default function MyDashboard() {
           </div>
         </div>
 
-        <div style={{ order: 2 }}>
+        <div className="dashboard-list-col">
           <div className="glass-card" style={{ marginBottom: 20, padding: 16 }}>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="form-group" style={{ minWidth: 160 }}>

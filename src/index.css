@@ -372,17 +372,23 @@ a:hover { color: var(--accent-blue-hover); }
   top: 0;
 }
 
-/* Dashboard Layout Tweaks for Mobile */
+/* Dashboard Layout Tweaks */
 .dashboard-main-grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 350px;
   gap: 28px;
+  align-items: start;
 }
+
+.dashboard-list-col { order: 1; }
+.dashboard-charts-col { order: 2; }
 
 @media (max-width: 1200px) {
   .dashboard-main-grid {
     grid-template-columns: 1fr;
   }
+  .dashboard-list-col { order: 2; }
+  .dashboard-charts-col { order: 1; }
 }
 
 .kpi-mobile-small {
