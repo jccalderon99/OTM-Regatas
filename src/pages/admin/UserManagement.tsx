@@ -497,10 +497,22 @@ export default function UserManagement() {
                   </div>
 
                   <div className="grid-2">
-                    <div className="form-group">
-                      <label className="form-label">Cargo / Puesto *</label>
-                      <input className="form-input" required value={position} onChange={e => setPosition(e.target.value)} placeholder="Ej: Especialista" />
-                    </div>
+                    {formType === 'technician' ? (
+                      <div className="form-group">
+                        <label className="form-label">Especialidad *</label>
+                        <select className="form-select" required value={position} onChange={e => setPosition(e.target.value)}>
+                          <option value="">Seleccionar especialidad...</option>
+                          {specialties.map(spec => (
+                            <option key={spec} value={spec}>{spec}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="form-group">
+                        <label className="form-label">Cargo / Puesto *</label>
+                        <input className="form-input" required value={position} onChange={e => setPosition(e.target.value)} placeholder="Ej: Especialista" />
+                      </div>
+                    )}
                     
                     {formType === 'user' && (
                       <div className="form-group">

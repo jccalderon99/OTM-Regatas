@@ -57,6 +57,7 @@ export default function OTMManagement() {
   let filtered = otms
     .filter(o => !statusFilter || o.status === statusFilter)
     .filter(o => !urgencyFilter || o.urgency === urgencyFilter)
+    .filter(o => !supervisorFilter || o.supervisor_id === supervisorFilter)
     .filter(o => !search || o.otm_code.toLowerCase().includes(search.toLowerCase()) ||
       o.requester_name.toLowerCase().includes(search.toLowerCase()) ||
       o.area_sector.toLowerCase().includes(search.toLowerCase()) ||
