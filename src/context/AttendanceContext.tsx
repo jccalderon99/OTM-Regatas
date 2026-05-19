@@ -9,14 +9,15 @@ interface AttendanceContextType {
   checkIn: (lat: number, lng: number) => Promise<void>;
   checkOut: (lat: number, lng: number) => Promise<void>;
   updateRecord: (recordId: string, fields: Partial<AttendanceRecord>) => void;
+  geoConfig: {
+    lat: number;
+    lng: number;
+    maxDistance: number;
+  };
+  updateGeoConfig: (lat: number, lng: number, maxDistance: number) => void;
 }
 
 const AttendanceContext = createContext<AttendanceContextType | null>(null);
-
-// Lógica de validación de 400m
-const TARGET_LAT = -12.165922059229729;
-const TARGET_LNG = -77.03230912632046;
-const MAX_DISTANCE_METERS = 400;
 
 function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3; // Radius of the earth in m
@@ -32,6 +33,30 @@ function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number,
 
 export function AttendanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+
+  // Load geo config from localStorage or defaults
+  const [geoConfig, setGeoConfig] = useState(() => {
+    const saved = localStorage.getItem('geo_config');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.lat === 'number' && typeof parsed.lng === 'number' && typeof parsed.maxDistance === 'number') {
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return {
+      lat: -12.165922059229729,
+      lng: -77.03230912632046,
+      maxDistance: 400
+    };
+  });
+
+  const updateGeoConfig = useCallback((lat: number, lng: number, maxDistance: number) => {
+    const newConfig = { lat, lng, maxDistance };
+    setGeoConfig(newConfig);
+    localStorage.setItem('geo_config', JSON.stringify(newConfig));
+  }, []);
   
   // Simulated initial records (so the table isn't empty)
   const [records, setRecords] = useState<AttendanceRecord[]>(() => {
@@ -50,7 +75,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
           date: today,
           check_in_time: isLate ? '08:15' : '07:50',
           check_out_time: null,
-          check_in_location: { lat: TARGET_LAT, lng: TARGET_LNG },
+          check_in_location: { lat: geoConfig.lat, lng: geoConfig.lng },
           check_out_location: null,
           tags: isLate ? ['Tarde'] : [],
           created_at: new Date().toISOString(),
@@ -70,9 +95,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   const checkIn = useCallback(async (lat: number, lng: number) => {
     if (!user) throw new Error("No autenticado");
     
-    const distance = getDistanceFromLatLonInMeters(lat, lng, TARGET_LAT, TARGET_LNG);
-    if (distance > MAX_DISTANCE_METERS) {
-      throw new Error(`Ubicación fuera de rango. Estás a ${Math.round(distance)}m del club (Límite: ${MAX_DISTANCE_METERS}m).`);
+    const distance = getDistanceFromLatLonInMeters(lat, lng, geoConfig.lat, geoConfig.lng);
+    if (distance > geoConfig.maxDistance) {
+      throw new Error(`Ubicación fuera de rango. Estás a ${Math.round(distance)}m del club (Límite: ${geoConfig.maxDistance}m).`);
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -100,13 +125,13 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     };
 
     setRecords(prev => [...prev, newRecord]);
-  }, [user]);
+  }, [user, geoConfig]);
 
   const checkOut = useCallback(async (lat: number, lng: number) => {
     if (!user) throw new Error("No autenticado");
     
-    const distance = getDistanceFromLatLonInMeters(lat, lng, TARGET_LAT, TARGET_LNG);
-    if (distance > MAX_DISTANCE_METERS) {
+    const distance = getDistanceFromLatLonInMeters(lat, lng, geoConfig.lat, geoConfig.lng);
+    if (distance > geoConfig.maxDistance) {
       throw new Error(`Ubicación fuera de rango. Estás a ${Math.round(distance)}m del club.`);
     }
 
@@ -125,14 +150,14 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       }
       return r;
     }));
-  }, [user]);
+  }, [user, geoConfig]);
 
   const updateRecord = useCallback((recordId: string, fields: Partial<AttendanceRecord>) => {
     setRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...fields, updated_at: new Date().toISOString() } : r));
   }, []);
 
   return (
-    <AttendanceContext.Provider value={{ records, getRecordToday, checkIn, checkOut, updateRecord }}>
+    <AttendanceContext.Provider value={{ records, getRecordToday, checkIn, checkOut, updateRecord, geoConfig, updateGeoConfig }}>
       {children}
     </AttendanceContext.Provider>
   );
