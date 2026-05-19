@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { OTMRequest, URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack: () => void }) {
   const { startTechnicianWork, finishTechnicianWork } = useOTM();
   const [notes, setNotes] = useState(otm.technician_notes || '');
-  const [photos, setPhotos] = useState<{ name: string; type: string; url: string }[]>([]);
+  const [photos, setPhotos] = useState<{ name: string; type: string; url: string; file?: File }[]>([]);
   const [completing, setCompleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     Array.from(files).forEach(file => {
       const url = URL.createObjectURL(file);
-      setPhotos(p => [...p, { name: file.name, type: file.type, url }]);
+      setPhotos(p => [...p, { name: file.name, type: file.type, url, file }]);
     });
   };
 
@@ -22,9 +24,27 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
     startTechnicianWork(otm.id);
   };
 
-  const handleComplete = () => {
-    finishTechnicianWork(otm.id, notes, photos.map(p => ({ file_url: p.url, file_name: p.name })));
-    setCompleting(true);
+  const handleComplete = async () => {
+    setUploading(true);
+    try {
+      // Upload photos to Cloudinary (compressed)
+      const uploaded = await Promise.all(
+        photos.map(async p => {
+          if (p.file) {
+            const result = await uploadToCloudinary(p.file, 'otm-regatas/execution');
+            return { file_url: result.url, file_name: p.name };
+          }
+          return { file_url: p.url, file_name: p.name };
+        })
+      );
+      await finishTechnicianWork(otm.id, notes, uploaded);
+      setCompleting(true);
+    } catch (err) {
+      console.error('Error al completar:', err);
+      alert('Error al subir fotos. Intente de nuevo.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (completing) {
@@ -113,8 +133,8 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
           </div>
 
           {/* Complete */}
-          <button className="btn btn-primary btn-lg w-full" onClick={handleComplete} disabled={notes.length < 5}>
-            ✓ Completar Trabajo y Enviar a Supervisor
+          <button className="btn btn-primary btn-lg w-full" onClick={handleComplete} disabled={notes.length < 5 || uploading}>
+            {uploading ? '⏳ Subiendo fotos...' : '✓ Completar Trabajo y Enviar a Supervisor'}
           </button>
         </div>
       )}
