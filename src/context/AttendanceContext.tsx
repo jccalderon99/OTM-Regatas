@@ -13,10 +13,10 @@ interface AttendanceContextType {
 
 const AttendanceContext = createContext<AttendanceContextType | null>(null);
 
-// Lógica de validación de 300m
+// Lógica de validación de 400m
 const TARGET_LAT = -12.165922059229729;
 const TARGET_LNG = -77.03230912632046;
-const MAX_DISTANCE_METERS = 300;
+const MAX_DISTANCE_METERS = 400;
 
 function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3; // Radius of the earth in m

@@ -35,24 +35,27 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
 
   return (
     <div>
-      <div className="flex justify-between items-center" style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Mi Calendario de Tareas</h1>
-        <div className="flex items-center gap-4">
-          <button className="btn btn-ghost" onClick={prevMonth}>&lt;</button>
-          <span style={{ fontWeight: 700, fontSize: '1.1rem', minWidth: 150, textAlign: 'center' }}>
-            {currentDate.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase()}
-          </span>
-          <button className="btn btn-ghost" onClick={nextMonth}>&gt;</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <h1 className="page-title" style={{ margin: 0 }}>Mi Calendario de Tareas</h1>
+          <div className="flex items-center gap-2" style={{ background: 'var(--bg-secondary)', padding: '4px 12px', borderRadius: 12, border: '1px solid var(--border)' }}>
+            <button className="btn btn-ghost" style={{ padding: '4px 10px', minHeight: 0, height: 'auto' }} onClick={prevMonth}>&lt;</button>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', minWidth: 140, textAlign: 'center', color: 'var(--text-primary)' }}>
+              {currentDate.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase()}
+            </span>
+            <button className="btn btn-ghost" style={{ padding: '4px 10px', minHeight: 0, height: 'auto' }} onClick={nextMonth}>&gt;</button>
+          </div>
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
-          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
-            <div key={d} style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{d}</div>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(100px, auto)' }}>
+      <div className="glass-card" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+              <div key={d} style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(100px, auto)' }}>
           {days.map((day, i) => {
             if (!day) return <div key={i} style={{ borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.01)' }} />;
             
@@ -116,6 +119,7 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
@@ -153,16 +157,20 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                 <div style={{ fontWeight: 600 }}>Área: {selectedOTM.area_sector} | Solicitante: {selectedOTM.requester_name}</div>
                 <div style={{ fontWeight: 600 }}>📍 {selectedOTM.location || 'Sede Principal'} - {selectedOTM.exact_location}</div>
               </div>
-              {selectedOTM.images && selectedOTM.images.length > 0 && (
-                <div>
-                  <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 8 }}>Imágenes Adjuntas</strong>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {selectedOTM.images.map((img: string, idx: number) => (
-                      <img key={idx} src={img} alt={`Evidencia ${idx}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-                    ))}
+              {(() => {
+                const images = selectedOTM.attachments ? selectedOTM.attachments.map((a: any) => a.file_url) : [];
+                if (images.length === 0) return null;
+                return (
+                  <div>
+                    <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 8 }}>Imágenes Adjuntas</strong>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {images.map((img: string, idx: number) => (
+                        <img key={idx} src={img} alt={`Evidencia ${idx}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <button 

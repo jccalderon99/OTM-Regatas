@@ -55,33 +55,34 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
 
   return (
     <div>
-      <div className="flex justify-between items-center" style={{ marginBottom: 24 }}>
-        <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <h1 className="page-title" style={{ margin: 0 }}>Calendario General de Mantenimiento</h1>
-          <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-            {Object.entries(SPECS_COLORS).map(([spec, color]) => (
-              <div key={spec} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: color }} /> {spec.split('. ')[1] || spec}
-              </div>
-            ))}
+          <div className="flex items-center gap-2" style={{ background: 'var(--bg-secondary)', padding: '4px 12px', borderRadius: 12, border: '1px solid var(--border)' }}>
+            <button className="btn btn-ghost" style={{ padding: '4px 10px', minHeight: 0, height: 'auto' }} onClick={prevMonth}>&lt;</button>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', minWidth: 140, textAlign: 'center', color: 'var(--text-primary)' }}>
+              {currentDate.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase()}
+            </span>
+            <button className="btn btn-ghost" style={{ padding: '4px 10px', minHeight: 0, height: 'auto' }} onClick={nextMonth}>&gt;</button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="btn btn-ghost" onClick={prevMonth}>&lt;</button>
-          <span style={{ fontWeight: 700, fontSize: '1.1rem', minWidth: 150, textAlign: 'center' }}>
-            {currentDate.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase()}
-          </span>
-          <button className="btn btn-ghost" onClick={nextMonth}>&gt;</button>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+          {Object.entries(SPECS_COLORS).map(([spec, color]) => (
+            <div key={spec} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: color }} /> {spec.split('. ')[1] || spec}
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
-          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
-            <div key={d} style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{d}</div>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(120px, auto)' }}>
+      <div className="glass-card" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+              <div key={d} style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(120px, auto)' }}>
           {days.map((day, i) => {
             if (!day) return <div key={i} style={{ borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.01)' }} />;
             
@@ -149,6 +150,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
@@ -173,8 +175,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
             <div style={{ display: 'inline-block', padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, marginBottom: 20 }}>
               Estado: <span style={{ color: 'var(--accent-blue)' }}>{selectedOTM.status.toUpperCase()}</span>
             </div>
-            
-            <div style={{ display: 'grid', gap: 16, marginBottom: 24, fontSize: '0.9rem' }}>
+                     <div style={{ display: 'grid', gap: 16, marginBottom: 24, fontSize: '0.9rem' }}>
               <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Ubicación</strong>
                 <div style={{ fontWeight: 600 }}>Área: {selectedOTM.area_sector} | Solicitante: {selectedOTM.requester_name}</div>
@@ -186,7 +187,12 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
               </div>
               <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Técnico Asignado</strong>
-                <div style={{ fontWeight: 600 }}>{selectedOTM.technician?.full_name || 'Desconocido'}</div>
+                <div style={{ fontWeight: 600 }}>
+                  {(() => {
+                    const tUser = users.find(u => u.id === selectedOTM.technician_id);
+                    return tUser ? tUser.full_name : 'Desconocido';
+                  })()}
+                </div>
               </div>
               <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Descripción del Problema</strong>
@@ -194,31 +200,28 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                   {selectedOTM.description}
                 </div>
               </div>
-              {selectedOTM.images && selectedOTM.images.length > 0 && (
-                <div>
-                  <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 8 }}>Imágenes Adjuntas</strong>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {selectedOTM.images.map((img: string, idx: number) => (
-                      <img key={idx} src={img} alt={`Evidencia ${idx}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-                    ))}
+              {(() => {
+                const images = selectedOTM.attachments ? selectedOTM.attachments.map((a: any) => a.file_url) : [];
+                if (images.length === 0) return null;
+                return (
+                  <div>
+                    <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 8 }}>Imágenes Adjuntas</strong>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {images.map((img: string, idx: number) => (
+                        <img key={idx} src={img} alt={`Evidencia ${idx}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <button 
-              className="btn w-full"
-              style={{ background: 'var(--text-primary)', color: 'white', fontSize: '1rem', padding: 12 }}
-              onClick={() => {
-                setSelectedOTM(null);
-                if (onNavigate) {
-                  onNavigate('management');
-                } else {
-                  alert("Redirigiendo a Gestión OTMs (Simulado)");
-                }
-              }}
+              className="btn btn-secondary w-full"
+              style={{ fontSize: '1rem', padding: 12 }}
+              onClick={() => setSelectedOTM(null)}
             >
-              Ir a la Tarea
+              Cerrar
             </button>
           </div>
         </div>
