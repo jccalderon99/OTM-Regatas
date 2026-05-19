@@ -381,27 +381,29 @@ export default function CommandCenter() {
         <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#334155', marginBottom: 20 }}>
           Solicitudes por Área — Distribución del Club
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {areaData.length > 0 ? areaData.map(([area, count], i) => {
-            const areaColors = [pastel.blue, pastel.green, pastel.orange, pastel.purple, pastel.coral, pastel.yellow];
-            const color = areaColors[i % areaColors.length];
-            return (
-              <div key={area}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>{area}</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{count}</span>
+        <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '235px', overflowY: 'auto', paddingRight: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {areaData.length > 0 ? areaData.map(([area, count], i) => {
+              const areaColors = [pastel.blue, pastel.green, pastel.orange, pastel.purple, pastel.coral, pastel.yellow];
+              const color = areaColors[i % areaColors.length];
+              return (
+                <div key={area}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>{area}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{count}</span>
+                  </div>
+                  <div style={{ height: 10, background: '#f1f5f9', borderRadius: 5, overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${(count / maxArea) * 100}%`, height: '100%', borderRadius: 5,
+                      background: color, transition: 'width 0.6s ease'
+                    }}></div>
+                  </div>
                 </div>
-                <div style={{ height: 10, background: '#f1f5f9', borderRadius: 5, overflow: 'hidden' }}>
-                  <div style={{
-                    width: `${(count / maxArea) * 100}%`, height: '100%', borderRadius: 5,
-                    background: color, transition: 'width 0.6s ease'
-                  }}></div>
-                </div>
-              </div>
-            );
-          }) : (
-            <div style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', padding: '30px 0' }}>Sin datos disponibles en el periodo</div>
-          )}
+              );
+            }) : (
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', padding: '30px 0' }}>Sin datos disponibles en el periodo</div>
+            )}
+          </div>
         </div>
       </div>
       
