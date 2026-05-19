@@ -45,7 +45,7 @@ interface OTMContextType {
 const OTMContext = createContext<OTMContextType | null>(null);
 
 export function OTMProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, updateCurrentUser } = useAuth();
   const isLive = isSupabaseConfigured();
 
   const [otms, setOTMs] = useState<OTMRequest[]>(isLive ? [] : [...DEMO_OTMS]);
@@ -350,7 +350,11 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     } else {
       setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
     }
-  }, [isLive]);
+    // Sync current logged-in user profile changes dynamically
+    if (user && (user.id === updated.id || user.email.toLowerCase() === updated.email.toLowerCase())) {
+      updateCurrentUser(updated);
+    }
+  }, [isLive, user, updateCurrentUser]);
 
   const deleteUser = useCallback(async (id: string) => {
     if (isLive) {
