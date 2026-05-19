@@ -27,7 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
       if (isDemo) {
-        const found = DEMO_USERS.find(u => u.email === email);
+        const saved = localStorage.getItem('demo_users');
+        const usersList: Profile[] = saved ? JSON.parse(saved) : DEMO_USERS;
+        const found = usersList.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
         if (!found) throw new Error('Usuario no encontrado. Usa uno de los correos de demostración.');
         setState({ user: found, loading: false, error: null });
         return;
@@ -47,7 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isDemo]);
 
   const loginAsDemo = useCallback((userId: string) => {
-    const found = DEMO_USERS.find(u => u.id === userId);
+    const saved = localStorage.getItem('demo_users');
+    const usersList: Profile[] = saved ? JSON.parse(saved) : DEMO_USERS;
+    const found = usersList.find(u => u.id === userId);
     if (found) setState({ user: found, loading: false, error: null });
   }, []);
 

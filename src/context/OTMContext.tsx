@@ -48,12 +48,61 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const { user, updateCurrentUser } = useAuth();
   const isLive = isSupabaseConfigured();
 
-  const [otms, setOTMs] = useState<OTMRequest[]>(isLive ? [] : [...DEMO_OTMS]);
-  const [statusLogs, setLogs] = useState<OTMStatusLog[]>(isLive ? [] : [...DEMO_STATUS_LOGS]);
-  const [users, setUsers] = useState<Profile[]>(isLive ? [] : [...DEMO_USERS]);
-  const [areas, setAreas] = useState<string[]>(isLive ? [] : [...INITIAL_AREAS]);
-  const [specialties, setSpecialties] = useState<string[]>(isLive ? [] : [...INITIAL_FAILURES]);
-  const [locations, setLocations] = useState<string[]>(isLive ? [] : [...INITIAL_LOCATIONS]);
+  const [otms, setOTMs] = useState<OTMRequest[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_otms');
+    return saved ? JSON.parse(saved) : [...DEMO_OTMS];
+  });
+  const [statusLogs, setLogs] = useState<OTMStatusLog[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_status_logs');
+    return saved ? JSON.parse(saved) : [...DEMO_STATUS_LOGS];
+  });
+  const [users, setUsers] = useState<Profile[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_users');
+    return saved ? JSON.parse(saved) : [...DEMO_USERS];
+  });
+  const [areas, setAreas] = useState<string[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_areas');
+    return saved ? JSON.parse(saved) : [...INITIAL_AREAS];
+  });
+  const [specialties, setSpecialties] = useState<string[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_specialties');
+    return saved ? JSON.parse(saved) : [...INITIAL_FAILURES];
+  });
+  const [locations, setLocations] = useState<string[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_locations');
+    return saved ? JSON.parse(saved) : [...INITIAL_LOCATIONS];
+  });
+
+  // ── Demo persistence effects ──
+  useEffect(() => {
+    if (!isLive) localStorage.setItem('demo_otms', JSON.stringify(otms));
+  }, [otms, isLive]);
+
+  useEffect(() => {
+    if (!isLive) localStorage.setItem('demo_status_logs', JSON.stringify(statusLogs));
+  }, [statusLogs, isLive]);
+
+  useEffect(() => {
+    if (!isLive) localStorage.setItem('demo_users', JSON.stringify(users));
+  }, [users, isLive]);
+
+  useEffect(() => {
+    if (!isLive) localStorage.setItem('demo_areas', JSON.stringify(areas));
+  }, [areas, isLive]);
+
+  useEffect(() => {
+    if (!isLive) localStorage.setItem('demo_specialties', JSON.stringify(specialties));
+  }, [specialties, isLive]);
+
+  useEffect(() => {
+    if (!isLive) localStorage.setItem('demo_locations', JSON.stringify(locations));
+  }, [locations, isLive]);
 
   // ── Supabase: Load initial data ──
   const fetchAll = useCallback(async () => {
