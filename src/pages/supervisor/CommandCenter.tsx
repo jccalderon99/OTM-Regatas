@@ -117,7 +117,7 @@ export default function CommandCenter() {
       }
     });
 
-    return Object.values(map).sort((a, b) => b.closed - a.closed).slice(0, 10);
+    return Object.values(map).sort((a, b) => b.closed - a.closed);
   }, [filteredOTMs, baseOtms, technicians]);
   
   const maxTechClosed = Math.max(...techData.map(t => t.closed), 1);
@@ -165,7 +165,7 @@ export default function CommandCenter() {
 
   // SVG Line Chart helper
   const chartW = 440;
-  const chartH = 160;
+  const chartH = 200;
   const padL = 30;
   const padR = 10;
   const padT = 10;
@@ -203,14 +203,20 @@ export default function CommandCenter() {
 
   return (
     <div>
+      {/* Title */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          {user.role === 'admin'
+            ? `Admin ${(user.full_name || '').split(' ')[0]}`
+            : `Supervisor ${(currentSupervisorName || '').split(' ').slice(0, 2).join(' ')}`}
+        </h1>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>Panel analítico de operaciones de mantenimiento — Club de Regatas Lima</p>
+      </div>
+
       {/* Filters Banner */}
       <div className="glass-card" style={{ marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--accent-blue)', lineHeight: 1 }}>CRL</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', fontWeight: 800 }}>1875</div>
-          </div>
-          <div className="form-group" style={{ minWidth: 220, marginBottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <div className="form-group" style={{ minWidth: 200, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Elegir Supervisor:</label>
             <select className="form-select" style={{ padding: '6px 12px', fontSize: '0.85rem' }} value={supervisorFilter} onChange={e => setSupervisorFilter(e.target.value)}>
               <option value="">Todos los Supervisores</option>
@@ -220,7 +226,7 @@ export default function CommandCenter() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ minWidth: 150, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 140, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Periodo:</label>
             <select className="form-select" style={{ padding: '6px 12px', fontSize: '0.85rem' }} value={dateFilter} onChange={handleDateFilterChange}>
               <option value="today">Día</option>
@@ -231,25 +237,17 @@ export default function CommandCenter() {
               <option value="custom">Personalizado</option>
             </select>
           </div>
-          <div className="form-group" style={{ minWidth: 130, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 120, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Desde:</label>
             <input type="date" className="form-input" style={{ padding: '5px 10px', fontSize: '0.8rem' }} 
               value={customStart} onChange={e => { setCustomStart(e.target.value); handleCustomDateChange(); }} />
           </div>
-          <div className="form-group" style={{ minWidth: 130, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 120, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Hasta:</label>
             <input type="date" className="form-input" style={{ padding: '5px 10px', fontSize: '0.8rem' }} 
               value={customEnd} onChange={e => { setCustomEnd(e.target.value); handleCustomDateChange(); }} />
           </div>
         </div>
-      </div>
-
-      {/* Welcome Banner */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          BIENVENIDO {user.role === 'admin' ? 'ADMIN' : 'SUPERVISOR'} {(currentSupervisorName || '').toUpperCase()}
-        </h1>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>Panel analítico de operaciones de mantenimiento — Club de Regatas Lima</p>
       </div>
 
       {/* KPI Cards */}
@@ -281,7 +279,7 @@ export default function CommandCenter() {
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#334155', marginBottom: 20 }}>
             OTMs por Técnico (Cerradas)
           </h3>
-          <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 420, paddingRight: 12 }}>
+          <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '235px', overflowY: 'auto', paddingRight: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {techData.length > 0 ? techData.map((t, i) => {
               const isExpanded = expandedTechs[t.id];
@@ -353,7 +351,7 @@ export default function CommandCenter() {
               <span style={{ width: 12, height: 3, borderRadius: 2, background: pastel.green, display: 'inline-block' }}></span> Cerradas
             </span>
           </div>
-          <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 'auto' }}>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: '180px', maxHeight: '180px' }}>
             {/* Grid lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
               <line key={i} x1={padL} x2={chartW - padR} y1={toY(f * maxDaily)} y2={toY(f * maxDaily)} stroke="#f1f5f9" strokeWidth="1" />
@@ -383,27 +381,29 @@ export default function CommandCenter() {
         <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#334155', marginBottom: 20 }}>
           Solicitudes por Área — Distribución del Club
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {areaData.length > 0 ? areaData.map(([area, count], i) => {
-            const areaColors = [pastel.blue, pastel.green, pastel.orange, pastel.purple, pastel.coral, pastel.yellow];
-            const color = areaColors[i % areaColors.length];
-            return (
-              <div key={area}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>{area}</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{count}</span>
+        <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '235px', overflowY: 'auto', paddingRight: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {areaData.length > 0 ? areaData.map(([area, count], i) => {
+              const areaColors = [pastel.blue, pastel.green, pastel.orange, pastel.purple, pastel.coral, pastel.yellow];
+              const color = areaColors[i % areaColors.length];
+              return (
+                <div key={area}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 500 }}>{area}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{count}</span>
+                  </div>
+                  <div style={{ height: 10, background: '#f1f5f9', borderRadius: 5, overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${(count / maxArea) * 100}%`, height: '100%', borderRadius: 5,
+                      background: color, transition: 'width 0.6s ease'
+                    }}></div>
+                  </div>
                 </div>
-                <div style={{ height: 10, background: '#f1f5f9', borderRadius: 5, overflow: 'hidden' }}>
-                  <div style={{
-                    width: `${(count / maxArea) * 100}%`, height: '100%', borderRadius: 5,
-                    background: color, transition: 'width 0.6s ease'
-                  }}></div>
-                </div>
-              </div>
-            );
-          }) : (
-            <div style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', padding: '30px 0' }}>Sin datos disponibles en el periodo</div>
-          )}
+              );
+            }) : (
+              <div style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', padding: '30px 0' }}>Sin datos disponibles en el periodo</div>
+            )}
+          </div>
         </div>
       </div>
       

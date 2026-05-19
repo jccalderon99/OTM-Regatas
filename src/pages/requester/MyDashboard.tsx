@@ -96,16 +96,36 @@ export default function MyDashboard() {
         <div className="responsive-chart-container dashboard-charts-col">
           <div className="glass-card" style={{ height: 'fit-content' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Distribución por Prioridad</h3>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, padding: '10px 0', flexWrap: 'wrap' }}>
-              <svg width="100" height="100" viewBox="0 0 40 40">
-                <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="6" />
-                <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-rose)" strokeWidth="6"
-                  strokeDasharray={`${(priorityData.high / (priorityData.total || 1)) * 100} 100`} />
-              </svg>
-              <div className="flex-col gap-2">
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-rose)', fontWeight: 700 }}>Alta: {priorityData.high}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 700 }}>Media: {priorityData.medium}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 700 }}>Baja: {priorityData.low}</div>
+            <div className="flex items-center justify-center gap-6 py-4 flex-wrap">
+              <div style={{ position: 'relative', width: 100, height: 100 }}>
+                <svg width="100" height="100" viewBox="0 0 40 40" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="6" />
+                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-rose)" strokeWidth="6"
+                    strokeDasharray={`${(priorityData.high / (priorityData.total || 1)) * 100} 100`} />
+                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-amber)" strokeWidth="6"
+                    strokeDasharray={`${(priorityData.medium / (priorityData.total || 1)) * 100} 100`}
+                    strokeDashoffset={`-${(priorityData.high / (priorityData.total || 1)) * 100}`} />
+                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-emerald)" strokeWidth="6"
+                    strokeDasharray={`${(priorityData.low / (priorityData.total || 1)) * 100} 100`}
+                    strokeDashoffset={`-${((priorityData.high + priorityData.medium) / (priorityData.total || 1)) * 100}`} />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800 }}>
+                  {priorityData.total}
+                </div>
+              </div>
+              <div className="flex-col gap-1">
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-rose)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-rose)' }}></span>
+                  Alta: {priorityData.high}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-amber)' }}></span>
+                  Media: {priorityData.medium}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-emerald)' }}></span>
+                  Baja: {priorityData.low}
+                </div>
               </div>
             </div>
           </div>

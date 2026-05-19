@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useOTM } from '../../context/OTMContext';
 import { Urgency, URGENCY_LABELS } from '../../types';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface FormData {
   area_sector: string;
@@ -22,6 +23,7 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [createdCode, setCreatedCode] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const set = (key: keyof FormData, val: string) => setForm(f => ({ ...f, [key]: val }));
 
@@ -41,22 +43,33 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
     return true;
   };
 
-  const handleSubmit = () => {
-    const attachments = images.map((img, i) => ({
-      id: `att-${Date.now()}-${i}`,
-      otm_id: '',
-      uploaded_by: user!.id,
-      file_url: URL.createObjectURL(img),
-      file_name: img.name,
-      file_type: 'other' as const,
-      phase: 'request' as const,
-      created_at: new Date().toISOString(),
-    }));
-    
-    const otm = createOTM({ ...form, attachments });
-    setCreatedCode(otm.otm_code);
-    setSubmitted(true);
-    setImages([]); // clear for next time
+  const handleSubmit = async () => {
+    setUploading(true);
+    try {
+      // Upload images to Cloudinary (compressed)
+      const uploaded = await Promise.all(
+        images.map(img => uploadToCloudinary(img, 'otm-regatas/request'))
+      );
+      const attachments = uploaded.map((u, i) => ({
+        id: `att-${Date.now()}-${i}`,
+        otm_id: '',
+        uploaded_by: user!.id,
+        file_url: u.url,
+        file_name: images[i].name,
+        file_type: 'other' as const,
+        phase: 'request' as const,
+        created_at: new Date().toISOString(),
+      }));
+      const otm = await createOTM({ ...form, attachments });
+      setCreatedCode(otm.otm_code);
+      setSubmitted(true);
+      setImages([]);
+    } catch (err) {
+      console.error('Error al enviar OTM:', err);
+      alert('Error al subir la solicitud. Intente de nuevo.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (submitted) {
@@ -245,7 +258,9 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
           {step < 4 ? (
             <button className="btn btn-primary" onClick={() => setStep(s => s + 1)} disabled={!canNext()}>Siguiente →</button>
           ) : (
-            <button className="btn btn-primary btn-lg" onClick={handleSubmit}>✓ Enviar Solicitud</button>
+            <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={uploading}>
+              {uploading ? '⏳ Subiendo...' : '✓ Enviar Solicitud'}
+            </button>
           )}
         </div>
       </div>
