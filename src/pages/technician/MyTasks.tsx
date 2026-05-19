@@ -62,7 +62,8 @@ export default function MyTasks() {
                     <span style={{ fontWeight: 600 }}>{otm.requester_name}</span> — {otm.failure_type}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    {otm.area_sector}{otm.exact_location ? ` — ${otm.exact_location}` : ''}
+                    Área: {otm.area_sector}<br />
+                    📍 {otm.location || 'Sede Principal'} — {otm.exact_location}
                   </div>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 6 }}>{otm.description.slice(0, 120)}{otm.description.length > 120 ? '...' : ''}</p>
                 </div>

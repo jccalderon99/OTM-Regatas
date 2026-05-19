@@ -4,14 +4,15 @@ import { useOTM } from '../../context/OTMContext';
 import { Urgency, URGENCY_LABELS } from '../../types';
 
 interface FormData {
-  area_sector: string; // Used for "Ubicación" dropdown
+  area_sector: string;
+  location: string;
   failure_type: string;
   description: string;
   urgency: Urgency;
   exact_location: string;
 }
 
-const INITIAL: FormData = { area_sector: '', failure_type: '', description: '', urgency: 'medium', exact_location: '' };
+const INITIAL: FormData = { area_sector: '', location: '', failure_type: '', description: '', urgency: 'medium', exact_location: '' };
 
 export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   const { user } = useAuth();
@@ -33,7 +34,7 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   ];
 
   const canNext = () => {
-    if (step === 0) return form.area_sector.length > 0;
+    if (step === 0) return form.location.length > 0;
     if (step === 1) return form.failure_type.length > 0 && form.description.length > 0;
     if (step === 2) return true;
     if (step === 3) return true;
@@ -125,7 +126,7 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
           <div className="flex-col gap-4">
             <div className="form-group">
               <label className="form-label">Ubicación *</label>
-              <select className="form-select" value={form.area_sector} onChange={e => set('area_sector', e.target.value)}>
+              <select className="form-select" value={form.location} onChange={e => set('location', e.target.value)}>
                 <option value="">Seleccionar ubicación...</option>
                 {locations.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
@@ -220,7 +221,7 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
         {step === 4 && (
           <div className="flex-col gap-3">
             {[
-              ['Ubicación', form.area_sector],
+              ['Ubicación', form.location || '—'],
               ['Ubicación Exacta', form.exact_location || '—'],
               ['Especialidad', form.failure_type],
               ['Urgencia', URGENCY_LABELS[form.urgency]],

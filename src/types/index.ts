@@ -145,6 +145,20 @@ export interface KPIData {
   cancelled: number;
 }
 
+export interface AttendanceRecord {
+  id: string;
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  check_in_time: string | null;
+  check_out_time: string | null;
+  check_in_location: { lat: number; lng: number } | null;
+  check_out_location: { lat: number; lng: number } | null;
+  tags: string[]; // e.g. "Tarde", "Falta"
+  created_at: string;
+  updated_at: string;
+  user?: Profile;
+}
+
 export const STATUS_LABELS: Record<OTMStatus, string> = {
   pending: 'Pendiente',
   scheduled: 'Programado',
@@ -163,13 +177,15 @@ export const URGENCY_LABELS: Record<Urgency, string> = {
 };
 
 export const FAILURE_TYPES = [
-  '01. Albañilería',
-  '02. Carpintería',
-  '03. Electricidad',
-  '04. Gasfitería',
-  '05. Pintura',
-  '06. Jardinería',
-  '07. Otros',
+  '01. Operador de Calderos',
+  '02. Piscinero',
+  '03. Electricista',
+  '04. Carpintero',
+  '05. Jardinero',
+  '06. Gasfitero',
+  '07. Albañil',
+  '08. Pintor',
+  '09. Otros'
 ];
 
 export const AREAS = [

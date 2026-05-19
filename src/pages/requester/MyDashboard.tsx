@@ -204,7 +204,10 @@ export default function MyDashboard() {
                   {selectedOTM?.id === otm.id && (
                     <div className="slide-up" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>{otm.description}</p>
-                      {otm.exact_location && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>📍 {otm.exact_location}</div>}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Área: {otm.area_sector} | Solicitante: {otm.requester_name}<br />
+                        📍 {otm.location || 'Sede Principal'} — {otm.exact_location}
+                      </div>
 
                       {/* Images */}
                       {otm.attachments && otm.attachments.length > 0 && (

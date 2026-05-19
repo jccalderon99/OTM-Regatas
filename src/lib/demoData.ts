@@ -1,24 +1,41 @@
 import { Profile, OTMRequest, OTMStatusLog, OTMStatus, Urgency, AssignmentType, RQType, RQMagnitude } from '../types';
 
-const techNames = [
-  "Antonio Angulo Malasquez", "Cirilo Huanca Ramos", "Cirilo Inca Taquire",
-  "Ciro Diaz Sifuentes", "Diego Nolasco Mendoza", "Eduardo Jorge Rivera",
-  "Eliseo Cuadros Moya", "Elizabeth Panez Abollaneda", "Eustaquio Ñahuis Cuya",
-  "Franco Ccatamayo Quispe", "Jeyson Palomino Rodriguez", "John Hurtado Quintanilla",
-  "Jose Anculli Rojas", "Jose Canchari Sanchez", "Juan Enciso Guzman",
-  "Juan Soto Sanchez", "Julio Briceño Llerena", "Julio Hernandez Fernandez",
-  "Luis Zamata Canaza", "Martin Salazar Salcedo", "Maximo Rodriguez Huamani",
-  "Mishell Cavero Cenepo", "Moises Andia Sanchez", "Rene Roca Esquivel",
-  "Rogelio Herrera Lazaro", "Saúl Castro Curahua"
+const rawTechData = [
+  { nm: 'Diaz Sifuentes Ciro', sp: '01. Operador de Calderos' },
+  { nm: 'Nolasco Mendoza Diego', sp: '01. Operador de Calderos' },
+  { nm: 'Briceño Llerena Julio', sp: '01. Operador de Calderos' },
+  { nm: 'Hurtado Quintanilla John', sp: '01. Operador de Calderos' },
+  { nm: 'Ccatamayo Quispe Franco', sp: '01. Operador de Calderos' },
+  { nm: 'Zamata Canaza Luis', sp: '02. Piscinero' },
+  { nm: 'Roca Esquivel Rene', sp: '02. Piscinero' },
+  { nm: 'Cavero Cenepo Mishell', sp: '02. Piscinero' },
+  { nm: 'Castro Curahua Saúl', sp: '02. Piscinero' },
+  { nm: 'Jorge Rivera Eduardo', sp: '03. Electricista' },
+  { nm: 'Cuadros Moya Eliseo', sp: '03. Electricista' },
+  { nm: 'Salazar Salcedo Martin', sp: '03. Electricista' },
+  { nm: 'Canchari Sanchez Jose', sp: '03. Electricista' },
+  { nm: 'Anculli Rojas Jose', sp: '04. Carpintero' },
+  { nm: 'Enciso Guzman Juan', sp: '05. Jardinero' },
+  { nm: 'Ñahuis Cuya Eustaquio', sp: '05. Jardinero' },
+  { nm: 'Huanca Ramos Cirilo', sp: '05. Jardinero' },
+  { nm: 'Hernandez Fernandez Julio', sp: '05. Jardinero' },
+  { nm: 'Herrera Lazaro Rogelio', sp: '06. Gasfitero' },
+  { nm: 'Rodriguez Huamani Maximo', sp: '06. Gasfitero' },
+  { nm: 'Panez Abollaneda Elizabeth', sp: '06. Gasfitero' },
+  { nm: 'Inca Taquire Cirilo', sp: '06. Gasfitero' },
+  { nm: 'Palomino Rodriguez Jeyson', sp: '07. Albañil' },
+  { nm: 'Soto Sanchez Juan', sp: '07. Albañil' },
+  { nm: 'Andia Sanchez Moises', sp: '08. Pintor' },
+  { nm: 'Angulo Malasquez Antonio', sp: '08. Pintor' }
 ];
 
-const technicians: Profile[] = techNames.map((name, i) => ({
+const technicians: Profile[] = rawTechData.map((data, i) => ({
   id: `tech-${i + 1}`,
-  full_name: name,
-  email: `${name.split(' ')[0].toLowerCase()}@clubregatas.org.pe`,
+  full_name: data.nm,
+  email: `${data.nm.split(' ')[0].toLowerCase()}@clubregatas.org.pe`,
   role: 'technician',
   area_sector: '22. MANTENIMIENTO',
-  position: 'Técnico Especialista',
+  position: data.sp,
   phone: '999000000',
   avatar_url: null,
   created_at: new Date().toISOString(),
@@ -176,7 +193,7 @@ const getDateShift = (days: number) => {
 
 const statuses: OTMStatus[] = ['pending', 'scheduled', 'in_progress', 'rq', 'awaiting_supervisor', 'awaiting_conformity', 'closed', 'cancelled'];
 const urgencies: Urgency[] = ['high', 'medium', 'low'];
-const specialties = ['01. Albañilería', '02. Carpintería', '03. Electricidad', '04. Gasfitería', '05. Pintura', '06. Cerrajería', '07. Aire Acondicionado'];
+const specialties = ['01. Operador de Calderos', '02. Piscinero', '03. Electricista', '04. Carpintero', '05. Jardinero', '06. Gasfitero', '07. Albañil', '08. Pintor', '09. Otros'];
 
 const generatedOTMs: OTMRequest[] = [];
 const generatedLogs: OTMStatusLog[] = [];
@@ -196,8 +213,24 @@ for (let i = 1; i <= 35; i++) {
   const updatedAt = new Date(createdAt);
   updatedAt.setHours(updatedAt.getHours() + 2);
   
+  const locations = ['Tópico 1', 'Baño Principal', 'Oficina 302', 'Piscina Olímpica', 'Cancha de Tenis 1', 'Comedor Principal', 'Zona de Parrillas', 'Estacionamiento Norte'];
+  const descriptions: Record<string, string[]> = {
+    '01. Operador de Calderos': ['Caldero no enciende', 'Fuga de vapor en válvula', 'Presión irregular en el sistema'],
+    '02. Piscinero': ['Agua turbia en piscina de niños', 'Bomba de recirculación hace ruido', 'Nivel de cloro bajo'],
+    '03. Electricista': ['Cortocircuito en luminaria', 'Tomacorriente sin energía', 'Luz parpadeando en pasillo'],
+    '04. Carpintero': ['Puerta descuadrada', 'Chapa trabada', 'Silla de madera rota'],
+    '05. Jardinero': ['Pasto crecido en zona sur', 'Sistema de riego automático no funciona', 'Poda de árboles grandes'],
+    '06. Gasfitero': ['Fuga de agua en inodoro', 'Grifería rota, requiere cambio', 'Desagüe atorado'],
+    '07. Albañil': ['Mayólica desprendida', 'Humedad en pared', 'Resane de pared lateral'],
+    '08. Pintor': ['Pintura descascarada', 'Repintado de señales', 'Mancha en techo'],
+    '09. Otros': ['Mantenimiento preventivo general', 'Revisión de equipos', 'Apoyo en traslado de mobiliario']
+  };
+  
   const id = `otm-gen-${i}`;
   const code = generateOTMCode(requester.area_sector, specialty, 2000 + i);
+  
+  const realisticLocation = locations[i % locations.length];
+  const realisticDesc = descriptions[specialty] ? descriptions[specialty][i % descriptions[specialty].length] : descriptions['09. Otros'][0];
   
   const otm: OTMRequest = {
     id,
@@ -205,12 +238,12 @@ for (let i = 1; i <= 35; i++) {
     requester_id: requester.id,
     requester_name: requester.full_name,
     area_sector: requester.area_sector,
-    exact_location: `Ubicación ${i}`,
+    exact_location: realisticLocation,
     failure_type: specialty,
     asset: `Equipo ${i}`,
-    description: `Descripción detallada de la solicitud generada número ${i}. Requiere atención en ${requester.area_sector}.`,
+    description: realisticDesc,
     urgency,
-    location: null,
+    location: i % 2 === 0 ? '08. Departamento médico (Tópico 1)' : '22. Restaurante 1875',
     status,
     supervisor_id: (status !== 'pending' && status !== 'cancelled') ? (supervisor?.id || null) : null,
     supervisor_notes: (status !== 'pending') ? 'Revisado y procesado por supervisión.' : null,

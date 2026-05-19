@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OTMProvider } from './context/OTMContext';
+import { AttendanceProvider } from './context/AttendanceContext';
+import PWAPrompt from './components/PWAPrompt';
 import Login from './pages/Login';
 import DashboardLayout from './layouts/DashboardLayout';
 import NewOTM from './pages/requester/NewOTM';
@@ -9,6 +11,10 @@ import CommandCenter from './pages/supervisor/CommandCenter';
 import OTMManagement from './pages/supervisor/OTMManagement';
 import MyTasks from './pages/technician/MyTasks';
 import UserManagement from './pages/admin/UserManagement';
+import AttendancePanel from './pages/technician/AttendancePanel';
+import AttendanceTable from './pages/supervisor/AttendanceTable';
+import TechnicianCalendar from './pages/technician/TechnicianCalendar';
+import SupervisorCalendar from './pages/supervisor/SupervisorCalendar';
 import { useRealtimeOTM } from './hooks/useRealtimeOTM';
 
 function AppContent() {
@@ -27,7 +33,7 @@ function AppContent() {
     switch (user.role) {
       case 'requester': return <MyDashboard />;
       case 'supervisor': return <CommandCenter />;
-      case 'technician': return <MyTasks />;
+      case 'technician': return <AttendancePanel />;
       case 'jefatura': return <MyDashboard />;
       case 'admin': return <CommandCenter />;
     }
@@ -40,6 +46,9 @@ function AppContent() {
       case 'management': return <OTMManagement />;
       case 'my-tasks': return <MyTasks />;
       case 'users': return <UserManagement />;
+      case 'attendance': return <AttendancePanel />;
+      case 'attendance-table': return <AttendanceTable />;
+      case 'calendar': return user.role === 'technician' ? <TechnicianCalendar onNavigate={setCurrentView} /> : <SupervisorCalendar onNavigate={setCurrentView} />;
       default: return defaultView();
     }
   };
@@ -54,9 +63,12 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <OTMProvider>
-        <AppContent />
-      </OTMProvider>
+      <AttendanceProvider>
+        <OTMProvider>
+          <PWAPrompt />
+          <AppContent />
+        </OTMProvider>
+      </AttendanceProvider>
     </AuthProvider>
   );
 }

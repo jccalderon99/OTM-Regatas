@@ -256,13 +256,16 @@ export default function OTMManagement() {
             <div className="glass-card" style={{ marginBottom: 20, padding: 16 }}>
               <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-blue)' }}>{manageOTM.otm_code}</div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>
-                📍 {manageOTM.area_sector}{manageOTM.exact_location ? ` — ${manageOTM.exact_location}` : ''}
+                Área: {manageOTM.area_sector} | Solicitante: {manageOTM.requester_name}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                📍 {manageOTM.location || 'Sede Principal'} — {manageOTM.exact_location}
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: 10 }}>{manageOTM.description}</p>
               <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <StatusBadge status={manageOTM.status} />
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {manageOTM.urgency === 'high' ? 'Alta' : manageOTM.urgency === 'medium' ? 'Media' : 'Baja'}
+                  Prioridad: {URGENCY_LABELS[manageOTM.urgency]}
                   <span style={{ fontSize: '1.2rem' }}>{urgencyIcons[manageOTM.urgency]}</span>
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{manageOTM.failure_type}</span>

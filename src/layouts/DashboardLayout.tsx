@@ -10,12 +10,43 @@ interface NavItem {
   roles: UserRole[];
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'] },
-  { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
-  { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
-  { id: 'my-tasks', label: 'Mis Tareas', icon: '🔧', roles: ['technician'] },
-  { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
+interface NavGroup {
+  id: string;
+  title: string;
+  roles: UserRole[];
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: 'attendance-tech',
+    title: 'Ingreso',
+    roles: ['technician'],
+    items: [
+      { id: 'attendance', label: 'Marcar Asistencia', icon: '📍', roles: ['technician'] },
+    ]
+  },
+  {
+    id: 'otm',
+    title: 'Orden de trabajo mantenimiento',
+    roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'],
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['requester', 'supervisor', 'jefatura', 'admin'] },
+      { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
+      { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
+      { id: 'my-tasks', label: 'Mis Tareas', icon: '🔧', roles: ['technician'] },
+      { id: 'calendar', label: 'Calendario OTMs', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
+    ]
+  },
+  {
+    id: 'personnel',
+    title: 'Personal de Mantenimiento',
+    roles: ['supervisor', 'admin'],
+    items: [
+      { id: 'attendance-table', label: 'Ingreso y salida', icon: '⏱️', roles: ['supervisor', 'admin'] },
+      { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
+    ]
+  }
 ];
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -38,7 +69,6 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
 
   if (!user) return null;
 
-  const visibleNav = NAV_ITEMS.filter(n => n.roles.includes(user.role));
   const initials = user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
 
   return (
@@ -67,13 +97,24 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
           <div className="sidebar-subtitle">Órdenes de Trabajo</div>
         </div>
         <nav className="sidebar-nav">
-          {visibleNav.map(item => (
-            <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
-              onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}>
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {NAV_GROUPS.filter(g => g.roles.includes(user.role)).map(group => {
+            const groupItems = group.items.filter(item => item.roles.includes(user.role));
+            if (groupItems.length === 0) return null;
+            return (
+              <div key={group.id} style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 16px', marginBottom: 8 }}>
+                  {group.title}
+                </div>
+                {groupItems.map(item => (
+                  <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
+                    onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}>
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div className="sidebar-footer">
           <div className="flex items-center gap-3" style={{ marginBottom: 12 }}>
@@ -103,7 +144,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
               {sidebarOpen ? '✕' : '☰'}
             </button>
             <span className="topbar-title">
-              {visibleNav.find(n => n.id === currentView)?.icon} {visibleNav.find(n => n.id === currentView)?.label || 'Dashboard'}
+              {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.icon} {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.label || 'Plataforma Mantenimiento'}
             </span>
           </div>
           <div className="topbar-actions">

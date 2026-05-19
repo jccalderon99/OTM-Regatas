@@ -32,17 +32,24 @@ export default function Login() {
       }}>
         <div style={{ width: '100%', maxWidth: 440 }} className="fade-in">
           {/* Logo */}
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.95)', padding: '20px 40px', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)' }}>
-              <div style={{ fontSize: '3.5rem', fontWeight: 900, color: 'var(--accent-blue)', letterSpacing: '-0.05em', lineHeight: 1 }}>CRL</div>
-              <div style={{ fontSize: '1.2rem', color: 'var(--accent-gold)', fontWeight: 800 }}>1875</div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 8, fontWeight: 600, borderTop: '1px solid var(--border)', paddingTop: 8 }}>Órdenes de Trabajo</p>
-              <p style={{ color: 'var(--accent-gold)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>Mantenimiento</p>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'block', width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.95)', padding: '32px 24px', borderRadius: '24px', boxShadow: '0 12px 40px rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>
+                Plataforma de
+              </div>
+              <div style={{ fontSize: '2.8rem', fontWeight: 900, color: 'var(--accent-blue)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                MANTENIMIENTO
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '2px solid rgba(14, 165, 233, 0.1)' }}>
+                <span style={{ fontSize: '1.6rem', fontWeight: 900, color: '#1e293b', fontFamily: '"Nunito", "Quicksand", "Arial Rounded MT Bold", sans-serif' }}>CRL</span>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-gold)' }}></span>
+                <span style={{ fontSize: '1.2rem', color: 'var(--accent-gold)', fontWeight: 800, fontFamily: '"Nunito", "Quicksand", "Arial Rounded MT Bold", sans-serif' }}>1875</span>
+              </div>
             </div>
           </div>
 
           {/* Login Form */}
-          <div className="glass-card" style={{ padding: 32, background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(16px)', border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.2)' }}>
+          <div className="glass-card" style={{ padding: 32, background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(16px)', border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.15)', borderRadius: '24px', width: '100%', boxSizing: 'border-box' }}>
             <form onSubmit={handleSubmit}>
               <div className="form-group" style={{ marginBottom: 16 }}>
                 <label className="form-label">Correo electrónico</label>
