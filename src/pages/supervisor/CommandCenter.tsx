@@ -205,12 +205,12 @@ export default function CommandCenter() {
     <div>
       {/* Filters Banner */}
       <div className="glass-card" style={{ marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--accent-blue)', lineHeight: 1 }}>CRL</div>
             <div style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', fontWeight: 800 }}>1875</div>
           </div>
-          <div className="form-group" style={{ minWidth: 220, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 200, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Elegir Supervisor:</label>
             <select className="form-select" style={{ padding: '6px 12px', fontSize: '0.85rem' }} value={supervisorFilter} onChange={e => setSupervisorFilter(e.target.value)}>
               <option value="">Todos los Supervisores</option>
@@ -220,7 +220,7 @@ export default function CommandCenter() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ minWidth: 150, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 140, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Periodo:</label>
             <select className="form-select" style={{ padding: '6px 12px', fontSize: '0.85rem' }} value={dateFilter} onChange={handleDateFilterChange}>
               <option value="today">Día</option>
@@ -231,12 +231,12 @@ export default function CommandCenter() {
               <option value="custom">Personalizado</option>
             </select>
           </div>
-          <div className="form-group" style={{ minWidth: 130, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 120, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Desde:</label>
             <input type="date" className="form-input" style={{ padding: '5px 10px', fontSize: '0.8rem' }} 
               value={customStart} onChange={e => { setCustomStart(e.target.value); handleCustomDateChange(); }} />
           </div>
-          <div className="form-group" style={{ minWidth: 130, marginBottom: 0 }}>
+          <div className="form-group" style={{ minWidth: 120, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Hasta:</label>
             <input type="date" className="form-input" style={{ padding: '5px 10px', fontSize: '0.8rem' }} 
               value={customEnd} onChange={e => { setCustomEnd(e.target.value); handleCustomDateChange(); }} />

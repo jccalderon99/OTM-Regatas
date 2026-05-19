@@ -161,7 +161,8 @@ a:hover { color: var(--accent-blue-hover); }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 .page-content { padding: 28px; width: 100%; max-width: 100vw; margin: 0 auto; }
 @media (max-width: 640px) {
-  .page-content { padding: 20px 16px; }
+  .page-content { padding: 16px 12px; }
+  .glass-card { padding: 16px; }
 }
 
 /* Status Badge */
@@ -311,11 +312,16 @@ a:hover { color: var(--accent-blue-hover); }
 /* Utility */
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
 .items-center { align-items: center; }
+.justify-center { justify-content: center; }
 .justify-between { justify-content: space-between; }
+.gap-1 { gap: 4px; }
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
 .gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
+.py-4 { padding-top: 16px; padding-bottom: 16px; }
 .mt-2 { margin-top: 8px; }
 .mt-4 { margin-top: 16px; }
 .w-full { width: 100%; }
