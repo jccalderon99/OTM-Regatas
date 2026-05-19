@@ -117,7 +117,7 @@ export default function CommandCenter() {
       }
     });
 
-    return Object.values(map).sort((a, b) => b.closed - a.closed).slice(0, 10);
+    return Object.values(map).sort((a, b) => b.closed - a.closed);
   }, [filteredOTMs, baseOtms, technicians]);
   
   const maxTechClosed = Math.max(...techData.map(t => t.closed), 1);
@@ -165,7 +165,7 @@ export default function CommandCenter() {
 
   // SVG Line Chart helper
   const chartW = 440;
-  const chartH = 160;
+  const chartH = 280;
   const padL = 30;
   const padR = 10;
   const padT = 10;
@@ -203,13 +203,19 @@ export default function CommandCenter() {
 
   return (
     <div>
+      {/* Title */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          {user.role === 'admin'
+            ? `Admin ${(user.full_name || '').split(' ')[0]}`
+            : `Supervisor ${(currentSupervisorName || '').split(' ').slice(0, 2).join(' ')}`}
+        </h1>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>Panel analítico de operaciones de mantenimiento — Club de Regatas Lima</p>
+      </div>
+
       {/* Filters Banner */}
       <div className="glass-card" style={{ marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--accent-blue)', lineHeight: 1 }}>CRL</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', fontWeight: 800 }}>1875</div>
-          </div>
           <div className="form-group" style={{ minWidth: 200, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Elegir Supervisor:</label>
             <select className="form-select" style={{ padding: '6px 12px', fontSize: '0.85rem' }} value={supervisorFilter} onChange={e => setSupervisorFilter(e.target.value)}>
@@ -244,14 +250,6 @@ export default function CommandCenter() {
         </div>
       </div>
 
-      {/* Welcome Banner */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          BIENVENIDO {user.role === 'admin' ? 'ADMIN' : 'SUPERVISOR'} {(currentSupervisorName || '').toUpperCase()}
-        </h1>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>Panel analítico de operaciones de mantenimiento — Club de Regatas Lima</p>
-      </div>
-
       {/* KPI Cards */}
       <div className="kpi-mobile-small" style={{ marginBottom: 32 }}>
         {[
@@ -281,7 +279,7 @@ export default function CommandCenter() {
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#334155', marginBottom: 20 }}>
             OTMs por Técnico (Cerradas)
           </h3>
-          <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 420, paddingRight: 12 }}>
+          <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '300px', overflowY: 'auto', paddingRight: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {techData.length > 0 ? techData.map((t, i) => {
               const isExpanded = expandedTechs[t.id];
