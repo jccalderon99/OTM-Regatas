@@ -165,7 +165,7 @@ export default function CommandCenter() {
 
   // SVG Line Chart helper
   const chartW = 440;
-  const chartH = 280;
+  const chartH = 200;
   const padL = 30;
   const padR = 10;
   const padT = 10;
@@ -279,7 +279,7 @@ export default function CommandCenter() {
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#334155', marginBottom: 20 }}>
             OTMs por Técnico (Cerradas)
           </h3>
-          <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '300px', overflowY: 'auto', paddingRight: 12 }}>
+          <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '235px', overflowY: 'auto', paddingRight: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {techData.length > 0 ? techData.map((t, i) => {
               const isExpanded = expandedTechs[t.id];
@@ -351,7 +351,7 @@ export default function CommandCenter() {
               <span style={{ width: 12, height: 3, borderRadius: 2, background: pastel.green, display: 'inline-block' }}></span> Cerradas
             </span>
           </div>
-          <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 'auto' }}>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: '180px', maxHeight: '180px' }}>
             {/* Grid lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
               <line key={i} x1={padL} x2={chartW - padR} y1={toY(f * maxDaily)} y2={toY(f * maxDaily)} stroke="#f1f5f9" strokeWidth="1" />
