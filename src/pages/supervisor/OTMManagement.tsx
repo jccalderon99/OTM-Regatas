@@ -164,6 +164,9 @@ export default function OTMManagement() {
         const renderTableRows = (rows: typeof filtered) => rows.map(otm => (
           <tr key={otm.id}>
             <td><span style={{ fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{otm.otm_code}</span></td>
+            <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+              {new Date(otm.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
+            </td>
             <td style={{ fontSize: '0.85rem' }}>{otm.requester_name}</td>
             <td style={{ fontSize: '0.8rem' }}>{otm.failure_type}</td>
             <td title={URGENCY_LABELS[otm.urgency]}>
@@ -198,11 +201,18 @@ export default function OTMManagement() {
         const tableHead = (
           <thead>
             <tr>
-              <th onClick={() => handleSort('created_at')}>Código {sortField === 'created_at' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</th>
+              <th>Código</th>
+              <th onClick={() => handleSort('created_at')} style={{ cursor: 'pointer' }}>
+                Fecha Creación {sortField === 'created_at' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+              </th>
               <th>Solicitante</th>
               <th>Especialidad</th>
-              <th onClick={() => handleSort('urgency')}>Urg. {sortField === 'urgency' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</th>
-              <th onClick={() => handleSort('status')}>Estado {sortField === 'status' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</th>
+              <th onClick={() => handleSort('urgency')} style={{ cursor: 'pointer' }}>
+                Urg. {sortField === 'urgency' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+              </th>
+              <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
+                Estado {sortField === 'status' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+              </th>
               <th>Tipo Manten.</th>
               <th>Supervisor</th>
               <th>Acciones</th>
