@@ -263,6 +263,10 @@ for (let i = 1; i <= 50; i++) {
     rq_materials: status === 'rq' ? 'Materiales varios' : null,
     rq_quantities: status === 'rq' ? '10 unidades' : null,
     attachments: [],
+    assigned_technicians: (status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? [{
+      technician_id: technician.id,
+      technician: technician
+    }] : [],
     cancellation_reason: status === 'cancelled' ? 'duplicate' : null,
     created_at: createdAt.toISOString(),
     updated_at: updatedAt.toISOString(),

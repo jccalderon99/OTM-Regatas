@@ -11,7 +11,7 @@ export default function MyTasks() {
 
   const otms = getOTMsForCurrentUser();
   const active = otms.filter(o => ['scheduled', 'in_progress'].includes(o.status));
-  const completed = otms.filter(o => ['awaiting_conformity', 'closed'].includes(o.status));
+  const completed = otms.filter(o => ['awaiting_supervisor', 'awaiting_conformity', 'closed'].includes(o.status));
   const list = tab === 'active' ? active : completed;
 
   if (activeTaskId) {

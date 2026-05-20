@@ -109,6 +109,10 @@ export interface OTMRequest {
   technician?: Profile;
   attachments?: OTMAttachment[];
   status_log?: OTMStatusLog[];
+  assigned_technicians?: {
+    technician_id: string;
+    technician?: Profile;
+  }[];
 }
 
 export interface OTMStatusLog {

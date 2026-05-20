@@ -12,7 +12,7 @@ interface OTMContextType {
   getOTMById: (id: string) => OTMRequest | undefined;
   createOTM: (data: Partial<OTMRequest>) => Promise<OTMRequest>;
   updateOTMStatus: (otmId: string, newStatus: OTMStatus, notes?: string) => void;
-  assignOTM: (otmId: string, technicianId: string, scheduledDate: string, supervisorNotes?: string) => void;
+  assignOTM: (otmId: string, technicianIds: string[], scheduledDate: string, supervisorNotes?: string) => void;
   assignSupervisor: (otmId: string, supervisorId: string) => void;
   assignContractor: (otmId: string, name: string, date: string, detail: string) => void;
   createRQ: (otmId: string, rqType: 'supply' | 'service', data: { materials?: string; quantities?: string; serviceDesc?: string; magnitude?: 'puntual' | 'integral' }) => void;
@@ -108,7 +108,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const fetchAll = useCallback(async () => {
     if (!isLive) return;
     const [otmRes, logRes, userRes, masterRes] = await Promise.all([
-      supabase.from('otm_requests').select('*').order('created_at', { ascending: false }),
+      supabase.from('otm_requests').select('*, assigned_technicians:otm_technicians(technician_id, technician:profiles(*))').order('created_at', { ascending: false }),
       supabase.from('otm_status_logs').select('*').order('created_at', { ascending: true }),
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('master_data').select('*').eq('active', true).order('sort_order'),
@@ -150,8 +150,15 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   // ── Helper: update OTM in Supabase + local state ──
   const patchOTM = async (otmId: string, fields: Partial<OTMRequest>) => {
     if (isLive) {
-      const { data } = await supabase.from('otm_requests').update(fields).eq('id', otmId).select().single();
-      if (data) setOTMs(prev => prev.map(o => o.id === otmId ? data : o));
+      const { data } = await supabase
+        .from('otm_requests')
+        .update(fields)
+        .eq('id', otmId)
+        .select('*, assigned_technicians:otm_technicians(technician_id, technician:profiles(*))')
+        .single();
+      if (data) {
+        setOTMs(prev => prev.map(o => o.id === otmId ? { ...o, ...data } : o));
+      }
     } else {
       setOTMs(prev => prev.map(o => o.id !== otmId ? o : { ...o, ...fields, updated_at: new Date().toISOString() }));
     }
@@ -161,7 +168,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const getOTMsForCurrentUser = useCallback(() => {
     if (!user) return [];
     if (user.role === 'requester') return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);
-    if (user.role === 'technician') return otms.filter(o => o.technician_id === user.id);
+    if (user.role === 'technician') return otms.filter(o => 
+      o.technician_id === user.id || 
+      (o.assigned_technicians && o.assigned_technicians.some(t => t.technician_id === user.id))
+    );
     return otms;
   }, [otms, user]);
 
@@ -231,17 +241,78 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     patchOTM(otmId, { supervisor_id: supervisorId });
   }, [isLive]);
 
-  const assignOTM = useCallback((otmId: string, technicianId: string, scheduledDate: string, supervisorNotes?: string) => {
+  const assignOTM = useCallback(async (otmId: string, technicianIds: string[], scheduledDate: string, supervisorNotes?: string) => {
     const otm = otms.find(o => o.id === otmId);
     if (!otm) return;
-    patchOTM(otmId, {
-      technician_id: technicianId, scheduled_date: scheduledDate,
+
+    // Usar el primer técnico de la lista para la columna legada technician_id por compatibilidad
+    const primaryTechId = technicianIds[0] || null;
+
+    const fields: Partial<OTMRequest> = {
+      technician_id: primaryTechId,
+      scheduled_date: scheduledDate,
       supervisor_id: otm.supervisor_id || user!.id,
       supervisor_notes: supervisorNotes || otm.supervisor_notes,
-      assignment_type: 'own' as AssignmentType, status: 'scheduled' as OTMStatus,
-    });
-    addLog(otmId, otm.status, 'scheduled', `Asignado (Personal Propio). ${supervisorNotes || ''}`);
-  }, [otms, user, isLive]);
+      assignment_type: 'own' as AssignmentType,
+      status: 'scheduled' as OTMStatus,
+    };
+
+    if (isLive) {
+      const { data: updatedOtm, error: otmError } = await supabase
+        .from('otm_requests')
+        .update(fields)
+        .eq('id', otmId)
+        .select()
+        .single();
+
+      if (otmError) {
+        console.error("Error al actualizar OTM:", otmError);
+        return;
+      }
+
+      // Eliminar asignaciones previas e insertar las nuevas en la tabla intermedia
+      await supabase.from('otm_technicians').delete().eq('otm_id', otmId);
+
+      if (technicianIds.length > 0) {
+        const rows = technicianIds.map(techId => ({
+          otm_id: otmId,
+          technician_id: techId,
+        }));
+        await supabase.from('otm_technicians').insert(rows);
+      }
+
+      // Obtener los datos completos de los técnicos asignados con sus perfiles
+      const { data: relations } = await supabase
+        .from('otm_technicians')
+        .select('technician_id, technician:profiles(*)')
+        .eq('otm_id', otmId);
+
+      const finalOtm = {
+        ...updatedOtm,
+        assigned_technicians: relations || [],
+      };
+
+      setOTMs(prev => prev.map(o => o.id === otmId ? finalOtm : o));
+    } else {
+      // Modo Demo
+      const mappedAssigned = technicianIds.map(techId => {
+        const profile = users.find(u => u.id === techId);
+        return {
+          technician_id: techId,
+          technician: profile,
+        };
+      });
+
+      setOTMs(prev => prev.map(o => o.id !== otmId ? o : {
+        ...o,
+        ...fields,
+        assigned_technicians: mappedAssigned,
+        updated_at: new Date().toISOString()
+      }));
+    }
+
+    addLog(otmId, otm.status, 'scheduled', `Asignado (Personal Propio: ${technicianIds.length} técnicos). ${supervisorNotes || ''}`);
+  }, [otms, user, isLive, users]);
 
   const assignContractor = useCallback((otmId: string, name: string, date: string, detail: string) => {
     const otm = otms.find(o => o.id === otmId);

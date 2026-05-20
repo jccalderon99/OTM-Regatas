@@ -14,6 +14,9 @@ export default function OTMManagement() {
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | ''>('');
   const [supervisorFilter, setSupervisorFilter] = useState<string>('');
+  const [fromDateFilter, setFromDateFilter] = useState<string>('');
+  const [toDateFilter, setToDateFilter] = useState<string>('');
+  const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<'created_at' | 'urgency' | 'status'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -58,6 +61,16 @@ export default function OTMManagement() {
     .filter(o => !statusFilter || o.status === statusFilter)
     .filter(o => !urgencyFilter || o.urgency === urgencyFilter)
     .filter(o => !supervisorFilter || o.supervisor_id === supervisorFilter)
+    .filter(o => {
+      if (!fromDateFilter) return true;
+      const oDate = new Date(o.updated_at).toISOString().slice(0, 10);
+      return oDate >= fromDateFilter;
+    })
+    .filter(o => {
+      if (!toDateFilter) return true;
+      const oDate = new Date(o.updated_at).toISOString().slice(0, 10);
+      return oDate <= toDateFilter;
+    })
     .filter(o => !search || o.otm_code.toLowerCase().includes(search.toLowerCase()) ||
       o.requester_name.toLowerCase().includes(search.toLowerCase()) ||
       o.area_sector.toLowerCase().includes(search.toLowerCase()) ||
@@ -82,6 +95,8 @@ export default function OTMManagement() {
     setAssignSub('none');
     setRQSub('none');
     setAssignTech(''); setAssignDate(''); setAssignNotes('');
+    const currentTechs = otm.assigned_technicians?.map(t => t.technician_id) || (otm.technician_id ? [otm.technician_id] : []);
+    setSelectedTechs(currentTechs);
     setContractorName(''); setContractorDate(''); setContractorDetail('');
     setRQMaterials(''); setRQQuantities(''); setRQServiceDesc(''); setRQMagnitude('puntual');
     setCancelReason(''); setCancelDetail('');
@@ -91,8 +106,8 @@ export default function OTMManagement() {
   };
 
   const handleAssignOwn = () => {
-    if (!manageOTM || !assignTech || !assignDate) return;
-    assignOTM(manageOTM.id, assignTech, assignDate, assignNotes);
+    if (!manageOTM || selectedTechs.length === 0 || !assignDate) return;
+    assignOTM(manageOTM.id, selectedTechs, assignDate, assignNotes);
     setManageOTM(null);
   };
 
@@ -138,21 +153,29 @@ export default function OTMManagement() {
       </div>
 
       {/* Filters */}
-      <div className="filter-bar responsive-actions" style={{ marginBottom: 20 }}>
-        <input className="form-input" placeholder="🔍 Buscar código, solicitante, área..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 300, flex: 1, minWidth: 180 }} />
-        <select className="form-select" value={supervisorFilter} onChange={e => setSupervisorFilter(e.target.value)}>
+      <div className="filter-bar responsive-actions" style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <input className="form-input" placeholder="🔍 Buscar código, solicitante, área..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 300, flex: '1 1 200px' }} />
+        <select className="form-select" value={supervisorFilter} onChange={e => setSupervisorFilter(e.target.value)} style={{ flex: '1 1 150px' }}>
           <option value="">Todos los Supervisores</option>
           {supervisors.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
-        <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
+        <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)} style={{ flex: '1 1 150px' }}>
           <option value="">Todos los estados</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <select className="form-select" value={urgencyFilter} onChange={e => setUrgencyFilter(e.target.value as any)}>
+        <select className="form-select" value={urgencyFilter} onChange={e => setUrgencyFilter(e.target.value as any)} style={{ flex: '1 1 150px' }}>
           <option value="">Toda urgencia</option>
           {Object.entries(URGENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{filtered.length} resultado(s)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 auto' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Modificado Desde:</span>
+          <input className="form-input" type="date" value={fromDateFilter} onChange={e => setFromDateFilter(e.target.value)} style={{ width: 130, padding: '6px 8px' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 auto' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Hasta:</span>
+          <input className="form-input" type="date" value={toDateFilter} onChange={e => setToDateFilter(e.target.value)} style={{ width: 130, padding: '6px 8px' }} />
+        </div>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>{filtered.length} resultado(s)</span>
       </div>
 
       {/* Table */}
@@ -315,11 +338,13 @@ export default function OTMManagement() {
             )}
 
             {/* Existing Assignment Info */}
-            {manageOTM.assignment_type === 'own' && manageOTM.technician_id && (
+            {manageOTM.assignment_type === 'own' && (manageOTM.assigned_technicians?.length || manageOTM.technician_id) && (
               <div style={{ marginBottom: 16, padding: 12, background: 'rgba(78,181,230,0.08)', borderRadius: 8 }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)' }}>🔧 ASIGNADO (Personal Propio)</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                  Técnico: {users.find(u => u.id === manageOTM.technician_id)?.full_name || '—'}
+                  Personal: {manageOTM.assigned_technicians && manageOTM.assigned_technicians.length > 0 
+                    ? manageOTM.assigned_technicians.map(t => t.technician?.full_name || users.find(u => u.id === t.technician_id)?.full_name).filter(Boolean).join(', ')
+                    : (users.find(u => u.id === manageOTM.technician_id)?.full_name || '—')}
                   {manageOTM.scheduled_date && ` — 📅 ${new Date(manageOTM.scheduled_date).toLocaleDateString('es')}`}
                 </div>
               </div>
@@ -432,12 +457,47 @@ export default function OTMManagement() {
                 {assignSub === 'own' && (
                   <div className="flex-col gap-4 slide-up">
                     <div className="form-group">
-                      <label className="form-label">Técnico asignado *</label>
-                      <select className="form-select" value={assignTech} onChange={e => setAssignTech(e.target.value)}>
-                        <option value="">Seleccionar técnico...</option>
-                        {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-                      </select>
+                      <label className="form-label">Seleccionar Personal</label>
+                      <div className="flex gap-2">
+                        <select className="form-select" style={{ flex: 1 }} value={assignTech} onChange={e => setAssignTech(e.target.value)}>
+                          <option value="">Seleccionar técnico...</option>
+                          {technicians.filter(t => !selectedTechs.includes(t.id)).map(t => (
+                            <option key={t.id} value={t.id}>{t.full_name} ({t.position || 'Técnico'})</option>
+                          ))}
+                        </select>
+                        <button className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }} type="button" onClick={() => {
+                          if (assignTech && !selectedTechs.includes(assignTech)) {
+                            setSelectedTechs(prev => [...prev, assignTech]);
+                            setAssignTech('');
+                          }
+                        }} disabled={!assignTech}>
+                          Agregar persona
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Lista de Personal Agregado */}
+                    {selectedTechs.length > 0 && (
+                      <div className="form-group" style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 8 }}>
+                        <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Personal Asignado ({selectedTechs.length}):</label>
+                        <div className="flex-col gap-2" style={{ marginTop: 8 }}>
+                          {selectedTechs.map(techId => {
+                            const tech = users.find(u => u.id === techId);
+                            return (
+                              <div key={techId} className="flex justify-between items-center" style={{ background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: '0.85rem' }}>{tech?.full_name || 'Técnico Desconocido'}</span>
+                                <button className="btn btn-icon btn-ghost btn-sm" type="button" style={{ color: 'var(--accent-rose)', padding: '2px 6px', height: 'auto', minWidth: 'auto' }} onClick={() => {
+                                  setSelectedTechs(prev => prev.filter(id => id !== techId));
+                                }}>
+                                  Eliminar
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="form-group">
                       <label className="form-label">Fecha programada *</label>
                       <input className="form-input" type="datetime-local" value={assignDate} onChange={e => setAssignDate(e.target.value)} />
@@ -448,7 +508,7 @@ export default function OTMManagement() {
                     </div>
                     <div className="flex gap-3" style={{ marginTop: 8 }}>
                       <button className="btn btn-secondary" onClick={() => { setAction('none'); setAssignSub('none'); }}>Volver</button>
-                      <button className="btn btn-primary" onClick={handleAssignOwn} disabled={!assignTech || !assignDate}>✓ Aceptar</button>
+                      <button className="btn btn-primary" onClick={handleAssignOwn} disabled={selectedTechs.length === 0 || !assignDate}>✓ Aceptar</button>
                     </div>
                   </div>
                 )}
