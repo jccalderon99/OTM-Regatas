@@ -66,6 +66,28 @@ export default function Login() {
                 {loading ? <span className="spinner" /> : 'Iniciar Sesión'}
               </button>
             </form>
+            <div style={{ textAlign: 'center', marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+              <button 
+                type="button"
+                onClick={() => window.dispatchEvent(new Event('open-pwa-install-modal'))}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-blue)',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.opacity = '0.8')}
+                onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                📲 ¿Quieres instalar la app en tu celular? Haz clic aquí
+              </button>
+            </div>
           </div>
 
           {/* Demo Quick Login */}

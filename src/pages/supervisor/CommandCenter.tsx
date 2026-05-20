@@ -90,38 +90,33 @@ export default function CommandCenter() {
   const newThisMonth = baseOtms.filter(o => new Date(o.created_at) >= monthStart);
   const closedThisMonth = baseOtms.filter(o => o.closed_at && new Date(o.closed_at) >= monthStart);
 
-  // ---- Chart: OTMs by Technician (Base metric: Closed OTMs within filter) ----
+  // ---- Chart: OTMs by Technician (Base metric: Scheduled OTMs within filter) ----
   const techData = useMemo(() => {
     const map: Record<string, { id: string; name: string; closed: number; scheduled: number; inProgress: number }> = {};
     
-    // Base metric: Closed OTMs (filtered by date)
-    filteredOTMs.filter(o => o.status === 'closed').forEach(o => {
+    // Initialize with technicians who have any OTM in the filtered set
+    filteredOTMs.forEach(o => {
       if (o.technician_id) {
         if (!map[o.technician_id]) {
           const t = technicians.find(t => t.id === o.technician_id);
           map[o.technician_id] = { id: o.technician_id, name: t?.full_name || o.technician_id, closed: 0, scheduled: 0, inProgress: 0 };
         }
-        map[o.technician_id].closed++;
-      }
-    });
-
-    // Sub metrics: Absolute current load (ignoring date filter so supervisor always sees actual pending work)
-    baseOtms.forEach(o => {
-      if (o.technician_id && (o.status === 'scheduled' || o.status === 'in_progress')) {
-        if (!map[o.technician_id]) {
-          const t = technicians.find(t => t.id === o.technician_id);
-          map[o.technician_id] = { id: o.technician_id, name: t?.full_name || o.technician_id, closed: 0, scheduled: 0, inProgress: 0 };
+        
+        if (o.status === 'scheduled') {
+          map[o.technician_id].scheduled++;
+        } else if (o.status === 'in_progress') {
+          map[o.technician_id].inProgress++;
+        } else if (o.status === 'closed') {
+          map[o.technician_id].closed++;
         }
-        if (o.status === 'scheduled') map[o.technician_id].scheduled++;
-        if (o.status === 'in_progress') map[o.technician_id].inProgress++;
       }
     });
 
-    return Object.values(map).sort((a, b) => b.closed - a.closed);
-  }, [filteredOTMs, baseOtms, technicians]);
+    return Object.values(map).sort((a, b) => b.scheduled - a.scheduled);
+  }, [filteredOTMs, technicians]);
   
-  const maxTechClosed = Math.max(...techData.map(t => t.closed), 1);
-  const maxTechLoad = Math.max(...techData.map(t => Math.max(t.scheduled, t.inProgress)), 1);
+  const maxTechScheduled = Math.max(...techData.map(t => t.scheduled), 1);
+  const maxTechSub = Math.max(...techData.map(t => Math.max(t.closed, t.inProgress)), 1);
 
   const toggleTech = (id: string) => {
     setExpandedTechs(prev => ({ ...prev, [id]: !prev[id] }));
@@ -277,7 +272,7 @@ export default function CommandCenter() {
         {/* OTMs by Technician */}
         <div className="glass-card">
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#334155', marginBottom: 20 }}>
-            OTMs por Técnico (Cerradas)
+            OTMs por Técnico (Programadas)
           </h3>
           <div className="scrollable-list-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '235px', overflowY: 'auto', paddingRight: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -295,11 +290,11 @@ export default function CommandCenter() {
                         <span style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block', fontSize: '0.6rem' }}>▶</span>
                         {t.name.split(' ').slice(0, 2).join(' ')}
                       </span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{t.closed} cerradas</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{t.scheduled} programadas</span>
                     </div>
                     <div style={{ height: 10, background: '#f1f5f9', borderRadius: 5, overflow: 'hidden' }}>
                       <div style={{
-                        width: `${(t.closed / maxTechClosed) * 100}%`, height: '100%', borderRadius: 5,
+                        width: `${(t.scheduled / maxTechScheduled) * 100}%`, height: '100%', borderRadius: 5,
                         background: `linear-gradient(90deg, ${pastel.blue}, ${pastel.purple})`,
                         transition: 'width 0.6s ease'
                       }}></div>
@@ -311,11 +306,11 @@ export default function CommandCenter() {
                     <div className="slide-down" style={{ marginTop: 8, marginLeft: 16, paddingLeft: 12, borderLeft: '2px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>📅 Programadas</span>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: pastel.purple }}>{t.scheduled}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b' }}>✔️ Cerradas</span>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: pastel.purple }}>{t.closed}</span>
                         </div>
                         <div style={{ height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${(t.scheduled / maxTechLoad) * 100}%`, height: '100%', background: pastel.purple, borderRadius: 3 }}></div>
+                          <div style={{ width: `${(t.closed / maxTechSub) * 100}%`, height: '100%', background: pastel.purple, borderRadius: 3 }}></div>
                         </div>
                       </div>
                       <div>
@@ -324,7 +319,7 @@ export default function CommandCenter() {
                           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: pastel.green }}>{t.inProgress}</span>
                         </div>
                         <div style={{ height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${(t.inProgress / maxTechLoad) * 100}%`, height: '100%', background: pastel.green, borderRadius: 3 }}></div>
+                          <div style={{ width: `${(t.inProgress / maxTechSub) * 100}%`, height: '100%', background: pastel.green, borderRadius: 3 }}></div>
                         </div>
                       </div>
                     </div>

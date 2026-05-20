@@ -128,6 +128,24 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
             </div>
           </div>
           {user.area_sector && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {user.area_sector}</div>}
+          <button 
+            className="btn btn-ghost btn-sm w-full" 
+            onClick={() => window.dispatchEvent(new Event('open-pwa-install-modal'))}
+            style={{ 
+              marginBottom: 8, 
+              color: 'var(--accent-blue)', 
+              fontWeight: 700, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: 6,
+              background: 'rgba(14, 165, 233, 0.05)',
+              border: '1px solid rgba(14, 165, 233, 0.15)',
+              borderRadius: 8
+            }}
+          >
+            📲 Instalar en Celular
+          </button>
           <button className="btn btn-ghost btn-sm w-full" onClick={logout}>Cerrar Sesión</button>
         </div>
       </aside>
