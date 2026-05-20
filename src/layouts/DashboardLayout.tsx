@@ -43,7 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Personal de Mantenimiento',
     roles: ['supervisor', 'admin'],
     items: [
-      { id: 'attendance-table', label: 'Ingreso y salida', icon: '⏱️', roles: ['supervisor', 'admin'] },
+      { id: 'attendance-table', label: 'Asistencia del personal', icon: '⏱️', roles: ['supervisor', 'admin'] },
       { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
     ]
   }

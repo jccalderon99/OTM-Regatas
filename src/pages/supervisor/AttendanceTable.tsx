@@ -17,9 +17,19 @@ export default function AttendanceTable() {
     return acc;
   }, {} as Record<string, typeof technicians>);
 
-  // Ordenar A-Z
+  // Ordenar por hora de ingreso (y luego A-Z)
   Object.keys(grouped).forEach(spec => {
-    grouped[spec].sort((a, b) => a.full_name.localeCompare(b.full_name));
+    grouped[spec].sort((a, b) => {
+      const recordA = records.find(r => r.user_id === a.id && r.date === filterDate);
+      const recordB = records.find(r => r.user_id === b.id && r.date === filterDate);
+      const timeA = recordA?.check_in_time || '23:59'; // Los que no marcan van al final
+      const timeB = recordB?.check_in_time || '23:59';
+      
+      if (timeA !== timeB) {
+        return timeA.localeCompare(timeB);
+      }
+      return a.full_name.localeCompare(b.full_name);
+    });
   });
 
   const specs = Object.keys(grouped).sort();
@@ -40,7 +50,7 @@ export default function AttendanceTable() {
   return (
     <div>
       <div className="flex justify-between items-center" style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Ingreso y Salida del Personal</h1>
+        <h1 className="page-title" style={{ margin: 0 }}>Asistencia del personal</h1>
         <input 
           type="date" 
           className="form-input" 
@@ -59,13 +69,13 @@ export default function AttendanceTable() {
             </summary>
             
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.5)', borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
-                    <th style={{ padding: '12px 20px', fontWeight: 600 }}>Personal</th>
-                    <th style={{ padding: '12px 20px', fontWeight: 600, width: 140 }}>Ingreso</th>
-                    <th style={{ padding: '12px 20px', fontWeight: 600, width: 140 }}>Salida</th>
-                    <th style={{ padding: '12px 20px', fontWeight: 600 }}>Etiquetas</th>
+                    <th style={{ padding: '12px 20px', fontWeight: 600, width: '40%' }}>Personal</th>
+                    <th style={{ padding: '12px 20px', fontWeight: 600, width: '20%' }}>Ingreso</th>
+                    <th style={{ padding: '12px 20px', fontWeight: 600, width: '20%' }}>Salida</th>
+                    <th style={{ padding: '12px 20px', fontWeight: 600, width: '20%' }}>Etiquetas</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -75,14 +85,14 @@ export default function AttendanceTable() {
                     
                     return (
                       <tr key={tech.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                        <td style={{ padding: '12px 20px', fontWeight: 500 }}>
+                        <td style={{ padding: '12px 20px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {tech.full_name}
                         </td>
                         <td style={{ padding: '12px 20px' }}>
                           <input 
                             type="time" 
                             className="form-input" 
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', height: 'auto' }}
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', height: 'auto', width: '100%', maxWidth: '120px' }}
                             value={record?.check_in_time || ''}
                             onChange={e => record && handleEditTime(record.id, 'check_in_time', e.target.value)}
                             disabled={!record}
@@ -92,7 +102,7 @@ export default function AttendanceTable() {
                           <input 
                             type="time" 
                             className="form-input" 
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', height: 'auto' }}
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', height: 'auto', width: '100%', maxWidth: '120px' }}
                             value={record?.check_out_time || ''}
                             onChange={e => record && handleEditTime(record.id, 'check_out_time', e.target.value)}
                             disabled={!record}
@@ -102,7 +112,7 @@ export default function AttendanceTable() {
                           <div className="flex items-center gap-2 flex-wrap">
                             {isAbsent && <span className="urgency-badge urgency-high">Falta</span>}
                             {record?.tags.map(tag => (
-                              <span key={tag} className="urgency-badge" style={{ background: tag === 'Tarde' ? '#fee2e2' : '#f1f5f9', color: tag === 'Tarde' ? '#b91c1c' : '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span key={tag} className="urgency-badge" style={{ background: tag === 'Tarde' ? '#fee2e2' : '#f1f5f9', color: tag === 'Tarde' ? '#b91c1c' : '#475569', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
                                 {tag}
                                 <button onClick={() => handleRemoveTag(record.id, record.tags, tag)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, opacity: 0.5 }}>✕</button>
                               </span>

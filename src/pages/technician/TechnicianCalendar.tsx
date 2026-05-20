@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import { useAuth } from '../../context/AuthContext';
 import { STATUS_LABELS } from '../../types';
-import StatusBadge from '../../components/StatusBadge';
 
 export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const { getOTMsForCurrentUser } = useOTM();
@@ -10,115 +9,207 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
 
-  const otms = getOTMsForCurrentUser().filter(o => 
+  const otms = useMemo(() => getOTMsForCurrentUser().filter(o => 
     o.scheduled_date && 
     (o.status === 'scheduled' || o.status === 'in_progress' || o.status === 'awaiting_supervisor' || o.status === 'awaiting_conformity' || o.status === 'closed')
-  );
+  ), [getOTMsForCurrentUser]);
 
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+  const getWeekStart = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is sunday
+    return new Date(d.setDate(diff));
+  };
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const daysInMonth = getDaysInMonth(year, month);
-  const firstDay = getFirstDayOfMonth(year, month);
+  const weekStart = getWeekStart(currentDate);
+  const weekDays = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
 
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const prevWeek = () => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() - 7);
+    setCurrentDate(d);
+  };
+  
+  const nextWeek = () => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() + 7);
+    setCurrentDate(d);
+  };
+  
+  const goToday = () => setCurrentDate(new Date());
 
-  const days = [];
-  for (let i = 0; i < firstDay; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  
+  const formatWeekRange = () => {
+    const start = weekDays[0];
+    const end = weekDays[6];
+    if (start.getMonth() === end.getMonth()) {
+      return `Del ${start.getDate()} al ${end.getDate()} de ${monthNames[end.getMonth()]}`;
+    }
+    return `Del ${start.getDate()} de ${monthNames[start.getMonth()]} al ${end.getDate()} de ${monthNames[end.getMonth()]}`;
+  };
 
-  const today = new Date();
-  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+  const todayDate = new Date();
+  
+  const startHour = 6;
+  const endHour = 22;
+  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
 
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <h1 className="page-title" style={{ margin: 0 }}>Mi Calendario de Tareas</h1>
-          <div className="flex items-center gap-2" style={{ background: 'var(--bg-secondary)', padding: '4px 12px', borderRadius: 12, border: '1px solid var(--border)' }}>
-            <button className="btn btn-ghost" style={{ padding: '4px 10px', minHeight: 0, height: 'auto' }} onClick={prevMonth}>&lt;</button>
-            <span style={{ fontWeight: 700, fontSize: '0.95rem', minWidth: 140, textAlign: 'center', color: 'var(--text-primary)' }}>
-              {currentDate.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase()}
-            </span>
-            <button className="btn btn-ghost" style={{ padding: '4px 10px', minHeight: 0, height: 'auto' }} onClick={nextMonth}>&gt;</button>
+          <div>
+            <h1 className="page-title" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-secondary)' }}>
+              Mi Calendario de Tareas
+            </h1>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: 4 }}>
+              Semana actual - {formatWeekRange()}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button className="btn btn-secondary" style={{ padding: '8px 16px', fontWeight: 600 }} onClick={goToday}>
+              Hoy
+            </button>
+            <div style={{ background: 'var(--bg-secondary)', padding: '4px', borderRadius: 8, border: '1px solid var(--border)', display: 'flex' }}>
+              <button className="btn btn-ghost" style={{ padding: '4px 12px' }} onClick={prevWeek}>&lt;</button>
+              <button className="btn btn-ghost" style={{ padding: '4px 12px' }} onClick={nextWeek}>&gt;</button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
-            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
-              <div key={d} style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{d}</div>
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(100px, auto)' }}>
-          {days.map((day, i) => {
-            if (!day) return <div key={i} style={{ borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.01)' }} />;
-            
-            const isToday = isCurrentMonth && day === today.getDate();
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            
-            const dayOTMs = otms.filter(o => o.scheduled_date?.startsWith(dateStr));
-
-            return (
-              <div key={i} style={{ 
-                borderRight: '1px solid var(--border)', 
-                borderBottom: '1px solid var(--border)', 
-                padding: 8,
-                background: isToday ? 'rgba(14, 165, 233, 0.05)' : 'transparent'
-              }}>
-                <div style={{ 
-                  fontWeight: 600, 
-                  marginBottom: 8,
-                  width: 28, height: 28,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: '50%',
-                  background: isToday ? 'var(--accent-blue)' : 'transparent',
-                  color: isToday ? 'white' : 'var(--text-secondary)',
-                  fontSize: '0.85rem'
+      <div className="glass-card" style={{ padding: 0, overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ minWidth: 1000, display: 'flex', flexDirection: 'column' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: 60, borderRight: '1px solid var(--border)' }}></div>
+            {weekDays.map((d, i) => {
+              const isToday = d.toDateString() === todayDate.toDateString();
+              return (
+                <div key={i} style={{ 
+                  flex: 1, 
+                  padding: '12px', 
+                  textAlign: 'center', 
+                  borderRight: '1px solid var(--border)',
+                  background: isToday ? 'rgba(14, 165, 233, 0.1)' : 'transparent',
                 }}>
-                  {day}
+                  <div style={{ fontWeight: 600, color: isToday ? 'var(--accent-blue)' : 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    {dayNames[i]} <span style={{ 
+                      display: 'inline-block', 
+                      width: 24, height: 24, 
+                      borderRadius: '50%', 
+                      background: isToday ? 'var(--accent-blue)' : 'transparent',
+                      color: isToday ? 'white' : 'inherit',
+                      lineHeight: '24px',
+                      marginLeft: 4
+                    }}>{d.getDate()}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {dayOTMs.map(o => {
-                    const isDone = o.status === 'closed' || o.status === 'awaiting_supervisor' || o.status === 'awaiting_conformity';
-                    // Special color for Carpintero
-                    const isCarpintero = o.failure_type === '04. Carpintero';
-                    const specialColor = isCarpintero ? '#8B4513' : 'var(--accent-blue)';
-                    const bgSpecialColor = isCarpintero ? 'rgba(139, 69, 19, 0.1)' : 'rgba(14, 165, 233, 0.1)';
+              );
+            })}
+          </div>
 
-                    return (
-                      <div key={o.id} 
-                        onClick={() => setSelectedOTM(o)}
-                        style={{
-                        background: isDone ? 'rgba(0,0,0,0.05)' : bgSpecialColor,
-                        borderLeft: `3px solid ${isDone ? '#94a3b8' : specialColor}`,
-                        padding: '6px 8px',
-                        borderRadius: 6,
-                        fontSize: '0.75rem',
-                        opacity: isDone ? 0.6 : 1,
-                        cursor: 'pointer',
-                        boxShadow: isDone ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 2
-                      }}>
-                        <div style={{ fontWeight: 800, color: isDone ? '#475569' : specialColor }}>{o.otm_code}</div>
-                        <div style={{ fontSize: '0.65rem', fontWeight: 600, color: isDone ? '#64748b' : 'var(--text-secondary)' }}>
-                          Prioridad: {STATUS_LABELS[o.urgency as keyof typeof STATUS_LABELS] || o.urgency}
-                        </div>
-                        <div style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500, opacity: 0.8 }}>{o.description}</div>
-                      </div>
-                    );
-                  })}
+          {/* Grid */}
+          <div style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+            {hours.map(hour => (
+              <div key={hour} style={{ display: 'flex', borderBottom: '1px solid var(--border)', minHeight: 80 }}>
+                {/* Time Column */}
+                <div style={{ 
+                  width: 60, 
+                  borderRight: '1px solid var(--border)', 
+                  textAlign: 'right', 
+                  padding: '8px 4px 0 0', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600,
+                  color: 'var(--text-muted)' 
+                }}>
+                  {hour.toString().padStart(2, '0')}:00
                 </div>
+                
+                {/* Day Columns */}
+                {weekDays.map((d, i) => {
+                  const isToday = d.toDateString() === todayDate.toDateString();
+                  
+                  // Find OTMs that fall in this hour
+                  const cellOTMs = otms.filter(o => {
+                    const oDate = new Date(o.scheduled_date!);
+                    return oDate.getFullYear() === d.getFullYear() &&
+                           oDate.getMonth() === d.getMonth() &&
+                           oDate.getDate() === d.getDate() &&
+                           oDate.getHours() === hour;
+                  });
+
+                  return (
+                    <div key={i} style={{ 
+                      flex: 1, 
+                      borderRight: '1px solid var(--border)', 
+                      padding: 4,
+                      background: isToday ? 'rgba(14, 165, 233, 0.02)' : 'transparent',
+                      position: 'relative'
+                    }}>
+                      {/* Current time indicator */}
+                      {isToday && todayDate.getHours() === hour && (
+                        <div style={{
+                          position: 'absolute',
+                          top: `${(todayDate.getMinutes() / 60) * 100}%`,
+                          left: 0,
+                          right: 0,
+                          height: 2,
+                          background: 'red',
+                          zIndex: 10,
+                          pointerEvents: 'none'
+                        }} />
+                      )}
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {cellOTMs.map(o => {
+                          const isDone = o.status === 'closed' || o.status === 'awaiting_supervisor' || o.status === 'awaiting_conformity';
+                          const isCarpintero = o.failure_type === '04. Carpintero';
+                          const specialColor = isCarpintero ? '#8B4513' : 'var(--accent-blue)';
+                          const bgSpecialColor = isCarpintero ? 'rgba(139, 69, 19, 0.1)' : 'rgba(14, 165, 233, 0.1)';
+                          
+                          return (
+                            <div key={o.id} 
+                              onClick={() => setSelectedOTM(o)}
+                              style={{
+                                background: isDone ? 'rgba(0,0,0,0.05)' : bgSpecialColor,
+                                borderLeft: `4px solid ${isDone ? '#94a3b8' : specialColor}`,
+                                padding: '6px 8px',
+                                borderRadius: 6,
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                boxShadow: isDone ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2
+                              }}>
+                              <div style={{ fontWeight: 800, color: isDone ? '#475569' : specialColor, display: 'flex', justifyContent: 'space-between' }}>
+                                <span>{o.otm_code}</span>
+                                <span style={{ fontSize: '0.65rem' }}>{new Date(o.scheduled_date!).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                              </div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: isDone ? '#64748b' : 'var(--text-secondary)' }}>
+                                Prioridad: {STATUS_LABELS[o.urgency as keyof typeof STATUS_LABELS] || o.urgency}
+                              </div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 500, opacity: 0.8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {o.description}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            ))}
           </div>
         </div>
       </div>
@@ -147,6 +238,12 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
             
             <div style={{ display: 'grid', gap: 16, marginBottom: 24, fontSize: '0.9rem' }}>
               <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Fecha y Hora Programada</strong>
+                <div style={{ fontWeight: 600 }}>
+                  {new Date(selectedOTM.scheduled_date!).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}
+                </div>
+              </div>
+              <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Descripción del Problema</strong>
                 <div style={{ padding: 12, background: 'rgba(0,0,0,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
                   {selectedOTM.description}
@@ -157,20 +254,6 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                 <div style={{ fontWeight: 600 }}>Área: {selectedOTM.area_sector} | Solicitante: {selectedOTM.requester_name}</div>
                 <div style={{ fontWeight: 600 }}>📍 {selectedOTM.location || 'Sede Principal'} - {selectedOTM.exact_location}</div>
               </div>
-              {(() => {
-                const images = selectedOTM.attachments ? selectedOTM.attachments.map((a: any) => a.file_url) : [];
-                if (images.length === 0) return null;
-                return (
-                  <div>
-                    <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 8 }}>Imágenes Adjuntas</strong>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {images.map((img: string, idx: number) => (
-                        <img key={idx} src={img} alt={`Evidencia ${idx}`} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
 
             <button 

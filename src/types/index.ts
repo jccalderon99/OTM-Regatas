@@ -281,3 +281,38 @@ export const LOCATIONS = [
   '55. Mastil',
   '56. Polideportivo - al exterior del Club'
 ];
+
+// === RUTINARIAS ===
+export type RoutineStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface RoutineActivity {
+  id: string;
+  specialty: string;
+  name: string;
+  description: string;
+  category?: string;
+  questions: RoutineQuestion[];
+}
+
+export interface RoutineQuestion {
+  id: string;
+  label: string;
+  type: 'text' | 'select' | 'number' | 'checkbox' | 'time';
+  options?: string[];
+  required: boolean;
+}
+
+export interface RoutineRecord {
+  id: string;
+  user_id: string;
+  activity_id: string;
+  activity_name: string;
+  specialty: string;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+  status: RoutineStatus;
+  answers: Record<string, any>;
+  notes: string;
+  created_at: string;
+}

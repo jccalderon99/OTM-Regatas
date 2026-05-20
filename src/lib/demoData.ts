@@ -198,8 +198,8 @@ const specialties = ['01. Operador de Calderos', '02. Piscinero', '03. Electrici
 const generatedOTMs: OTMRequest[] = [];
 const generatedLogs: OTMStatusLog[] = [];
 
-// Generate 30 OTMs
-for (let i = 1; i <= 35; i++) {
+// Generate 50 OTMs
+for (let i = 1; i <= 50; i++) {
   const status = statuses[i % statuses.length];
   const urgency = urgencies[i % urgencies.length];
   const specialty = specialties[i % specialties.length];

@@ -19,6 +19,15 @@ export default function AttendancePanel() {
   const record = getRecordToday(user.id);
 
   const requestLocationAndAction = async (action: 'check-in' | 'check-out') => {
+    const isCheckIn = action === 'check-in';
+    const confirmMsg = isCheckIn 
+      ? "¿Estás seguro de que deseas marcar tu INGRESO en este momento?"
+      : "¿Estás seguro de que deseas marcar tu SALIDA en este momento?";
+      
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setLoading(true);
