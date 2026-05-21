@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { DEMO_USERS } from '../lib/demoData';
+import PWAPrompt from '../components/PWAPrompt';
 
 export default function Login() {
   const { login, loginAsDemo, loading, error, isDemo } = useAuth();
@@ -108,6 +109,7 @@ export default function Login() {
         </div>
       </div>
       <div style={{ position: 'fixed', bottom: 12, right: 16, fontSize: '0.7rem', color: 'rgba(0,0,0,0.25)', fontWeight: 500, pointerEvents: 'none', letterSpacing: '0.05em' }}>Admin: J.C</div>
+      <PWAPrompt loginOnly />
     </>
   );
 }

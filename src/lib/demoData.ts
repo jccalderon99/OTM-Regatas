@@ -247,8 +247,12 @@ for (let i = 1; i <= 50; i++) {
     status,
     supervisor_id: (status !== 'pending' && status !== 'cancelled') ? (supervisor?.id || null) : null,
     supervisor_notes: (status !== 'pending') ? 'Revisado y procesado por supervisión.' : null,
-    scheduled_date: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? getDateShift(dayShift + 1).toISOString() : null,
-    technician_id: (status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? technician.id : null,
+    scheduled_date: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? (() => {
+      const sd = getDateShift(dayShift + 1);
+      sd.setHours(8 + (i % 10), (i * 7) % 60, 0, 0);
+      return sd.toISOString();
+    })() : null,
+    technician_id: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? technician.id : null,
     technician_notes: (status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? 'Trabajo completado según lo solicitado.' : null,
     maintenance_type: (status === 'closed' || status === 'awaiting_supervisor') ? 'corrective' : null,
     job_start_time: (status === 'closed' || status === 'awaiting_supervisor') ? createdAt.toISOString() : null,
@@ -263,7 +267,7 @@ for (let i = 1; i <= 50; i++) {
     rq_materials: status === 'rq' ? 'Materiales varios' : null,
     rq_quantities: status === 'rq' ? '10 unidades' : null,
     attachments: [],
-    assigned_technicians: (status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? [{
+    assigned_technicians: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? [{
       technician_id: technician.id,
       technician: technician
     }] : [],

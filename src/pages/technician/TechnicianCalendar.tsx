@@ -4,6 +4,11 @@ import { useRoutineActivity } from '../../context/RoutineActivityContext';
 import { STATUS_LABELS } from '../../types';
 import { RoutineRecord, routineEventTitle, ROUTINE_EVENT_COLOR, parseRoutineHour } from '../../types/routine';
 import RoutineDetailModal from '../../components/RoutineDetailModal';
+import {
+  filterOtmsForCalendar,
+  getOtmCalendarDate,
+  otmMatchesCalendarCell,
+} from '../../lib/calendarUtils';
 
 export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const { getOTMsForCurrentUser } = useOTM();
@@ -14,10 +19,10 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
 
   const routineRecords = useMemo(() => getRecordsForCalendar(), [getRecordsForCalendar]);
 
-  const otms = useMemo(() => getOTMsForCurrentUser().filter(o => 
-    o.scheduled_date && 
-    (o.status === 'scheduled' || o.status === 'in_progress' || o.status === 'awaiting_supervisor' || o.status === 'awaiting_conformity' || o.status === 'closed')
-  ), [getOTMsForCurrentUser]);
+  const otms = useMemo(
+    () => filterOtmsForCalendar(getOTMsForCurrentUser()),
+    [getOTMsForCurrentUser]
+  );
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
@@ -72,7 +77,7 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 className="page-title" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-secondary)' }}>
-              Mi Calendario de Tareas
+              Calendario de actividades
             </h1>
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: 4 }}>
               Semana actual - {formatWeekRange()}
@@ -144,13 +149,7 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                   const isToday = d.toDateString() === todayDate.toDateString();
                   
                   // Find OTMs that fall in this hour
-                  const cellOTMs = otms.filter(o => {
-                    const oDate = new Date(o.scheduled_date!);
-                    return oDate.getFullYear() === d.getFullYear() &&
-                           oDate.getMonth() === d.getMonth() &&
-                           oDate.getDate() === d.getDate() &&
-                           oDate.getHours() === hour;
-                  });
+                  const cellOTMs = otms.filter(o => otmMatchesCalendarCell(o, d, hour));
 
                   const cellRoutines = routineRecords.filter(r => {
                     const rDate = new Date(r.record_date + 'T12:00:00');
@@ -225,7 +224,7 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                               }}>
                               <div style={{ fontWeight: 800, color: isDone ? '#475569' : specialColor, display: 'flex', justifyContent: 'space-between' }}>
                                 <span>{o.otm_code}</span>
-                                <span style={{ fontSize: '0.65rem' }}>{new Date(o.scheduled_date!).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <span style={{ fontSize: '0.65rem' }}>{getOtmCalendarDate(o)?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
                               <div style={{ fontSize: '0.65rem', fontWeight: 600, color: isDone ? '#64748b' : 'var(--text-secondary)' }}>
                                 Prioridad: {STATUS_LABELS[o.urgency as keyof typeof STATUS_LABELS] || o.urgency}
@@ -276,7 +275,7 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
               <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Fecha y Hora Programada</strong>
                 <div style={{ fontWeight: 600 }}>
-                  {new Date(selectedOTM.scheduled_date!).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}
+                  {(getOtmCalendarDate(selectedOTM) || new Date(selectedOTM.scheduled_date!)).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}
                 </div>
               </div>
               <div>

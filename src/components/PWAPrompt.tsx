@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-export default function PWAPrompt() {
+export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -36,20 +36,10 @@ export default function PWAPrompt() {
 
     if (isStandalone) return;
 
-    // If it is iOS, show a subtle tutorial tip after 3 seconds
-    if (ios) {
-      const timer = setTimeout(() => {
-        if (!localStorage.getItem('dismissed-ios-pwa-tip')) {
-          setShowIOSManualTip(true);
-        }
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowPrompt(true);
+      if (!loginOnly) setShowPrompt(true);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -64,7 +54,7 @@ export default function PWAPrompt() {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('open-pwa-install-modal', handleManualOpen);
     };
-  }, []);
+  }, [loginOnly]);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -91,8 +81,8 @@ export default function PWAPrompt() {
     localStorage.setItem('dismissed-ios-pwa-tip', 'true');
   };
 
-  // 1. Android Automatic Prompt
-  if (showPrompt && !showManualModal) {
+  // 1. Android Automatic Prompt (solo fuera de login si no es loginOnly)
+  if (!loginOnly && showPrompt && !showManualModal) {
     return (
       <div style={{
         position: 'fixed',
@@ -149,8 +139,8 @@ export default function PWAPrompt() {
     );
   }
 
-  // 2. iOS Manual Prompt (Auto-toast)
-  if (showIOSManualTip && !showManualModal) {
+  // 2. iOS Manual Prompt (deshabilitado en loginOnly)
+  if (!loginOnly && showIOSManualTip && !showManualModal) {
     return (
       <div style={{
         position: 'fixed',

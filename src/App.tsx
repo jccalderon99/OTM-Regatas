@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OTMProvider } from './context/OTMContext';
 import { AttendanceProvider } from './context/AttendanceContext';
-import PWAPrompt from './components/PWAPrompt';
 import Login from './pages/Login';
 import DashboardLayout from './layouts/DashboardLayout';
 import NewOTM from './pages/requester/NewOTM';
@@ -71,7 +70,6 @@ export default function App() {
       <AttendanceProvider>
         <OTMProvider>
           <RoutineActivityProvider>
-            <PWAPrompt />
             <AppContent />
           </RoutineActivityProvider>
         </OTMProvider>
