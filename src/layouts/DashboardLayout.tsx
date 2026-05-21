@@ -23,20 +23,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Ingreso',
     roles: ['technician'],
     items: [
-      { id: 'attendance', label: 'Marcar Asistencia', icon: '📍', roles: ['technician'] },
       { id: 'routine-register', label: 'Registrar Rutina', icon: '⚡', roles: ['technician'] },
-    ]
-  },
-  {
-    id: 'otm',
-    title: 'Orden de trabajo mantenimiento',
-    roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'],
-    items: [
-      { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['requester', 'supervisor', 'jefatura', 'admin'] },
-      { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
-      { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
-      { id: 'my-tasks', label: 'Mis Tareas', icon: '🔧', roles: ['technician'] },
-      { id: 'calendar', label: 'Calendario de actividades', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
     ]
   },
   {
@@ -44,7 +31,15 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Personal de Mantenimiento',
     roles: ['supervisor', 'admin'],
     items: [
-      { id: 'attendance-table', label: 'Asistencia del personal', icon: '⏱️', roles: ['supervisor', 'admin'] },
+      { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
+      { id: 'routine-admin', label: 'Actividades Rutinarias', icon: '📋', roles: ['admin'] },
+    ]
+  },
+  {
+    id: 'personnel',
+    title: 'Personal de Mantenimiento',
+    roles: ['supervisor', 'admin'],
+    items: [
       { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
       { id: 'routine-admin', label: 'Actividades Rutinarias', icon: '📋', roles: ['admin'] },
     ]
@@ -98,7 +93,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
           </div>
           <div className="sidebar-subtitle">Órdenes de Trabajo</div>
         </div>
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" style={{ overflowY: 'auto', flex: 1 }}>
           {NAV_GROUPS.filter(g => g.roles.includes(user.role)).map(group => {
             const groupItems = group.items.filter(item => item.roles.includes(user.role));
             if (groupItems.length === 0) return null;

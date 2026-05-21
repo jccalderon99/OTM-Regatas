@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import { UserRole, Profile } from '../../types';
-import { useAttendance } from '../../context/AttendanceContext';
-
 export default function UserManagement() {
   const { 
     users, addUser, updateUser,
@@ -12,21 +10,7 @@ export default function UserManagement() {
     deleteUser
   } = useOTM();
 
-  const { geoConfig, updateGeoConfig } = useAttendance();
-
-  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios' | 'localizacion' | 'atributos'>('areas');
-
-  // Geo states for Localizacion tab
-  const [geoLat, setGeoLat] = useState(geoConfig.lat);
-  const [geoLng, setGeoLng] = useState(geoConfig.lng);
-  const [geoDist, setGeoDist] = useState(geoConfig.maxDistance);
-
-  // Sync geo state if config updates from elsewhere
-  useEffect(() => {
-    setGeoLat(geoConfig.lat);
-    setGeoLng(geoConfig.lng);
-    setGeoDist(geoConfig.maxDistance);
-  }, [geoConfig]);
+  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios' | 'atributos'>('areas');
 
   // Role adjustments states for Atributos tab
   const [assignedAttributes, setAssignedAttributes] = useState<{
@@ -233,7 +217,6 @@ export default function UserManagement() {
         <button className={`tab ${activeTab === 'supervisores' ? 'active' : ''}`} onClick={() => setActiveTab('supervisores')}>Supervisores</button>
         <button className={`tab ${activeTab === 'tecnicos' ? 'active' : ''}`} onClick={() => setActiveTab('tecnicos')}>Técnicos</button>
         <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Usuarios</button>
-        <button className={`tab ${activeTab === 'localizacion' ? 'active' : ''}`} onClick={() => setActiveTab('localizacion')}>🛰️ Localización</button>
         <button className={`tab ${activeTab === 'atributos' ? 'active' : ''}`} onClick={() => setActiveTab('atributos')}>🔑 Atributos</button>
       </div>
 
@@ -501,228 +484,7 @@ export default function UserManagement() {
           </div>
         )}
 
-        {/* TAB 7: LOCALIZACION (FUTURISTA Y GEODÉSICA) */}
-        {activeTab === 'localizacion' && (
-          <div>
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                🛰️ Configuración Satelital de Cobertura
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Establece las coordenadas maestras de geolocalización y el perímetro de seguridad para el marcado de asistencia.
-              </p>
-            </div>
-
-            <div className="grid-2-1" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24 }}>
-              
-              {/* Controls Column */}
-              <div className="flex-col gap-4">
-                <div style={{ background: 'rgba(14, 165, 233, 0.03)', border: '1px solid rgba(14, 165, 233, 0.1)', padding: 20, borderRadius: 16 }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16, color: '#1e293b', letterSpacing: '0.02em' }}>
-                    🎛️ PANEL DE CONTROL GEODÉSICO
-                  </h4>
-                  
-                  <div className="form-group" style={{ marginBottom: 16 }}>
-                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                      <span>Latitud Maestro (GPS)</span>
-                      <span style={{ fontFamily: 'monospace', color: 'var(--accent-blue)' }}>{geoLat.toFixed(8)}°</span>
-                    </label>
-                    <input 
-                      type="number" 
-                      step="0.00000000000001" 
-                      className="form-input" 
-                      value={geoLat} 
-                      onChange={e => setGeoLat(parseFloat(e.target.value) || 0)} 
-                      style={{ fontFamily: 'monospace' }}
-                    />
-                    <input 
-                      type="range" 
-                      min="-12.200000" 
-                      max="-12.100000" 
-                      step="0.000100" 
-                      value={geoLat} 
-                      onChange={e => setGeoLat(parseFloat(e.target.value))} 
-                      style={{ width: '100%', marginTop: 8 }}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 16 }}>
-                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                      <span>Longitud Maestro (GPS)</span>
-                      <span style={{ fontFamily: 'monospace', color: 'var(--accent-blue)' }}>{geoLng.toFixed(8)}°</span>
-                    </label>
-                    <input 
-                      type="number" 
-                      step="0.00000000000001" 
-                      className="form-input" 
-                      value={geoLng} 
-                      onChange={e => setGeoLng(parseFloat(e.target.value) || 0)} 
-                      style={{ fontFamily: 'monospace' }}
-                    />
-                    <input 
-                      type="range" 
-                      min="-77.100000" 
-                      max="-77.000000" 
-                      step="0.000100" 
-                      value={geoLng} 
-                      onChange={e => setGeoLng(parseFloat(e.target.value))} 
-                      style={{ width: '100%', marginTop: 8 }}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 24 }}>
-                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                      <span>Radio Máximo de Marcado</span>
-                      <span style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>{geoDist} Metros</span>
-                    </label>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <input 
-                        type="range" 
-                        min="50" 
-                        max="1000" 
-                        step="50" 
-                        value={geoDist} 
-                        onChange={e => setGeoDist(parseInt(e.target.value) || 400)} 
-                        style={{ flex: 1 }}
-                      />
-                      <input 
-                        type="number" 
-                        className="form-input" 
-                        value={geoDist} 
-                        onChange={e => setGeoDist(parseInt(e.target.value) || 0)} 
-                        style={{ width: 80, textAlign: 'center', fontWeight: 700 }}
-                      />
-                    </div>
-                  </div>
-
-                  <button 
-                    className="btn btn-primary w-full" 
-                    onClick={() => {
-                      updateGeoConfig(geoLat, geoLng, geoDist);
-                      alert('🛰️ Parámetros geodésicos actualizados con éxito. Sincronizado en tiempo real.');
-                    }}
-                    style={{
-                      background: 'linear-gradient(135deg, var(--accent-blue), #2563eb)',
-                      border: 'none',
-                      boxShadow: '0 8px 24px rgba(14, 165, 233, 0.3)',
-                      fontWeight: 700,
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    🚀 APLICAR CAMBIOS Y RE-SINCRONIZAR GPS
-                  </button>
-                </div>
-
-                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
-                  <h5 style={{ fontWeight: 700, fontSize: '0.8rem', color: '#334155', marginBottom: 6 }}>ℹ️ Acerca del Perímetro Geodésico</h5>
-                  <p style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4 }}>
-                    El sistema utiliza la fórmula de <strong>Haversine</strong> para calcular la distancia en arco sobre la superficie terrestre entre las coordenadas reales del celular del técnico y este punto maestro del Club. Si excede el rango máximo definido, el sistema denegará la marcación de asistencia.
-                  </p>
-                </div>
-              </div>
-
-              {/* Futuristic Radar Visualizer Column */}
-              <div style={{ 
-                background: 'linear-gradient(135deg, #0b0f19, #111827)', 
-                borderRadius: 24, 
-                padding: 24, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-                border: '1px solid rgba(14, 165, 233, 0.2)',
-                position: 'relative',
-                overflow: 'hidden',
-                minHeight: 400
-              }}>
-                <style>{`
-                  @keyframes rotateRadar {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                  }
-                  @keyframes pulseRadar {
-                    0% { transform: scale(0.6); opacity: 0.1; }
-                    50% { opacity: 0.4; }
-                    100% { transform: scale(1); opacity: 0; }
-                  }
-                  .radar-grid {
-                    width: 240px; height: 240px; border-radius: 50%;
-                    border: 1px solid rgba(14, 165, 233, 0.3);
-                    position: relative;
-                    display: flex; align-items: center; justify-content: center;
-                    background: radial-gradient(circle, rgba(14,165,233,0.05) 0%, rgba(14,165,233,0) 70%);
-                  }
-                  .radar-ring-1 {
-                    width: 180px; height: 180px; border-radius: 50%;
-                    border: 1px dashed rgba(14, 165, 233, 0.2); position: absolute;
-                  }
-                  .radar-ring-2 {
-                    width: 120px; height: 120px; border-radius: 50%;
-                    border: 1px solid rgba(14, 165, 233, 0.15); position: absolute;
-                  }
-                  .radar-ring-pulse {
-                    width: 240px; height: 240px; border-radius: 50%;
-                    border: 2px solid var(--accent-blue); position: absolute;
-                    animation: pulseRadar 3s infinite linear;
-                    pointer-events: none;
-                  }
-                  .radar-crosshair-h {
-                    width: 100%; height: 1px; background: rgba(14, 165, 233, 0.15); position: absolute;
-                  }
-                  .radar-crosshair-v {
-                    height: 100%; width: 1px; background: rgba(14, 165, 233, 0.15); position: absolute;
-                  }
-                  .radar-sweeper {
-                    width: 120px; height: 120px;
-                    background: linear-gradient(45deg, rgba(14, 165, 233, 0.4) 0%, rgba(14, 165, 233, 0) 60%);
-                    position: absolute; top: 0; left: 0;
-                    transform-origin: bottom right;
-                    border-radius: 100% 0 0 0;
-                    animation: rotateRadar 6s infinite linear;
-                  }
-                  .radar-target {
-                    font-size: 24px; z-index: 10; position: absolute;
-                    filter: drop-shadow(0 0 8px var(--accent-blue));
-                    animation: bounce 2s infinite;
-                  }
-                  .radar-stat-box {
-                    margin-top: 24px; width: 100%;
-                    background: rgba(15, 23, 42, 0.6);
-                    border: 1px solid rgba(14, 165, 233, 0.1);
-                    border-radius: 12px; padding: 12px;
-                    font-family: monospace; font-size: 0.75rem; color: #38bdf8;
-                    box-sizing: border-box;
-                  }
-                `}</style>
-
-                {/* Radar visualization */}
-                <div className="radar-grid">
-                  <div className="radar-sweeper"></div>
-                  <div className="radar-ring-1"></div>
-                  <div className="radar-ring-2"></div>
-                  <div className="radar-ring-pulse"></div>
-                  <div className="radar-crosshair-h"></div>
-                  <div className="radar-crosshair-v"></div>
-                  <span className="radar-target">🎯</span>
-                </div>
-
-                <div className="radar-stat-box">
-                  <div style={{ color: '#22c55e', fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-                    GPS STATUS: OPERATIONAL
-                  </div>
-                  <div>LOC: CRL - BARRANCO/CHORRILLOS</div>
-                  <div>LAT: {geoLat.toFixed(8)}°</div>
-                  <div>LNG: {geoLng.toFixed(8)}°</div>
-                  <div style={{ color: 'var(--accent-gold)' }}>SAFE RADIUS: {geoDist} METERS</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 8: ATRIBUTOS (GESTIÓN DE ROLES DINÁMICA POR EMAIL) */}
+        {/* TAB 7: ATRIBUTOS (GESTIÓN DE ROLES DINÁMICA POR EMAIL) */}
         {activeTab === 'atributos' && (
           <div>
             <div style={{ marginBottom: 24 }}>

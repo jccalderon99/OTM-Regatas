@@ -1,154 +1,86 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { RoutineActivity, RoutineRecord } from '../types/routine';
-import { DEMO_ROUTINE_ACTIVITIES } from '../lib/routineActivities';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { RoutineRecord } from '../types/routine';
+
+export interface RoutineActivity {
+  id: string;
+  specialty: string;
+  sub_specialty: string;
+  activity: string;
+  description: string;
+  category?: string;
+  questions: RoutineQuestion[];
+}
+
+export interface RoutineQuestion {
+  id: string;
+  label: string;
+  type: 'text' | 'select' | 'number' | 'checkbox' | 'time';
+  options?: string[];
+  required: boolean;
+}
 
 interface RoutineActivityContextType {
   activities: RoutineActivity[];
   records: RoutineRecord[];
-  getRecordsForCalendar: () => RoutineRecord[];
-  addRoutineActivity: (data: Omit<RoutineActivity, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updateRoutineActivity: (id: string, data: Partial<Pick<RoutineActivity, 'specialty' | 'sub_specialty' | 'activity'>>) => Promise<void>;
+  addRoutineActivity: (activity: Partial<RoutineActivity>) => Promise<void>;
+  updateRoutineActivity: (id: string, fields: Partial<RoutineActivity>) => Promise<void>;
   deleteRoutineActivity: (id: string) => Promise<void>;
-  createRoutineRecord: (data: Omit<RoutineRecord, 'id' | 'created_at' | 'technician' | 'technician_id'>) => Promise<void>;
-  refreshRoutines: () => void;
+  createRoutineRecord: (record: Partial<RoutineRecord>) => Promise<void>;
+  getRecordsForCalendar: (dateRange: { start: Date; end: Date }) => RoutineRecord[];
 }
 
 const RoutineActivityContext = createContext<RoutineActivityContextType | null>(null);
 
-export function RoutineActivityProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const isLive = isSupabaseConfigured();
+export function RoutineActivityProvider({ children }: { children: React.ReactNode }) {
+  const [activities, setActivities] = useState<RoutineActivity[]>([]);
+  const [records, setRecords] = useState<RoutineRecord[]>([]);
 
-  const [activities, setActivities] = useState<RoutineActivity[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_routine_activities');
-    return saved ? JSON.parse(saved) : [...DEMO_ROUTINE_ACTIVITIES];
-  });
+  const addRoutineActivity = useCallback(async (activity: Partial<RoutineActivity>) => {
+    const newAct: RoutineActivity = {
+      id: `act-${Date.now()}`,
+      specialty: activity.specialty || '',
+      sub_specialty: activity.sub_specialty || '',
+      activity: activity.activity || '',
+      description: activity.description || '',
+      questions: activity.questions || [],
+    };
+    setActivities(prev => [...prev, newAct]);
+  }, []);
 
-  const [records, setRecords] = useState<RoutineRecord[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_routine_records');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    if (!isLive) localStorage.setItem('demo_routine_activities', JSON.stringify(activities));
-  }, [activities, isLive]);
-
-  useEffect(() => {
-    if (!isLive) localStorage.setItem('demo_routine_records', JSON.stringify(records));
-  }, [records, isLive]);
-
-  const fetchAll = useCallback(async () => {
-    if (!isLive) return;
-    const [actRes, recRes] = await Promise.all([
-      supabase.from('routine_activities').select('*').order('specialty').order('sub_specialty'),
-      supabase.from('routine_records').select('*, technician:profiles(*)').order('record_date', { ascending: false }),
-    ]);
-    if (actRes.data?.length) setActivities(actRes.data);
-    else if (actRes.data) setActivities([]);
-    if (recRes.data) setRecords(recRes.data);
-  }, [isLive]);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-
-  const getRecordsForCalendar = useCallback(() => {
-    if (!user) return [];
-    if (user.role === 'technician') {
-      return records.filter(r => r.technician_id === user.id);
-    }
-    return records;
-  }, [records, user]);
-
-  const addRoutineActivity = useCallback(async (data: Omit<RoutineActivity, 'id' | 'created_at' | 'updated_at'>) => {
-    if (isLive) {
-      const { data: row, error } = await supabase.from('routine_activities').insert(data).select().single();
-      if (error) throw error;
-      if (row) setActivities(prev => [...prev, row]);
-    } else {
-      const row: RoutineActivity = {
-        ...data,
-        id: `routine-act-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setActivities(prev => [...prev, row]);
-    }
-  }, [isLive]);
-
-  const updateRoutineActivity = useCallback(async (id: string, data: Partial<Pick<RoutineActivity, 'specialty' | 'sub_specialty' | 'activity'>>) => {
-    if (isLive) {
-      const { data: row, error } = await supabase
-        .from('routine_activities')
-        .update({ ...data, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      if (row) setActivities(prev => prev.map(a => (a.id === id ? row : a)));
-    } else {
-      setActivities(prev =>
-        prev.map(a =>
-          a.id === id ? { ...a, ...data, updated_at: new Date().toISOString() } : a
-        )
-      );
-    }
-  }, [isLive]);
+  const updateRoutineActivity = useCallback(async (id: string, fields: Partial<RoutineActivity>) => {
+    setActivities(prev => prev.map(a => a.id === id ? { ...a, ...fields } : a));
+  }, []);
 
   const deleteRoutineActivity = useCallback(async (id: string) => {
-    if (isLive) {
-      const { error } = await supabase.from('routine_activities').delete().eq('id', id);
-      if (error) throw error;
-    }
     setActivities(prev => prev.filter(a => a.id !== id));
-  }, [isLive]);
+  }, []);
 
-  const createRoutineRecord = useCallback(async (
-    data: Omit<RoutineRecord, 'id' | 'created_at' | 'technician' | 'technician_id'>
-  ) => {
-    if (!user) return;
-    const payload = {
-      ...data,
-      technician_id: user.id,
-      activities_executed: data.activities_executed || [],
-      photos: data.photos || [],
-      free_text_activity: data.free_text_activity || null,
+  const createRoutineRecord = useCallback(async (record: Partial<RoutineRecord>) => {
+    const newRec: RoutineRecord = {
+      id: `rec-${Date.now()}`,
+      specialty: record.specialty || '',
+      sub_specialty: record.sub_specialty || '',
+      activities_executed: record.activities_executed || [],
+      free_text_activity: record.free_text_activity || null,
+      record_date: record.record_date || new Date().toISOString().slice(0, 10),
+      start_time: record.start_time || '08:00',
+      end_time: record.end_time || '09:00',
+      photos: record.photos || [],
+      technician_id: record.technician_id || 'current-user',
+      created_at: new Date().toISOString(),
     };
+    setRecords(prev => [...prev, newRec]);
+  }, []);
 
-    if (isLive) {
-      const { data: row, error } = await supabase
-        .from('routine_records')
-        .insert(payload)
-        .select('*, technician:profiles(*)')
-        .single();
-      if (error) throw error;
-      if (row) setRecords(prev => [row, ...prev]);
-    } else {
-      const row: RoutineRecord = {
-        ...payload,
-        id: `routine-rec-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        technician: user,
-      };
-      setRecords(prev => [row, ...prev]);
-    }
-  }, [isLive, user]);
+  const getRecordsForCalendar = useCallback((dateRange: { start: Date; end: Date }) => {
+    return records.filter(r => {
+      const d = new Date(r.record_date);
+      return d >= dateRange.start && d <= dateRange.end;
+    });
+  }, [records]);
 
   return (
-    <RoutineActivityContext.Provider
-      value={{
-        activities,
-        records,
-        getRecordsForCalendar,
-        addRoutineActivity,
-        updateRoutineActivity,
-        deleteRoutineActivity,
-        createRoutineRecord,
-        refreshRoutines: fetchAll,
-      }}
-    >
+    <RoutineActivityContext.Provider value={{ activities, records, addRoutineActivity, updateRoutineActivity, deleteRoutineActivity, createRoutineRecord, getRecordsForCalendar }}>
       {children}
     </RoutineActivityContext.Provider>
   );

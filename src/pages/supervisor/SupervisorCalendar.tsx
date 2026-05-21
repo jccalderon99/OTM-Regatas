@@ -29,10 +29,6 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineRecord | null>(null);
 
-  const routineRecords = useMemo(() => getRecordsForCalendar(), [getRecordsForCalendar]);
-
-  const calendarOTMs = useMemo(() => filterOtmsForCalendar(otms), [otms]);
-
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -42,6 +38,13 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
   };
 
   const weekStart = getWeekStart(currentDate);
+
+  const routineRecords = useMemo(() => {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    return getRecordsForCalendar({ start: weekStart, end: weekEnd });
+  }, [getRecordsForCalendar, weekStart]);
+  const calendarOTMs = useMemo(() => filterOtmsForCalendar(otms), [otms]);
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + i);
@@ -95,10 +98,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 className="page-title" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-secondary)' }}>
-              Calendario de actividades
-            </h1>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: 4 }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: 0 }}>
               Semana actual - {formatWeekRange()}
             </div>
           </div>
@@ -186,7 +186,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                     return rDate.getFullYear() === d.getFullYear() &&
                            rDate.getMonth() === d.getMonth() &&
                            rDate.getDate() === d.getDate() &&
-                           parseRoutineHour(r.start_time) === hour;
+                            parseRoutineHour(r.start_time || '00:00') === hour;
                   });
 
                   return (
@@ -231,7 +231,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                               }}
                             >
                               <div style={{ fontWeight: 800, fontSize: '0.65rem' }}>{routineEventTitle(r.specialty, r.sub_specialty)}</div>
-                              <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{r.start_time} · {techName.split(' ').slice(0, 2).join(' ')}</span>
+                              <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{r.start_time} · { (users.find(u => u.id === r.technician_id)?.full_name || 'Técnico').split(' ').slice(0, 2).join(' ') }</span>
                             </div>
                           );
                         })}

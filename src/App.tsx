@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OTMProvider } from './context/OTMContext';
-import { AttendanceProvider } from './context/AttendanceContext';
 import Login from './pages/Login';
 import DashboardLayout from './layouts/DashboardLayout';
 import NewOTM from './pages/requester/NewOTM';
@@ -10,8 +9,6 @@ import CommandCenter from './pages/supervisor/CommandCenter';
 import OTMManagement from './pages/supervisor/OTMManagement';
 import MyTasks from './pages/technician/MyTasks';
 import UserManagement from './pages/admin/UserManagement';
-import AttendancePanel from './pages/technician/AttendancePanel';
-import AttendanceTable from './pages/supervisor/AttendanceTable';
 import TechnicianCalendar from './pages/technician/TechnicianCalendar';
 import SupervisorCalendar from './pages/supervisor/SupervisorCalendar';
 import RoutineActivitiesAdmin from './pages/admin/RoutineActivitiesAdmin';
@@ -35,7 +32,7 @@ function AppContent() {
     switch (user.role) {
       case 'requester': return <MyDashboard />;
       case 'supervisor': return <CommandCenter />;
-      case 'technician': return <AttendancePanel />;
+      case 'technician': return <MyTasks />;
       case 'jefatura': return <MyDashboard />;
       case 'admin': return <CommandCenter />;
     }
@@ -48,8 +45,6 @@ function AppContent() {
       case 'management': return <OTMManagement />;
       case 'my-tasks': return <MyTasks />;
       case 'users': return <UserManagement />;
-      case 'attendance': return <AttendancePanel />;
-      case 'attendance-table': return <AttendanceTable />;
       case 'calendar': return user.role === 'technician' ? <TechnicianCalendar onNavigate={setCurrentView} /> : <SupervisorCalendar onNavigate={setCurrentView} />;
       case 'routine-admin': return <RoutineActivitiesAdmin />;
       case 'routine-register': return <RoutineRegister />;
@@ -67,13 +62,11 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AttendanceProvider>
-        <OTMProvider>
-          <RoutineActivityProvider>
-            <AppContent />
-          </RoutineActivityProvider>
-        </OTMProvider>
-      </AttendanceProvider>
+      <OTMProvider>
+        <RoutineActivityProvider>
+          <AppContent />
+        </RoutineActivityProvider>
+      </OTMProvider>
     </AuthProvider>
   );
 }

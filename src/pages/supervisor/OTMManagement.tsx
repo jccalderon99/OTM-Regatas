@@ -147,10 +147,7 @@ export default function OTMManagement() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Gestión de OTMs</h1>
-        <p className="page-subtitle">Administra, asigna y supervisa todas las órdenes de trabajo</p>
-      </div>
+      <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 20 }}>Administra, asigna y supervisa todas las órdenes de trabajo</p>
 
       {/* Filters */}
       <div className="filter-bar responsive-actions" style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
