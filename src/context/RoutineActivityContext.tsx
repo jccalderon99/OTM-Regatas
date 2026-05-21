@@ -1,23 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { RoutineRecord } from '../types/routine';
-
-export interface RoutineActivity {
-  id: string;
-  specialty: string;
-  sub_specialty: string;
-  activity: string;
-  description: string;
-  category?: string;
-  questions: RoutineQuestion[];
-}
-
-export interface RoutineQuestion {
-  id: string;
-  label: string;
-  type: 'text' | 'select' | 'number' | 'checkbox' | 'time';
-  options?: string[];
-  required: boolean;
-}
+import { RoutineRecord, RoutineActivity } from '../types/routine';
 
 interface RoutineActivityContextType {
   activities: RoutineActivity[];
@@ -58,6 +40,8 @@ export function RoutineActivityProvider({ children }: { children: React.ReactNod
   const createRoutineRecord = useCallback(async (record: Partial<RoutineRecord>) => {
     const newRec: RoutineRecord = {
       id: `rec-${Date.now()}`,
+      user_id: 'current-user',
+      technician_id: record.technician_id || 'current-user',
       specialty: record.specialty || '',
       sub_specialty: record.sub_specialty || '',
       activities_executed: record.activities_executed || [],
@@ -66,7 +50,8 @@ export function RoutineActivityProvider({ children }: { children: React.ReactNod
       start_time: record.start_time || '08:00',
       end_time: record.end_time || '09:00',
       photos: record.photos || [],
-      technician_id: record.technician_id || 'current-user',
+      status: 'completed',
+      notes: '',
       created_at: new Date().toISOString(),
     };
     setRecords(prev => [...prev, newRec]);

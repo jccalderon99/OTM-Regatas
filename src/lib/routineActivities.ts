@@ -51,5 +51,4 @@ export function getActivitiesForSub(specialty: string, subSpecialty: string, act
   return activities.filter(a => a.specialty === specialty && a.sub_specialty === subSpecialty);
 }
 
-// Import types to avoid errors
-import { RoutineActivity } from '../context/RoutineActivityContext';
+import { RoutineActivity } from '../types/routine';

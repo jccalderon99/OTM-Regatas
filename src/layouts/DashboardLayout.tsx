@@ -27,12 +27,15 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
-    id: 'personnel',
-    title: 'Personal de Mantenimiento',
-    roles: ['supervisor', 'admin'],
+    id: 'otm',
+    title: 'Órdenes de Trabajo',
+    roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'],
     items: [
-      { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
-      { id: 'routine-admin', label: 'Actividades Rutinarias', icon: '📋', roles: ['admin'] },
+      { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['requester', 'supervisor', 'jefatura', 'admin'] },
+      { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
+      { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
+      { id: 'my-tasks', label: 'Mis Tareas', icon: '🔧', roles: ['technician'] },
+      { id: 'calendar', label: 'Calendario de actividades', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
     ]
   },
   {

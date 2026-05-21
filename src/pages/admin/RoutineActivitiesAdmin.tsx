@@ -118,7 +118,7 @@ export default function RoutineActivitiesAdmin() {
         />
         <select className="input" value={specialtyFilter} onChange={e => { setSpecialtyFilter(e.target.value); setSubFilter(''); setPage(0); }} style={{ flex: '1 1 160px' }}>
           <option value="">Todas las especialidades</option>
-          {[...new Set([...ROUTINE_SPECIALTIES, ...activities.map(a => a.specialty)])].map(s => (
+          {ROUTINE_SPECIALTIES.map(s => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
@@ -177,12 +177,14 @@ export default function RoutineActivitiesAdmin() {
       {modalOpen && (
         <div
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', zIndex: 9999,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+            backdropFilter: 'blur(2px)',
           }}
           onClick={() => setModalOpen(false)}
         >
-          <div className="glass-card" style={{ width: '100%', maxWidth: 480, padding: 24 }} onClick={e => e.stopPropagation()}>
+          <div className="glass-card slide-up" style={{ width: '100%', maxWidth: 480, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 16 }}>
               {editingId ? 'Editar actividad' : 'Nueva actividad'}
             </h2>
