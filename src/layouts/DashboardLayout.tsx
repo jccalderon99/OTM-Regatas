@@ -90,21 +90,25 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div style={{ textAlign: 'center', margin: '12px 0 16px' }}>
-            <div style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--accent-blue)', letterSpacing: '-0.05em', lineHeight: 1 }}>CRL</div>
-            <div style={{ fontSize: '1.2rem', color: 'var(--accent-gold)', fontWeight: 800 }}>1875</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8, opacity: 0.6 }}>
+            Plataforma de
           </div>
-          <div className="sidebar-subtitle">Órdenes de Trabajo</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent-blue)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            MANTENIMIENTO
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(78,181,230,0.12)' }}>
+            <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#1e293b', fontFamily: '"Nunito", "Quicksand", "Arial Rounded MT Bold", sans-serif' }}>CRL</span>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent-gold)' }}></span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', fontWeight: 800, fontFamily: '"Nunito", "Quicksand", "Arial Rounded MT Bold", sans-serif' }}>1875</span>
+          </div>
         </div>
-        <nav className="sidebar-nav" style={{ overflowY: 'auto', flex: 1 }}>
+        <nav className="sidebar-nav">
           {NAV_GROUPS.filter(g => g.roles.includes(user.role)).map(group => {
             const groupItems = group.items.filter(item => item.roles.includes(user.role));
             if (groupItems.length === 0) return null;
             return (
-              <div key={group.id} style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 16px', marginBottom: 8 }}>
-                  {group.title}
-                </div>
+              <div key={group.id}>
+                <div className="sidebar-nav-group-title">{group.title}</div>
                 {groupItems.map(item => (
                   <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
                     onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}>
