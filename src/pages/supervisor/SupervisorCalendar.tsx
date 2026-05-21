@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useOTM } from '../../context/OTMContext';
+import { useRoutineActivity } from '../../context/RoutineActivityContext';
+import { RoutineRecord, routineEventTitle, ROUTINE_EVENT_COLOR, parseRoutineHour } from '../../types/routine';
+import RoutineDetailModal from '../../components/RoutineDetailModal';
 
 const SPECS_COLORS: Record<string, string> = {
   '01. Operador de Calderos': '#ef4444', // Red
@@ -15,8 +18,12 @@ const SPECS_COLORS: Record<string, string> = {
 
 export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const { otms, users } = useOTM();
+  const { getRecordsForCalendar } = useRoutineActivity();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
+  const [selectedRoutine, setSelectedRoutine] = useState<RoutineRecord | null>(null);
+
+  const routineRecords = useMemo(() => getRecordsForCalendar(), [getRecordsForCalendar]);
 
   const scheduledOTMs = useMemo(() => otms.filter(o => 
     o.scheduled_date && o.technician_id && 
@@ -110,6 +117,9 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: color }} /> {spec.split('. ')[1] || spec}
             </div>
           ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: ROUTINE_EVENT_COLOR }} /> Rutinario
+          </div>
         </div>
       </div>
 
@@ -174,6 +184,14 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                            oDate.getHours() === hour;
                   });
 
+                  const cellRoutines = routineRecords.filter(r => {
+                    const rDate = new Date(r.record_date + 'T12:00:00');
+                    return rDate.getFullYear() === d.getFullYear() &&
+                           rDate.getMonth() === d.getMonth() &&
+                           rDate.getDate() === d.getDate() &&
+                           parseRoutineHour(r.start_time) === hour;
+                  });
+
                   return (
                     <div key={i} style={{ 
                       flex: 1, 
@@ -197,6 +215,29 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                       )}
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {cellRoutines.map(r => {
+                          const techName = r.technician?.full_name || users.find(u => u.id === r.technician_id)?.full_name || 'Técnico';
+                          return (
+                            <div
+                              key={r.id}
+                              onClick={() => setSelectedRoutine(r)}
+                              style={{
+                                background: ROUTINE_EVENT_COLOR,
+                                color: 'white',
+                                padding: '6px 8px',
+                                borderRadius: 6,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                                borderLeft: '4px solid rgba(255,255,255,0.5)',
+                              }}
+                            >
+                              <div style={{ fontWeight: 800, fontSize: '0.65rem' }}>{routineEventTitle(r.specialty, r.sub_specialty)}</div>
+                              <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{r.start_time} · {techName.split(' ').slice(0, 2).join(' ')}</span>
+                            </div>
+                          );
+                        })}
                         {cellOTMs.map(o => {
                           const isDone = o.status === 'closed' || o.status === 'awaiting_supervisor' || o.status === 'awaiting_conformity';
                           const baseColor = SPECS_COLORS[o.failure_type] || SPECS_COLORS['09. Otros'];
@@ -241,6 +282,10 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
           </div>
         </div>
       </div>
+
+      {selectedRoutine && (
+        <RoutineDetailModal record={selectedRoutine} onClose={() => setSelectedRoutine(null)} />
+      )}
 
       {/* Modal Detalles OTM */}
       {selectedOTM && (

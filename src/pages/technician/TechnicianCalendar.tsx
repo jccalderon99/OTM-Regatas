@@ -1,13 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useOTM } from '../../context/OTMContext';
-import { useAuth } from '../../context/AuthContext';
+import { useRoutineActivity } from '../../context/RoutineActivityContext';
 import { STATUS_LABELS } from '../../types';
+import { RoutineRecord, routineEventTitle, ROUTINE_EVENT_COLOR, parseRoutineHour } from '../../types/routine';
+import RoutineDetailModal from '../../components/RoutineDetailModal';
 
 export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const { getOTMsForCurrentUser } = useOTM();
-  const { user } = useAuth();
+  const { getRecordsForCalendar } = useRoutineActivity();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
+  const [selectedRoutine, setSelectedRoutine] = useState<RoutineRecord | null>(null);
+
+  const routineRecords = useMemo(() => getRecordsForCalendar(), [getRecordsForCalendar]);
 
   const otms = useMemo(() => getOTMsForCurrentUser().filter(o => 
     o.scheduled_date && 
@@ -147,6 +152,14 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                            oDate.getHours() === hour;
                   });
 
+                  const cellRoutines = routineRecords.filter(r => {
+                    const rDate = new Date(r.record_date + 'T12:00:00');
+                    return rDate.getFullYear() === d.getFullYear() &&
+                           rDate.getMonth() === d.getMonth() &&
+                           rDate.getDate() === d.getDate() &&
+                           parseRoutineHour(r.start_time) === hour;
+                  });
+
                   return (
                     <div key={i} style={{ 
                       flex: 1, 
@@ -170,6 +183,25 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                       )}
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {cellRoutines.map(r => (
+                          <div
+                            key={r.id}
+                            onClick={() => setSelectedRoutine(r)}
+                            style={{
+                              background: ROUTINE_EVENT_COLOR,
+                              color: 'white',
+                              padding: '6px 8px',
+                              borderRadius: 6,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              borderLeft: '4px solid rgba(255,255,255,0.5)',
+                            }}
+                          >
+                            <div style={{ fontWeight: 800, fontSize: '0.65rem' }}>{routineEventTitle(r.specialty, r.sub_specialty)}</div>
+                            <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{r.start_time} — {r.end_time}</span>
+                          </div>
+                        ))}
                         {cellOTMs.map(o => {
                           const isDone = o.status === 'closed' || o.status === 'awaiting_supervisor' || o.status === 'awaiting_conformity';
                           const isCarpintero = o.failure_type === '04. Carpintero';
@@ -213,6 +245,10 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
           </div>
         </div>
       </div>
+
+      {selectedRoutine && (
+        <RoutineDetailModal record={selectedRoutine} onClose={() => setSelectedRoutine(null)} />
+      )}
 
       {/* Modal Detalles OTM Técnico */}
       {selectedOTM && (

@@ -15,6 +15,9 @@ import AttendancePanel from './pages/technician/AttendancePanel';
 import AttendanceTable from './pages/supervisor/AttendanceTable';
 import TechnicianCalendar from './pages/technician/TechnicianCalendar';
 import SupervisorCalendar from './pages/supervisor/SupervisorCalendar';
+import RoutineActivitiesAdmin from './pages/admin/RoutineActivitiesAdmin';
+import RoutineRegister from './pages/technician/RoutineRegister';
+import { RoutineActivityProvider } from './context/RoutineActivityContext';
 import { useRealtimeOTM } from './hooks/useRealtimeOTM';
 
 function AppContent() {
@@ -49,6 +52,8 @@ function AppContent() {
       case 'attendance': return <AttendancePanel />;
       case 'attendance-table': return <AttendanceTable />;
       case 'calendar': return user.role === 'technician' ? <TechnicianCalendar onNavigate={setCurrentView} /> : <SupervisorCalendar onNavigate={setCurrentView} />;
+      case 'routine-admin': return <RoutineActivitiesAdmin />;
+      case 'routine-register': return <RoutineRegister />;
       default: return defaultView();
     }
   };
@@ -65,8 +70,10 @@ export default function App() {
     <AuthProvider>
       <AttendanceProvider>
         <OTMProvider>
-          <PWAPrompt />
-          <AppContent />
+          <RoutineActivityProvider>
+            <PWAPrompt />
+            <AppContent />
+          </RoutineActivityProvider>
         </OTMProvider>
       </AttendanceProvider>
     </AuthProvider>

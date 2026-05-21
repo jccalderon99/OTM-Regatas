@@ -24,6 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
     roles: ['technician'],
     items: [
       { id: 'attendance', label: 'Marcar Asistencia', icon: '📍', roles: ['technician'] },
+      { id: 'routine-register', label: 'Registrar Rutina', icon: '⚡', roles: ['technician'] },
     ]
   },
   {
@@ -45,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'attendance-table', label: 'Asistencia del personal', icon: '⏱️', roles: ['supervisor', 'admin'] },
       { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
+      { id: 'routine-admin', label: 'Actividades Rutinarias', icon: '📋', roles: ['admin'] },
     ]
   }
 ];
