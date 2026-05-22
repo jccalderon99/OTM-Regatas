@@ -3,6 +3,7 @@ import { useOTM } from '../../context/OTMContext';
 import { useRoutineActivity } from '../../context/RoutineActivityContext';
 import { RoutineRecord, routineEventTitle, ROUTINE_EVENT_COLOR, parseRoutineHour } from '../../types/routine';
 import RoutineDetailModal from '../../components/RoutineDetailModal';
+import StatusBadge from '../../components/StatusBadge';
 import {
   filterOtmsForCalendar,
   getOtmCalendarDate,
@@ -301,9 +302,10 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>
               {selectedOTM.otm_code}
             </h2>
-            <div style={{ display: 'inline-block', padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600, marginBottom: 20 }}>
-              Estado: <span style={{ color: 'var(--accent-blue)' }}>{selectedOTM.status.toUpperCase()}</span>
-            </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>Estado:</span>
+                <StatusBadge status={selectedOTM.status} />
+              </div>
             <div style={{ display: 'grid', gap: 16, marginBottom: 24, fontSize: '0.9rem' }}>
               <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Ubicación</strong>
