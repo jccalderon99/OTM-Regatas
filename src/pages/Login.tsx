@@ -98,7 +98,9 @@ export default function Login() {
         justifyContent: 'center', 
         background: 'url("/images/login-hero.jpg") center/cover no-repeat', 
         padding: '30px 20px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        position: 'relative',
+        zIndex: 1
       }}>
         <div style={{ width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-in">
           
