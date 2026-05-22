@@ -96,13 +96,34 @@ export default function Login() {
         flexDirection: 'column',
         alignItems: 'center', 
         justifyContent: 'center', 
-        background: 'url("/images/login-hero.jpg") center/cover no-repeat', 
         padding: '30px 20px',
         boxSizing: 'border-box',
         position: 'relative',
-        zIndex: 1
+        overflow: 'hidden'
       }}>
-        <div style={{ width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', gap: 18 }} className="fade-in">
+        {/* Capa de fondo con imagen en alta calidad y desenfoque CSS premium */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'url("/images/club-watermark.jpg") center/cover no-repeat',
+          filter: 'blur(5px) brightness(0.8)',
+          transform: 'scale(1.06)', // Previene bordes blancos por el desenfoque
+          zIndex: 0,
+          pointerEvents: 'none'
+        }} />
+
+        <div style={{ 
+          width: '100%', 
+          maxWidth: 440, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 18,
+          position: 'relative',
+          zIndex: 1 
+        }} className="fade-in">
           
           {/* Card 1: Top Brand/Header Card */}
           <div style={{ 
