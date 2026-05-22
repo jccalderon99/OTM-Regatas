@@ -130,8 +130,8 @@ export let DEMO_USERS: Profile[] = [
   },
   {
     id: 'sup-2',
-    full_name: 'Marlon Rivera',
-    email: 'mrivera@clubregatas.org.pe',
+    full_name: 'Maria Pizarro',
+    email: 'mpizarro@clubregatas.org.pe',
     role: 'supervisor',
     area_sector: '22. MANTENIMIENTO',
     position: 'Supervisor Mantenimiento',
