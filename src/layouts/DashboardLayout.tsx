@@ -19,23 +19,30 @@ interface NavGroup {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    id: 'attendance-tech',
-    title: 'Ingreso',
-    roles: ['technician'],
-    items: [
-      { id: 'routine-register', label: 'Registrar Rutina', icon: '⚡', roles: ['technician'] },
-    ]
-  },
-  {
     id: 'otm',
     title: 'Órdenes de Trabajo',
-    roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'],
+    roles: ['requester', 'supervisor', 'jefatura', 'admin'],
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['requester', 'supervisor', 'jefatura', 'admin'] },
       { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
       { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
-      { id: 'my-tasks', label: 'Mis Tareas', icon: '🔧', roles: ['technician'] },
-      { id: 'calendar', label: 'Calendario de actividades', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
+    ]
+  },
+  {
+    id: 'activities',
+    title: 'Actividades',
+    roles: ['technician'],
+    items: [
+      { id: 'my-tasks', label: 'Actividades asignadas', icon: '🔧', roles: ['technician'] },
+      { id: 'routine-register', label: 'Actividades de Rutina', icon: '⚡', roles: ['technician'] },
+    ]
+  },
+  {
+    id: 'planning',
+    title: 'Plan de actividades',
+    roles: ['supervisor', 'admin', 'technician'],
+    items: [
+      { id: 'calendar', label: 'Agenda de actividades', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
     ]
   },
   {
