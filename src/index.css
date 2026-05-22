@@ -136,7 +136,7 @@ a:hover { color: var(--accent-blue-hover); }
 /* Layout */
 .app-layout { display: flex; min-height: 100vh; width: 100%; overflow-x: hidden; }
 .sidebar {
-  width: 280px; 
+  width: 260px; 
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border-right: 1px solid rgba(226,232,240,0.6);
   display: flex; flex-direction: column; padding: 0; position: fixed;
@@ -213,7 +213,7 @@ a:hover { color: var(--accent-blue-hover); }
   backdrop-filter: blur(8px);
 }
 
-.main-content { flex: 1; margin-left: 280px; min-width: 0; display: flex; flex-direction: column; }
+.main-content { flex: 1; margin-left: 260px; min-width: 0; display: flex; flex-direction: column; }
 @media (max-width: 1024px) {
   .main-content { margin-left: 0; }
 }

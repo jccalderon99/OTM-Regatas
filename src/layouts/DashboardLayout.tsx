@@ -17,7 +17,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
     id: 'attendance-tech',
     title: 'Ingreso',
@@ -49,7 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
   }
 ];
 
-const ROLE_LABELS: Record<UserRole, string> = {
+export const ROLE_LABELS: Record<UserRole, string> = {
   requester: 'Solicitante',
   supervisor: 'Supervisor',
   technician: 'Técnico',

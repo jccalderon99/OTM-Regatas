@@ -258,24 +258,55 @@ export default function Login() {
           </div>
 
           {/* Card 3: Demo Access Card */}
-          {isDemo && (
+          {isDemo && (() => {
+            const btnStyle = {
+              display: 'flex' as const,
+              alignItems: 'center' as const,
+              justifyContent: 'space-between' as const,
+              width: '100%',
+              background: 'rgba(255, 255, 255, 0.7)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              borderRadius: '12px',
+              padding: '10px 14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+              textAlign: 'left' as const
+            };
+            const roleColors: Record<string, string> = {
+              ADMINISTRADOR: '#b91c1c',
+              SUPERVISOR: '#4338ca',
+              SOLICITANTE: '#0d9488',
+              JEFATURA: '#b45309',
+              TÉCNICO: '#7c3aed'
+            };
+            const DemoBtn = ({ id, role, name, area }: { id: string; role: string; name: string; area: string }) => (
+              <button className="demo-login-btn" onClick={() => loginAsDemo(id)} style={btnStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, color: roleColors[role] || '#334155', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{role}</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>{name}</span>
+                </div>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>{area}</span>
+              </button>
+            );
+            return (
             <div style={{ 
-              background: 'rgba(255, 255, 255, 0.95)', 
-              padding: '24px 20px 16px', 
+              background: 'rgba(255, 255, 255, 0.82)', 
+              padding: '20px 16px 14px', 
               borderRadius: '24px', 
-              boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.6)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 12
+              gap: 10
             }}>
               <p style={{ 
                 color: '#1e293b', 
                 fontSize: '0.85rem', 
                 fontWeight: 700, 
                 textAlign: 'center', 
-                marginBottom: 4,
+                marginBottom: 2,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -284,135 +315,44 @@ export default function Login() {
                 ⚜️ Modo Demo — Acceso rápido
               </p>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* 1. Admin button */}
-                <button 
-                  className="demo-login-btn"
-                  onClick={() => loginAsDemo('admin-1')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.8)',
-                    border: '1px solid rgba(0, 0, 0, 0.08)',
-                    borderRadius: '16px',
-                    padding: '12px 18px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    textAlign: 'left'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ 
-                      fontSize: '0.72rem', 
-                      fontWeight: 800, 
-                      color: '#b91c1c', 
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em'
-                    }}>
-                      ADMINISTRADOR
-                    </span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
-                      Jose Calderon
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                    22. MANTENIMIENTO
-                  </span>
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <DemoBtn id="admin-1" role="ADMINISTRADOR" name="Jose Calderon" area="22. MANT." />
+                
+                <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
+                
+                <DemoBtn id="sup-1" role="SUPERVISOR" name="Diana Altamirano" area="22. MANT." />
+                <DemoBtn id="sup-2" role="SUPERVISOR" name="Marlon Rivera" area="22. MANT." />
+                
+                <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
+                
+                <DemoBtn id="usr-4" role="SOLICITANTE" name="Sonia Masias" area="13. DEPORTES" />
+                <DemoBtn id="usr-5" role="SOLICITANTE" name="Lybe Diaz" area="13. DEPORTES" />
 
-                {/* 2. Supervisor Diana button */}
-                <button 
-                  className="demo-login-btn"
-                  onClick={() => loginAsDemo('sup-1')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.8)',
-                    border: '1px solid rgba(0, 0, 0, 0.08)',
-                    borderRadius: '16px',
-                    padding: '12px 18px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    textAlign: 'left'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ 
-                      fontSize: '0.72rem', 
-                      fontWeight: 800, 
-                      color: '#4338ca', 
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em'
-                    }}>
-                      SUPERVISOR
-                    </span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
-                      Diana Altamirano
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                    22. MANTENIMIENTO
-                  </span>
-                </button>
+                <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
+                
+                <DemoBtn id="usr-10" role="JEFATURA" name="Raul Lozada" area="13. DEPORTES" />
+                <DemoBtn id="usr-2" role="JEFATURA" name="Marco Alvarez" area="22. MANT." />
 
-                {/* 3. Supervisor Maria button */}
-                <button 
-                  className="demo-login-btn"
-                  onClick={() => loginAsDemo('sup-2')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.8)',
-                    border: '1px solid rgba(0, 0, 0, 0.08)',
-                    borderRadius: '16px',
-                    padding: '12px 18px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    textAlign: 'left'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ 
-                      fontSize: '0.72rem', 
-                      fontWeight: 800, 
-                      color: '#4338ca', 
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em'
-                    }}>
-                      SUPERVISOR
-                    </span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
-                      Maria Pizarro
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                    22. MANTENIMIENTO
-                  </span>
-                </button>
+                <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
+                
+                <DemoBtn id="tech-1" role="TÉCNICO" name="Ciro Diaz Sifuentes" area="Calderos" />
+                <DemoBtn id="tech-13" role="TÉCNICO" name="Eduardo Jorge Rivera" area="Electricista" />
+                <DemoBtn id="tech-22" role="TÉCNICO" name="Rogelio Herrera Lazaro" area="Gasfitero" />
               </div>
 
-              {/* Centered Admin text at bottom of card */}
               <div style={{ 
                 textAlign: 'center', 
-                marginTop: 8, 
-                fontSize: '0.75rem', 
-                color: 'rgba(0,0,0,0.4)', 
+                marginTop: 4, 
+                fontSize: '0.72rem', 
+                color: 'rgba(0,0,0,0.35)', 
                 fontWeight: 600,
                 letterSpacing: '0.05em' 
               }}>
                 Admin: J.C
               </div>
             </div>
-          )}
+            );
+          })()}
 
         </div>
       </div>

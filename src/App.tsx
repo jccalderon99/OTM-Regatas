@@ -15,15 +15,16 @@ import RoutineActivitiesAdmin from './pages/admin/RoutineActivitiesAdmin';
 import RoutineRegister from './pages/technician/RoutineRegister';
 import { RoutineActivityProvider } from './context/RoutineActivityContext';
 import { useRealtimeOTM } from './hooks/useRealtimeOTM';
+import WelcomePortal from './pages/WelcomePortal';
 
 function AppContent() {
   useRealtimeOTM();
   const { user } = useAuth();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState('portal');
 
   // Reset view when user role changes to avoid "stuck" interfaces
   useEffect(() => {
-    setCurrentView('dashboard');
+    setCurrentView('portal');
   }, [user?.id, user?.role]);
 
   if (!user) return <Login />;
@@ -51,6 +52,10 @@ function AppContent() {
       default: return defaultView();
     }
   };
+
+  if (currentView === 'portal') {
+    return <WelcomePortal onNavigate={setCurrentView} />;
+  }
 
   return (
     <DashboardLayout currentView={currentView} onNavigate={setCurrentView}>
