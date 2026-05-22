@@ -93,7 +93,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8, opacity: 0.6 }}>
             Plataforma de
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent-blue)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          <div style={{ fontSize: '1.45rem', fontWeight: 900, color: 'var(--accent-blue)', letterSpacing: '-0.02em', lineHeight: 1 }}>
             MANTENIMIENTO
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(78,181,230,0.12)' }}>
