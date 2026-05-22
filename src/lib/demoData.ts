@@ -297,20 +297,25 @@ const specialtyImages: Record<string, { before: string[]; after: string[] }> = {
   }
 };
 
+// Helper to get a specific date in May 2026
+const getMayDate = (day: number, hourShift: number) => {
+  return new Date(2026, 4, day, 8 + (hourShift % 10), (hourShift * 7) % 60, 0, 0);
+};
+
 const generatedOTMs: OTMRequest[] = [];
 const generatedLogs: OTMStatusLog[] = [];
 
-// Generate 150 OTMs
-for (let i = 1; i <= 150; i++) {
-  // Balanced status distribution for 150 items
+// Generate 50 OTMs
+for (let i = 1; i <= 50; i++) {
+  // Balanced status distribution for 50 items
   let status: OTMStatus = 'pending';
-  if (i <= 30) status = 'closed';
-  else if (i <= 55) status = 'awaiting_conformity';
-  else if (i <= 80) status = 'awaiting_supervisor';
-  else if (i <= 105) status = 'in_progress';
-  else if (i <= 125) status = 'scheduled';
-  else if (i <= 140) status = 'pending';
-  else if (i <= 146) status = 'rq';
+  if (i <= 10) status = 'closed';
+  else if (i <= 18) status = 'awaiting_conformity';
+  else if (i <= 26) status = 'awaiting_supervisor';
+  else if (i <= 34) status = 'in_progress';
+  else if (i <= 41) status = 'scheduled';
+  else if (i <= 46) status = 'pending';
+  else if (i <= 48) status = 'rq';
   else status = 'cancelled';
 
   const urgency = urgencies[i % urgencies.length];
@@ -319,11 +324,11 @@ for (let i = 1; i <= 150; i++) {
   const supervisor = DEMO_USERS.find(u => u.role === 'supervisor' && u.id === `sup-${(i % 4) + 1}`);
   const technician = technicians[i % technicians.length];
   
-  // Shift dates from -1 to -30 days to have complete historic reporting
-  const dayShift = -((i % 30) + 1);
-  const createdAt = getDateShift(dayShift);
+  // Distribute days between 22 and 25
+  const day = 22 + (i % 4);
+  const createdAt = getMayDate(day, i);
   const updatedAt = new Date(createdAt);
-  updatedAt.setHours(updatedAt.getHours() + (2 + (i % 8)));
+  updatedAt.setHours(updatedAt.getHours() + (1 + (i % 4)));
   
   const locations = ['Tópico 1', 'Baño Principal', 'Oficina 302', 'Piscina Olímpica', 'Cancha de Tenis 1', 'Comedor Principal', 'Zona de Parrillas', 'Estacionamiento Norte', 'Vestuarios Damas', 'Terraza Náutica'];
   const descriptions: Record<string, string[]> = {
@@ -390,8 +395,8 @@ for (let i = 1; i <= 150; i++) {
     supervisor_id: (status !== 'pending' && status !== 'cancelled') ? (supervisor?.id || null) : null,
     supervisor_notes: (status !== 'pending') ? 'Revisado y procesado por supervisión.' : null,
     scheduled_date: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? (() => {
-      const sd = getDateShift(dayShift + 1);
-      sd.setHours(8 + (i % 10), (i * 7) % 60, 0, 0);
+      const sd = new Date(createdAt);
+      sd.setMinutes(sd.getMinutes() + 30);
       return sd.toISOString();
     })() : null,
     technician_id: (status === 'scheduled' || status === 'in_progress' || status === 'closed' || status === 'awaiting_supervisor' || status === 'awaiting_conformity') ? technician.id : null,
