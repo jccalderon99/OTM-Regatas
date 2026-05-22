@@ -2,17 +2,11 @@ import React, { useEffect, useState } from 'react';
 
 export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [showIOSManualTip, setShowIOSManualTip] = useState(false);
+  const [showAutoPrompt, setShowAutoPrompt] = useState(false);
   
   // State for the manual instructions modal
   const [showManualModal, setShowManualModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'android' | 'ios' | 'desktop'>('android');
-  const [copied, setCopied] = useState(false);
-
-  const currentUrl = window.location.origin;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentUrl)}`;
 
   useEffect(() => {
     // Check if PWA is already installed/running in standalone mode
@@ -20,12 +14,9 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
       || (window.navigator as any).standalone 
       || document.referrer.includes('android-app://');
 
-    // Detect iOS
+    // Detect device for default tab
     const userAgent = window.navigator.userAgent.toLowerCase();
     const ios = /iphone|ipad|ipod/.test(userAgent);
-    setIsIOS(ios);
-
-    // Set default active tab based on OS
     if (ios) {
       setActiveTab('ios');
     } else if (/android/.test(userAgent)) {
@@ -36,15 +27,29 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
 
     if (isStandalone) return;
 
+    // Check if user already dismissed the auto-prompt permanently
+    const dismissed = localStorage.getItem('dismissed-pwa-auto-prompt');
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      if (!loginOnly) setShowPrompt(true);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
-    
-    // Listen to manual open event
+
+    // Show automatic prompt on first visit (only once ever)
+    if (!dismissed) {
+      // Small delay to let the page render first
+      const timer = setTimeout(() => {
+        setShowAutoPrompt(true);
+      }, 1500);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('beforeinstallprompt', handler);
+      };
+    }
+
+    // Listen to manual open event from the login link
     const handleManualOpen = () => {
       setShowManualModal(true);
     };
@@ -56,12 +61,22 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
     };
   }, [loginOnly]);
 
+  // Also listen for manual open event even when auto-prompt hasn't been dismissed
+  useEffect(() => {
+    const handleManualOpen = () => {
+      setShowAutoPrompt(false);
+      setShowManualModal(true);
+    };
+    window.addEventListener('open-pwa-install-modal', handleManualOpen);
+    return () => window.removeEventListener('open-pwa-install-modal', handleManualOpen);
+  }, []);
+
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        setShowPrompt(false);
+        setShowAutoPrompt(false);
         setShowManualModal(false);
       }
       setDeferredPrompt(null);
@@ -70,19 +85,24 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
     }
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(currentUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleDismissAutoPrompt = () => {
+    setShowAutoPrompt(false);
+    localStorage.setItem('dismissed-pwa-auto-prompt', 'true');
   };
 
-  const dismissIOSTip = () => {
-    setShowIOSManualTip(false);
-    localStorage.setItem('dismissed-ios-pwa-tip', 'true');
+  const handleAcceptAutoPrompt = async () => {
+    localStorage.setItem('dismissed-pwa-auto-prompt', 'true');
+    if (deferredPrompt) {
+      await handleInstallClick();
+    } else {
+      // No native prompt available, show manual modal instead
+      setShowAutoPrompt(false);
+      setShowManualModal(true);
+    }
   };
 
-  // 1. Android Automatic Prompt (solo fuera de login si no es loginOnly)
-  if (!loginOnly && showPrompt && !showManualModal) {
+  // ─── 1. Auto-prompt on first visit ───
+  if (showAutoPrompt && !showManualModal) {
     return (
       <div style={{
         position: 'fixed',
@@ -93,45 +113,67 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
         zIndex: 99999, padding: 20
       }}>
         <div className="glass-card fade-in slide-up" style={{
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: 'rgba(255, 255, 255, 0.97)',
           backdropFilter: 'blur(16px)',
           padding: 32,
           borderRadius: 24,
           textAlign: 'center',
-          maxWidth: 360,
+          maxWidth: 380,
+          width: '100%',
           boxShadow: '0 24px 60px rgba(0,0,0,0.2)'
         }}>
           <div style={{ 
             width: 64, height: 64, 
-            background: 'var(--accent-blue)', 
+            background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', 
             color: 'white', 
             borderRadius: 16, 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 32, margin: '0 auto 20px',
             boxShadow: '0 12px 24px rgba(14, 165, 233, 0.3)'
           }}>
-            📱
+            📲
           </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
-            Agregar al Inicio
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
+            Instalar Aplicación
           </h2>
-          <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: 24, lineHeight: 1.5 }}>
-            Instala la Plataforma de Mantenimiento CRL en tu dispositivo para un acceso rápido y fluido.
+          <p style={{ fontSize: '0.88rem', color: '#64748b', marginBottom: 28, lineHeight: 1.6 }}>
+            ¿Desea instalar la Plataforma de Mantenimiento CRL en su dispositivo para un acceso rápido?
           </p>
           <div style={{ display: 'flex', gap: 12 }}>
             <button 
-              className="btn btn-ghost w-full" 
-              onClick={() => setShowPrompt(false)}
-              style={{ fontWeight: 600, color: '#64748b' }}
+              onClick={handleDismissAutoPrompt}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                borderRadius: 12,
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                color: '#64748b',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
             >
-              Ahora no
+              No, gracias
             </button>
             <button 
-              className="btn btn-primary w-full" 
-              onClick={handleInstallClick}
-              style={{ fontWeight: 600 }}
+              onClick={handleAcceptAutoPrompt}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                borderRadius: 12,
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                color: 'white',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.35)',
+                transition: 'all 0.2s'
+              }}
             >
-              Instalar
+              Sí, instalar
             </button>
           </div>
         </div>
@@ -139,54 +181,7 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
     );
   }
 
-  // 2. iOS Manual Prompt (deshabilitado en loginOnly)
-  if (!loginOnly && showIOSManualTip && !showManualModal) {
-    return (
-      <div style={{
-        position: 'fixed',
-        bottom: 24, left: 16, right: 16,
-        background: 'rgba(255, 255, 255, 0.98)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(14, 165, 233, 0.25)',
-        borderRadius: 20,
-        padding: 20,
-        boxShadow: '0 16px 40px rgba(0,0,0,0.15)',
-        zIndex: 99999,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12
-      }} className="fade-in slide-up">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span style={{ fontSize: '1.8rem' }}>📱</span>
-            <div>
-              <h4 style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b', margin: 0 }}>Instalar Aplicación Movil</h4>
-              <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>Agrégala a tu pantalla de inicio en iPhone</p>
-            </div>
-          </div>
-          <button 
-            style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#94a3b8', padding: '0 4px' }} 
-            onClick={dismissIOSTip}
-          >
-            ✕
-          </button>
-        </div>
-        <div style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.5, background: 'rgba(14, 165, 233, 0.05)', padding: 12, borderRadius: 12 }}>
-          1. Presiona el botón de <strong>Compartir</strong> <span style={{ fontSize: '1rem' }}>📤</span> en Safari.<br />
-          2. Desliza hacia abajo y selecciona <strong>"Agregar a Inicio"</strong> <span style={{ fontSize: '1rem' }}>➕</span>.
-        </div>
-        <button 
-          className="btn btn-ghost btn-sm" 
-          onClick={() => { setShowIOSManualTip(false); setShowManualModal(true); }}
-          style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', alignSelf: 'flex-end', fontWeight: 600 }}
-        >
-          Ver más opciones
-        </button>
-      </div>
-    );
-  }
-
-  // 3. Gorgeous Manual Instructions Modal
+  // ─── 2. Manual Instructions Modal (simplified & formal) ───
   if (showManualModal) {
     return (
       <div style={{
@@ -198,25 +193,25 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
         zIndex: 99999, padding: '16px'
       }}>
         <div className="glass-card fade-in slide-up" style={{
-          background: 'var(--card-bg)',
-          border: '1px solid var(--border)',
+          background: 'rgba(255, 255, 255, 0.97)',
+          border: '1px solid #e2e8f0',
           padding: '28px',
           borderRadius: 24,
           maxWidth: 480,
           width: '100%',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.3)',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
           maxHeight: '90vh',
           overflowY: 'auto'
         }}>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#1e293b' }}>
               📲 Instalar Aplicación de Mantenimiento
             </h3>
             <button 
               onClick={() => setShowManualModal(false)}
               style={{
-                background: 'rgba(0,0,0,0.05)',
+                background: 'rgba(0,0,0,0.06)',
                 border: 'none',
                 width: 32,
                 height: 32,
@@ -226,21 +221,29 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '1rem',
-                color: 'var(--text-secondary)'
+                color: '#64748b',
+                flexShrink: 0
               }}
             >
               ✕
             </button>
           </div>
 
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
-            La plataforma funciona como una <strong>PWA (Aplicación Web Progresiva)</strong>. Esto significa que la versión web y celular son el mismo sistema inteligente, adaptándose a tu teléfono móvil y permitiendo instalarse sin necesidad de usar tiendas de aplicaciones.
+          {/* Subtitle */}
+          <p style={{ 
+            fontSize: '0.9rem', 
+            fontWeight: 600, 
+            color: '#475569', 
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            Seleccione el tipo de dispositivo en uso:
           </p>
 
           {/* Device Tabs */}
           <div style={{
             display: 'flex',
-            background: 'var(--bg-secondary)',
+            background: '#f1f5f9',
             padding: 4,
             borderRadius: 12,
             marginBottom: 20
@@ -251,15 +254,15 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
                 onClick={() => setActiveTab(tab)}
                 style={{
                   flex: 1,
-                  padding: '8px 12px',
+                  padding: '10px 12px',
                   border: 'none',
-                  background: activeTab === tab ? 'var(--card-bg)' : 'transparent',
-                  color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  background: activeTab === tab ? '#ffffff' : 'transparent',
+                  color: activeTab === tab ? '#1e293b' : '#64748b',
                   fontWeight: activeTab === tab ? 700 : 500,
-                  fontSize: '0.8rem',
+                  fontSize: '0.82rem',
                   borderRadius: 8,
                   cursor: 'pointer',
-                  boxShadow: activeTab === tab ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+                  boxShadow: activeTab === tab ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                   transition: 'all 0.2s'
                 }}
               >
@@ -269,7 +272,7 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
           </div>
 
           {/* Tab Contents */}
-          <div style={{ marginBottom: 24 }}>
+          <div>
             {activeTab === 'android' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {deferredPrompt ? (
@@ -281,8 +284,8 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
                     📥 Instalar Directamente
                   </button>
                 ) : (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', background: 'rgba(14, 165, 233, 0.05)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.1)' }}>
-                    <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: 'var(--accent-blue)' }}>Instalación Manual en Google Chrome:</h5>
+                  <div style={{ fontSize: '0.85rem', color: '#1e293b', background: 'rgba(14, 165, 233, 0.06)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+                    <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: '#0284c7' }}>Instalación en Google Chrome:</h5>
                     <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
                       <li>Presiona el botón de menú <strong>tres puntos (⋮)</strong> en la esquina superior derecha de tu navegador Chrome.</li>
                       <li>Busca y selecciona la opción <strong>"Instalar aplicación"</strong> o <strong>"Agregar a la pantalla principal"</strong>.</li>
@@ -295,8 +298,8 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
 
             {activeTab === 'ios' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', background: 'rgba(14, 165, 233, 0.05)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.1)' }}>
-                  <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: 'var(--accent-blue)' }}>Instalación Manual en Safari (iPhone):</h5>
+                <div style={{ fontSize: '0.85rem', color: '#1e293b', background: 'rgba(14, 165, 233, 0.06)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+                  <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: '#0284c7' }}>Instalación en Safari (iPhone):</h5>
                   <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
                     <li>Abre el navegador <strong>Safari</strong> de tu iPhone e ingresa a este enlace.</li>
                     <li>Presiona el botón de <strong>Compartir</strong> <span style={{ fontSize: '1rem' }}>📤</span> (ubicado en la parte inferior central de la pantalla).</li>
@@ -309,8 +312,8 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
 
             {activeTab === 'desktop' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', background: 'rgba(14, 165, 233, 0.05)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.1)' }}>
-                  <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: 'var(--accent-blue)' }}>Instalación en la PC (Chrome/Edge):</h5>
+                <div style={{ fontSize: '0.85rem', color: '#1e293b', background: 'rgba(14, 165, 233, 0.06)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+                  <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: '#0284c7' }}>Instalación en la PC (Chrome/Edge):</h5>
                   <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
                     <li>Mira la barra de direcciones de tu navegador (donde escribes el URL).</li>
                     <li>A la derecha, verás un icono de <strong>monitor con flecha hacia abajo</strong> 💻 o un símbolo de suma (+).</li>
@@ -319,52 +322,6 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
                 </div>
               </div>
             )}
-          </div>
-
-          {/* QR Code and Direct URL sharing */}
-          <div style={{
-            borderTop: '1px solid var(--border)',
-            paddingTop: 20,
-            textAlign: 'center'
-          }}>
-            <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
-              ¿Estás en tu computadora? Escanea el QR para abrirlo en tu celular:
-            </h4>
-            <div style={{ display: 'inline-block', background: 'white', padding: 10, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: 16 }}>
-              <img src={qrUrl} alt="Escanea para instalar en tu celular" style={{ width: 140, height: 140, display: 'block' }} />
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>URL del Sistema:</div>
-              <div style={{
-                display: 'flex',
-                background: 'var(--bg-secondary)',
-                borderRadius: 8,
-                padding: '6px 12px',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                border: '1px solid var(--border)'
-              }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {currentUrl}
-                </span>
-                <button
-                  onClick={handleCopyLink}
-                  style={{
-                    background: 'var(--card-bg)',
-                    border: '1px solid var(--border)',
-                    padding: '4px 8px',
-                    borderRadius: 6,
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    color: copied ? 'var(--accent-green)' : 'var(--accent-blue)'
-                  }}
-                >
-                  {copied ? '¡Copiado!' : 'Copiar'}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

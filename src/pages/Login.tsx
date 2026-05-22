@@ -108,9 +108,9 @@ export default function Login() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'url("/images/club-watermark.jpg") center/cover no-repeat',
-          filter: 'blur(5px) brightness(0.8)',
-          transform: 'scale(1.06)', // Previene bordes blancos por el desenfoque
+          background: 'url("/images/login-hero.jpg") center/cover no-repeat',
+          filter: 'blur(2px) brightness(0.88)',
+          transform: 'scale(1.04)', // Previene bordes blancos por el desenfoque
           zIndex: 0,
           pointerEvents: 'none'
         }} />
@@ -252,7 +252,7 @@ export default function Login() {
                 onMouseOver={(e) => (e.currentTarget.style.opacity = '0.8')}
                 onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
               >
-                📲 ¿Quieres instalar la app en tu celular? Haz clic aquí
+                📲 ¿Quieres instalar la app en su interfaz? Haz clic aquí
               </button>
             </div>
           </div>
