@@ -50,12 +50,12 @@ export function OTMProvider({ children }: { children: ReactNode }) {
 
   const [otms, setOTMs] = useState<OTMRequest[]>(() => {
     if (isLive) return [];
-    const saved = localStorage.getItem('demo_otms_v2');
+    const saved = localStorage.getItem('demo_otms_v3');
     return saved ? JSON.parse(saved) : [...DEMO_OTMS];
   });
   const [statusLogs, setLogs] = useState<OTMStatusLog[]>(() => {
     if (isLive) return [];
-    const saved = localStorage.getItem('demo_status_logs_v2');
+    const saved = localStorage.getItem('demo_status_logs_v3');
     return saved ? JSON.parse(saved) : [...DEMO_STATUS_LOGS];
   });
   const [users, setUsers] = useState<Profile[]>(() => {
@@ -81,11 +81,11 @@ export function OTMProvider({ children }: { children: ReactNode }) {
 
   // ── Demo persistence effects ──
   useEffect(() => {
-    if (!isLive) localStorage.setItem('demo_otms_v2', JSON.stringify(otms));
+    if (!isLive) localStorage.setItem('demo_otms_v3', JSON.stringify(otms));
   }, [otms, isLive]);
 
   useEffect(() => {
-    if (!isLive) localStorage.setItem('demo_status_logs_v2', JSON.stringify(statusLogs));
+    if (!isLive) localStorage.setItem('demo_status_logs_v3', JSON.stringify(statusLogs));
   }, [statusLogs, isLive]);
 
   useEffect(() => {
