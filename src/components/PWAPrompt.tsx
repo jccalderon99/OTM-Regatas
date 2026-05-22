@@ -312,14 +312,24 @@ export default function PWAPrompt({ loginOnly = false }: { loginOnly?: boolean }
 
             {activeTab === 'desktop' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: '0.85rem', color: '#1e293b', background: 'rgba(14, 165, 233, 0.06)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.15)' }}>
-                  <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: '#0284c7' }}>Instalación en la PC (Chrome/Edge):</h5>
-                  <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
-                    <li>Mira la barra de direcciones de tu navegador (donde escribes el URL).</li>
-                    <li>A la derecha, verás un icono de <strong>monitor con flecha hacia abajo</strong> 💻 o un símbolo de suma (+).</li>
-                    <li>Haz clic en él y selecciona <strong>Instalar</strong>. La aplicación se abrirá en una ventana propia, independiente y súper fluida.</li>
-                  </ol>
-                </div>
+                {deferredPrompt ? (
+                  <button 
+                    className="btn btn-primary w-full" 
+                    onClick={handleInstallClick}
+                    style={{ fontWeight: 700, padding: '12px', borderRadius: 12, fontSize: '0.9rem' }}
+                  >
+                    📥 Instalar Directamente
+                  </button>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: '#1e293b', background: 'rgba(14, 165, 233, 0.06)', padding: 16, borderRadius: 12, border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+                    <h5 style={{ fontWeight: 700, margin: '0 0 8px 0', color: '#0284c7' }}>Instalación en la PC (Chrome/Edge):</h5>
+                    <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
+                      <li>Mira la barra de direcciones de tu navegador (donde escribes el URL).</li>
+                      <li>A la derecha, verás un icono de <strong>monitor con flecha hacia abajo</strong> 💻 o un símbolo de suma (+).</li>
+                      <li>Haz clic en él y selecciona <strong>Instalar</strong>. La aplicación se abrirá en una ventana propia, independiente y súper fluida.</li>
+                    </ol>
+                  </div>
+                )}
               </div>
             )}
           </div>

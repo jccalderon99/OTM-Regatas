@@ -496,3 +496,12 @@ a:hover { color: var(--accent-blue-hover); }
   flex-direction: column;
   gap: 20px;
 }
+
+/* Hide scrollbar for Welcome Portal */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

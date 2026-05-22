@@ -40,7 +40,7 @@ export default function WelcomePortal({ onNavigate }: Props) {
   );
 
   return (
-    <div style={{
+    <div className="hide-scrollbar" style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
       backgroundImage: `url('${bgImage}')`,
@@ -48,9 +48,11 @@ export default function WelcomePortal({ onNavigate }: Props) {
       backgroundPosition: 'center',
       zIndex: 9999,
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
+      padding: '0 20px',
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch'
     }}>
       {/* Overlay to ensure text readability */}
       <div style={{
@@ -68,7 +70,9 @@ export default function WelcomePortal({ onNavigate }: Props) {
         maxWidth: '900px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '40px'
+        gap: '40px',
+        margin: 'auto 0',
+        padding: '40px 0'
       }}>
         
         {/* Header Section */}
