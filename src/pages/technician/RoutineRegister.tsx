@@ -351,7 +351,7 @@ export default function RoutineRegister() {
                     <input
                       type="number"
                       step={q.label.toLowerCase().includes('ph') || q.label.toLowerCase().includes('cloro') ? '0.1' : '1'}
-                      className="input"
+                      className="form-input"
                       style={{ textAlign: 'center', fontWeight: 800, fontSize: '1.1rem', flex: 1, height: 40, color: 'var(--accent-purple)', background: 'white' }}
                       value={formAnswers[q.label] ?? ''}
                       onChange={(e) => setFormAnswers(prev => ({ ...prev, [q.label]: parseFloat(e.target.value) || 0 }))}
@@ -400,7 +400,7 @@ export default function RoutineRegister() {
                 {q.type === 'text' && (
                   <div style={{ marginTop: 8 }}>
                     <textarea
-                      className="input w-full"
+                      className="form-textarea w-full"
                       rows={2}
                       placeholder="Escribe o pulsa para transcribir..."
                       value={formAnswers[q.label] ?? ''}
