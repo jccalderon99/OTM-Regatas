@@ -133,7 +133,7 @@ RESUMEN DEL TRABAJO:
 - Calificación del Usuario: ${'★'.repeat(otm.conformity_rating || 5)}${'☆'.repeat(5 - (otm.conformity_rating || 5))} (${otm.conformity_rating || 5}/5)
 - Comentarios de Conformidad: ${conformityNotes}
 
-Adjunto a este correo encontrará el Acta de Conformidad digital correspondiente en formato PDF para su archivo y control de gestión.
+Nota: Por favor, recuerde adjuntar a este correo el documento PDF del Acta de Conformidad que ha sido generado y descargado en su dispositivo.
 
 Atentamente,
 Departamento de Mantenimiento y Obras
@@ -150,7 +150,7 @@ Club de Regatas "Lima"
   };
 
   return (
-    <div className="modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 1100, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '30px 20px' }}>
+    <div className="modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 1100, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', padding: '30px 20px' }}>
       
       {/* Top Floating Control Bar */}
       <div style={{
@@ -159,12 +159,12 @@ Club de Regatas "Lima"
         alignItems: 'center',
         width: '100%',
         maxWidth: '850px',
+        margin: '0 auto 20px auto',
         background: 'rgba(30, 41, 59, 0.9)',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(10px)',
         padding: '12px 24px',
         borderRadius: '16px',
-        marginBottom: '20px',
         position: 'sticky',
         top: 0,
         zIndex: 10,
@@ -184,7 +184,7 @@ Club de Regatas "Lima"
             </button>
           ) : (
             <>
-              <button className="btn btn-secondary" onClick={() => setIsEditing(true)} style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#f8fafc', padding: '8px 16px', fontSize: '0.85rem' }}>
+              <button className="btn btn-secondary" onClick={() => setIsEditing(true)} style={{ background: '#f8fafc', color: '#0f172a', border: 'none', padding: '8px 16px', fontSize: '0.85rem', fontWeight: 600 }}>
                 ✏️ Editar Texto
               </button>
               <button className="btn btn-primary" onClick={handleDownloadPDF} disabled={generatingPdf} style={{ background: 'linear-gradient(135deg, var(--accent-blue) 0%, #0284c7 100%)', border: 'none', padding: '8px 16px', fontSize: '0.85rem' }}>
@@ -207,6 +207,7 @@ Club de Regatas "Lima"
         style={{
           width: '100%',
           maxWidth: '850px',
+          margin: '0 auto',
           background: '#ffffff',
           color: '#1e293b',
           fontFamily: '"Inter", -apple-system, sans-serif',
@@ -233,18 +234,15 @@ Club de Regatas "Lima"
               width: '60px',
               height: '60px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+              background: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               border: '2px solid #fbbf24',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.15)'
+              boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
+              overflow: 'hidden'
             }}>
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 22H22L12 2Z" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 6L5 20H19L12 6Z" fill="#fbbf24"/>
-                <circle cx="12" cy="14" r="2" fill="#0f172a"/>
-              </svg>
+              <img src="https://www.clubregatas.org.pe/wp-content/uploads/2021/04/logo-regatas-lima.png" alt="Club Regatas Lima" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }} />
             </div>
             <div>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '0.05em', color: '#0f172a', margin: 0 }}>CLUB DE REGATAS "LIMA"</h2>
@@ -255,23 +253,26 @@ Club de Regatas "Lima"
             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em' }}>DOCUMENTO DE CONTROL INTERNO</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginTop: 4 }}>
               <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>OTM N°:</span>
-              <input 
-                value={otmCode} 
-                onChange={e => setOtmCode(e.target.value)} 
-                disabled={!isEditing}
-                style={{
-                  fontSize: '0.95rem',
-                  fontWeight: 800,
-                  color: '#1e3a8a',
-                  width: '120px',
-                  textAlign: 'right',
-                  border: isEditing ? '1px dashed var(--accent-blue)' : 'none',
-                  background: isEditing ? 'rgba(78,181,230,0.05)' : 'transparent',
-                  padding: isEditing ? '2px 6px' : '0',
-                  borderRadius: '4px',
-                  outline: 'none'
-                }}
-              />
+              {isEditing ? (
+                <input 
+                  value={otmCode} 
+                  onChange={e => setOtmCode(e.target.value)} 
+                  style={{
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    color: '#1e3a8a',
+                    width: '120px',
+                    textAlign: 'right',
+                    border: '1px dashed var(--accent-blue)',
+                    background: 'rgba(78,181,230,0.05)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    outline: 'none'
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e3a8a' }}>{otmCode}</span>
+              )}
             </div>
           </div>
         </div>
@@ -316,21 +317,24 @@ Club de Regatas "Lima"
               <tr>
                 <td style={{ padding: '8px 12px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700 }}>Ubicación Exacta:</td>
                 <td style={{ padding: '8px 12px', border: '1px solid #cbd5e1' }} colSpan={3}>
-                  <input 
-                    value={locationStr} 
-                    onChange={e => setLocationStr(e.target.value)} 
-                    disabled={!isEditing}
-                    style={{
-                      fontSize: '0.8rem',
-                      width: '100%',
-                      border: isEditing ? '1px dashed var(--accent-blue)' : 'none',
-                      background: isEditing ? 'rgba(78,181,230,0.05)' : 'transparent',
-                      padding: isEditing ? '2px 4px' : '0',
-                      borderRadius: '4px',
-                      outline: 'none',
-                      color: '#1e293b'
-                    }}
-                  />
+                  {isEditing ? (
+                    <input 
+                      value={locationStr} 
+                      onChange={e => setLocationStr(e.target.value)} 
+                      style={{
+                        fontSize: '0.8rem',
+                        width: '100%',
+                        border: '1px dashed var(--accent-blue)',
+                        background: 'rgba(78,181,230,0.05)',
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        color: '#1e293b'
+                      }}
+                    />
+                  ) : (
+                    <span>{locationStr}</span>
+                  )}
                 </td>
               </tr>
               <tr>
@@ -382,21 +386,24 @@ Club de Regatas "Lima"
                 <td style={{ width: '30%', padding: '8px 12px', border: '1px solid #cbd5e1' }}>{mainTechName}</td>
                 <td style={{ width: '20%', padding: '8px 12px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700 }}>Tipo de Trabajo:</td>
                 <td style={{ width: '30%', padding: '8px 12px', border: '1px solid #cbd5e1' }}>
-                  <input 
-                    value={maintenanceTypeStr} 
-                    onChange={e => setMaintenanceTypeStr(e.target.value)} 
-                    disabled={!isEditing}
-                    style={{
-                      fontSize: '0.8rem',
-                      width: '100%',
-                      border: isEditing ? '1px dashed var(--accent-blue)' : 'none',
-                      background: isEditing ? 'rgba(78,181,230,0.05)' : 'transparent',
-                      padding: isEditing ? '2px 4px' : '0',
-                      borderRadius: '4px',
-                      outline: 'none',
-                      color: '#1e293b'
-                    }}
-                  />
+                  {isEditing ? (
+                    <input 
+                      value={maintenanceTypeStr} 
+                      onChange={e => setMaintenanceTypeStr(e.target.value)} 
+                      style={{
+                        fontSize: '0.8rem',
+                        width: '100%',
+                        border: '1px dashed var(--accent-blue)',
+                        background: 'rgba(78,181,230,0.05)',
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        color: '#1e293b'
+                      }}
+                    />
+                  ) : (
+                    <span>{maintenanceTypeStr}</span>
+                  )}
                 </td>
               </tr>
               {assignedTechNames.length > 0 && (
