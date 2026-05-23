@@ -2,9 +2,11 @@ import React, { useRef, useState, useEffect } from 'react';
 
 interface Props {
   onSignatureChange: (dataUrl: string | null) => void;
+  strokeColor?: string;
+  lineWidth?: number;
 }
 
-export default function SignaturePad({ onSignatureChange }: Props) {
+export default function SignaturePad({ onSignatureChange, strokeColor, lineWidth }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
@@ -14,13 +16,13 @@ export default function SignaturePad({ onSignatureChange }: Props) {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.strokeStyle = '#f1f5f9'; // text-primary
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = strokeColor || '#f1f5f9'; // fallback to original color
+        ctx.lineWidth = lineWidth || 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
       }
     }
-  }, []);
+  }, [strokeColor, lineWidth]);
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;

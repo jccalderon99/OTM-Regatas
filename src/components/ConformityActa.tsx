@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { OTMRequest, Profile } from '../types';
 import { useOTM } from '../context/OTMContext';
+import SignaturePad from './SignaturePad';
 
 interface ConformityActaProps {
   otm: OTMRequest;
@@ -11,8 +12,16 @@ interface ConformityActaProps {
 }
 
 export default function ConformityActa({ otm, onClose }: ConformityActaProps) {
-  const { users } = useOTM();
+  const { users, supervisors } = useOTM();
+  const assignedSupervisor = supervisors.find(s => s.id === otm.supervisor_id);
+  const supervisorName = assignedSupervisor?.full_name || otm.supervisor?.full_name || 'Sin Asignar';
   const [isEditing, setIsEditing] = useState(true);
+  
+  // Supervisor Signature States
+  const [supervisorSignature, setSupervisorSignature] = useState<string | null>(null);
+  const [isSigning, setIsSigning] = useState(false);
+  const [tempSignature, setTempSignature] = useState<string | null>(null);
+
   const printRef = useRef<HTMLDivElement>(null);
   
   // Find requester profile
@@ -301,8 +310,7 @@ Club de Regatas "Lima"
   };
 
   return (
-    <div className="modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 1100, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', padding: '30px 20px' }}>
-      
+    <div className="modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 1100, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', overflowY: 'auto', padding: '30px 20px' }}>
       {/* Upload Overlay and Progress indicator */}
       {uploadStatus !== 'idle' && uploadStatus !== 'success' && uploadStatus !== 'error' && (
         <div style={{
@@ -434,7 +442,7 @@ Club de Regatas "Lima"
         
         <div style={{ display: 'flex', gap: 10 }}>
           {isEditing ? (
-            <button className="btn btn-primary" onClick={() => setIsEditing(false)} style={{ background: 'linear-gradient(135deg, var(--accent-purple) 0%, #7c3aed 100%)', border: 'none', padding: '8px 16px', fontSize: '0.85rem' }}>
+            <button className="btn btn-primary" onClick={() => setIsSigning(true)} style={{ background: 'linear-gradient(135deg, var(--accent-purple) 0%, #7c3aed 100%)', border: 'none', padding: '8px 16px', fontSize: '0.85rem' }}>
               💾 Finalizar Edición
             </button>
           ) : (
@@ -854,30 +862,68 @@ Club de Regatas "Lima"
         }}>
           {/* Supervisor Signature Column */}
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ height: '70px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: 10 }}>
-              {/* Professional supervisor stamp placeholder */}
-              <div style={{
-                border: '2px double #1e3a8a',
-                borderRadius: '6px',
-                padding: '4px 12px',
-                fontSize: '0.65rem',
-                color: '#1e3a8a',
-                fontWeight: 700,
-                transform: 'rotate(-4deg)',
-                background: 'rgba(30,58,138,0.02)',
-                letterSpacing: '0.05em'
-              }}>
-                <div>CLUB DE REGATAS "LIMA"</div>
-                <div style={{ borderTop: '1px solid #1e3a8a', margin: '2px 0', padding: '1px 0' }}>MANTENIMIENTO DIGITAL</div>
-                <div style={{ fontSize: '0.55rem', color: '#64748b' }}>APROBADO SISTEMA</div>
-              </div>
+            <div style={{ 
+              height: '90px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              marginBottom: 10,
+              position: 'relative',
+              width: '100%'
+            }}>
+              {/* Circular Professional Supervisor Stamp */}
+              <svg width="90" height="90" viewBox="0 0 100 100" style={{ transform: 'rotate(-10deg)', opacity: 0.9 }}>
+                {/* Outer circle */}
+                <circle cx="50" cy="50" r="46" fill="none" stroke="#0f172a" strokeWidth="2.5" />
+                {/* Inner circle */}
+                <circle cx="50" cy="50" r="32" fill="none" stroke="#0f172a" strokeWidth="1.5" />
+                
+                {/* Circular text path - Top */}
+                <path id="curve-top" d="M 12 50 A 38 38 0 0 1 88 50" fill="transparent" />
+                {/* Circular text path - Bottom (Left to Right, counter-clockwise sweep so it arcs down) */}
+                <path id="curve-bottom" d="M 12 50 A 38 38 0 0 0 88 50" fill="transparent" />
+                
+                <text fontSize="8.5" fill="#0f172a" fontWeight="900" letterSpacing="0.5">
+                  <textPath href="#curve-top" startOffset="50%" textAnchor="middle">
+                    CLUB DE REGATAS LIMA
+                  </textPath>
+                </text>
+                <text fontSize="7" fill="#0f172a" fontWeight="900" letterSpacing="0.5">
+                  <textPath href="#curve-bottom" startOffset="50%" textAnchor="middle">
+                    SUPERVISOR DE MANT.
+                  </textPath>
+                </text>
+                
+                {/* Center text */}
+                <text x="50" y="46" fontSize="15" fill="#0f172a" fontWeight="900" textAnchor="middle">V.B.</text>
+                <text x="50" y="60" fontSize="7.5" fill="#0f172a" fontWeight="800" textAnchor="middle">
+                  {supervisorName !== 'Sin Asignar' ? supervisorName.split(' ').slice(0, 2).join(' ') : 'Sin Asignar'}
+                </text>
+              </svg>
+
+              {/* Supervisor Hand-drawn Signature Overlay */}
+              {supervisorSignature && (
+                <img 
+                  src={supervisorSignature} 
+                  style={{ 
+                    position: 'absolute', 
+                    maxHeight: '80px', 
+                    maxWidth: '180px', 
+                    objectFit: 'contain',
+                    zIndex: 10,
+                    transform: 'rotate(-5deg)',
+                    pointerEvents: 'none'
+                  }} 
+                  alt="Firma Supervisor" 
+                />
+              )}
             </div>
             <div style={{ borderTop: '1px solid #64748b', width: '220px', paddingTop: '6px' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>
-                {otm.supervisor?.full_name || 'Ing. Supervisor Obras'}
+                Ing. {supervisorName}
               </div>
               <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>SUPERVISOR DE MANTENIMIENTO</div>
-              <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 2 }}>Área de Infraestructura y Obras</div>
+              <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 2 }}>Departamento de Mantenimiento</div>
             </div>
           </div>
 
@@ -921,6 +967,87 @@ Club de Regatas "Lima"
         </div>
 
       </div>
+
+      {/* Supervisor Signature Capture Modal (Glassmorphic Premium Style) */}
+      {isSigning && (
+        <div className="modal-overlay" style={{ zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" style={{ 
+            maxWidth: '500px', 
+            width: '95%', 
+            padding: '28px', 
+            borderRadius: 'var(--radius-lg)', 
+            boxShadow: 'var(--shadow-lg)',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            animation: 'slideUp 0.3s ease'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <span style={{ fontSize: '1.8rem' }}>✍️</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Firma Digital del Supervisor
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Acta de Conformidad - OTM: {otmCode}
+                </span>
+              </div>
+            </div>
+            
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
+              Dibuja tu firma en el recuadro inferior. Esta firma se digitalizará y se estampará automáticamente sobre tu sello de supervisor en el acta de conformidad.
+            </p>
+            
+            <div style={{ 
+              border: '2px dashed var(--border)', 
+              borderRadius: 'var(--radius-md)', 
+              padding: 16, 
+              background: '#f8fafc',
+              marginBottom: 20
+            }}>
+              <SignaturePad 
+                strokeColor="#0f172a" 
+                lineWidth={3} 
+                onSignatureChange={(dataUrl) => setTempSignature(dataUrl)} 
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setIsSigning(false);
+                  setTempSignature(null);
+                }}
+                style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 600 }}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                disabled={!tempSignature}
+                onClick={() => {
+                  setSupervisorSignature(tempSignature);
+                  setIsSigning(false);
+                  setIsEditing(false);
+                }}
+                style={{ 
+                  background: 'linear-gradient(135deg, var(--accent-blue) 0%, #0284c7 100%)', 
+                  border: 'none', 
+                  padding: '8px 16px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 600,
+                  opacity: tempSignature ? 1 : 0.6,
+                  cursor: tempSignature ? 'pointer' : 'not-allowed'
+                }}
+              >
+                ✓ Confirmar y Finalizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
