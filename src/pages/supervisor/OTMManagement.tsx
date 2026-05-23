@@ -44,6 +44,7 @@ export default function OTMManagement() {
   const [assignTech, setAssignTech] = useState('');
   const [assignDate, setAssignDate] = useState('');
   const [assignNotes, setAssignNotes] = useState('');
+  const [assignEstimatedTime, setAssignEstimatedTime] = useState('');
 
   // Assign contractor fields
   const [contractorName, setContractorName] = useState('');
@@ -107,7 +108,7 @@ export default function OTMManagement() {
     setAction('none');
     setAssignSub('none');
     setRQSub('none');
-    setAssignTech(''); setAssignDate(''); setAssignNotes('');
+    setAssignTech(''); setAssignDate(''); setAssignNotes(''); setAssignEstimatedTime(otm.estimated_time ? String(otm.estimated_time) : '');
     const currentTechs = otm.assigned_technicians?.map(t => t.technician_id) || (otm.technician_id ? [otm.technician_id] : []);
     setSelectedTechs(currentTechs);
     setContractorName(''); setContractorDate(''); setContractorDetail('');
@@ -120,7 +121,8 @@ export default function OTMManagement() {
 
   const handleAssignOwn = () => {
     if (!manageOTM || selectedTechs.length === 0 || !assignDate) return;
-    assignOTM(manageOTM.id, selectedTechs, assignDate, assignNotes);
+    const estTimeNum = assignEstimatedTime ? parseInt(assignEstimatedTime, 10) : undefined;
+    assignOTM(manageOTM.id, selectedTechs, assignDate, assignNotes, estTimeNum);
     setManageOTM(null);
   };
 
@@ -469,6 +471,58 @@ export default function OTMManagement() {
                   </div>
                 )}
 
+                {/* Performance Time Bar Chart */}
+                {manageOTM.estimated_time !== undefined && manageOTM.estimated_time !== null && (
+                  <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>📊 RENDIMIENTO DE TIEMPO</div>
+                    
+                    {/* Estimated Time Bar */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                        <span>Tiempo Estimado:</span>
+                        <span style={{ fontWeight: 700, color: '#38bdf8' }}>{manageOTM.estimated_time} min</span>
+                      </div>
+                      <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #38bdf8, #0ea5e9)', borderRadius: 4 }}></div>
+                      </div>
+                    </div>
+
+                    {/* Real Time Bar */}
+                    <div>
+                      {(() => {
+                        const est = manageOTM.estimated_time || 0;
+                        const real = manageOTM.net_execution_time !== null && manageOTM.net_execution_time !== undefined 
+                          ? manageOTM.net_execution_time 
+                          : (manageOTM.job_start_time && manageOTM.job_end_time 
+                              ? Math.round((new Date(manageOTM.job_end_time).getTime() - new Date(manageOTM.job_start_time).getTime()) / 60000)
+                              : 0);
+                        const percent = est > 0 ? Math.min(100, (real / est) * 100) : 100;
+                        
+                        const isOver = real > est;
+                        const barColor = isOver ? '#ef4444' : '#10b981';
+                        const labelText = isOver ? 'Tiempo Neto Real (Excedido):' : 'Tiempo Neto Real (Eficiente):';
+                        
+                        return (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                              <span>{labelText}</span>
+                              <span style={{ fontWeight: 700, color: barColor }}>{real} min</span>
+                            </div>
+                            <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ width: `${percent}%`, height: '100%', background: `linear-gradient(90deg, ${barColor}, ${barColor}cc)`, borderRadius: 4, transition: 'width 0.8s ease' }}></div>
+                            </div>
+                            {isOver && (
+                              <div style={{ fontSize: '0.65rem', color: '#ef4444', marginTop: 5, fontWeight: 500 }}>
+                                ⚠️ Exceso de {real - est} minutos sobre la estimación.
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
                 {manageOTM.attachments && manageOTM.attachments.filter(a => a.phase === 'execution').length > 0 && (
                   <div style={{ marginTop: 12 }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Fotos de ejecución:</div>
@@ -660,6 +714,10 @@ export default function OTMManagement() {
                     <div className="form-group">
                       <label className="form-label">Fecha programada *</label>
                       <input className="form-input" type="datetime-local" value={assignDate} onChange={e => setAssignDate(e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Tiempo Estimado (minutos)</label>
+                      <input className="form-input" type="number" min="1" placeholder="Ej: 120" value={assignEstimatedTime} onChange={e => setAssignEstimatedTime(e.target.value)} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Instrucciones / Notas</label>

@@ -26,9 +26,22 @@ const SPECS_COLORS: Record<string, string> = {
 export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const { otms, users } = useOTM();
   const { getRecordsForCalendar } = useRoutineActivity();
+  const [selectedTechFilter, setSelectedTechFilter] = useState('');
+  const [selectedSpecFilter, setSelectedSpecFilter] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineRecord | null>(null);
+
+  const mapRoutineSpecToOTMSpec = (routineSpec: string): string => {
+    if (routineSpec === 'Calderos') return '01. Operador de Calderos';
+    if (routineSpec === 'Piscinas') return '02. Piscinero';
+    if (routineSpec === 'Electricidad') return '03. Electricista';
+    if (routineSpec === 'Jardinería') return '05. Jardinero';
+    if (routineSpec === 'Gasfitería') return '06. Gasfitero';
+    return routineSpec;
+  };
+
+  const technicians = useMemo(() => users.filter(u => u.role === 'technician'), [users]);
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
@@ -45,7 +58,28 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
     weekEnd.setDate(weekEnd.getDate() + 7);
     return getRecordsForCalendar({ start: weekStart, end: weekEnd });
   }, [getRecordsForCalendar, weekStart]);
+
   const calendarOTMs = useMemo(() => filterOtmsForCalendar(otms), [otms]);
+
+  const filteredOTMs = useMemo(() => {
+    return calendarOTMs.filter(o => {
+      const matchTech = !selectedTechFilter || o.technician_id === selectedTechFilter || (o.assigned_technicians && o.assigned_technicians.some(t => t.technician_id === selectedTechFilter));
+      const matchSpec = !selectedSpecFilter || o.failure_type === selectedSpecFilter;
+      return matchTech && matchSpec;
+    });
+  }, [calendarOTMs, selectedTechFilter, selectedSpecFilter]);
+
+  const filteredRoutines = useMemo(() => {
+    return routineRecords.filter(r => {
+      const matchTech = !selectedTechFilter || r.technician_id === selectedTechFilter;
+      let matchSpec = true;
+      if (selectedSpecFilter) {
+        const mappedOTMSpec = mapRoutineSpecToOTMSpec(r.specialty);
+        matchSpec = mappedOTMSpec === selectedSpecFilter;
+      }
+      return matchTech && matchSpec;
+    });
+  }, [routineRecords, selectedTechFilter, selectedSpecFilter]);
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + i);
@@ -114,6 +148,49 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
             </div>
           </div>
         </div>
+
+        {/* Calendar Filters */}
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 12, border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>👷 FILTRAR TÉCNICO:</label>
+            <select 
+              value={selectedTechFilter} 
+              onChange={e => setSelectedTechFilter(e.target.value)}
+              className="form-input" 
+              style={{ padding: '6px 12px', fontSize: '0.8rem', minWidth: 220, height: 'auto', background: 'var(--bg-card)', borderColor: 'rgba(255,255,255,0.1)' }}
+            >
+              <option value="">Todos los técnicos</option>
+              {technicians.map(t => (
+                <option key={t.id} value={t.id}>{t.full_name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>🛠️ FILTRAR ESPECIALIDAD:</label>
+            <select 
+              value={selectedSpecFilter} 
+              onChange={e => setSelectedSpecFilter(e.target.value)}
+              className="form-input" 
+              style={{ padding: '6px 12px', fontSize: '0.8rem', minWidth: 220, height: 'auto', background: 'var(--bg-card)', borderColor: 'rgba(255,255,255,0.1)' }}
+            >
+              <option value="">Todas las especialidades</option>
+              {Object.keys(SPECS_COLORS).map(spec => (
+                <option key={spec} value={spec}>{spec.split('. ')[1] || spec}</option>
+              ))}
+            </select>
+          </div>
+
+          {(selectedTechFilter || selectedSpecFilter) && (
+            <button 
+              className="btn btn-ghost" 
+              style={{ alignSelf: 'flex-end', fontSize: '0.8rem', padding: '6px 12px', height: 'auto', color: '#ef4444', fontWeight: 600 }}
+              onClick={() => { setSelectedTechFilter(''); setSelectedSpecFilter(''); }}
+            >
+              ❌ Limpiar Filtros
+            </button>
+          )}
+        </div>
         
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
           {Object.entries(SPECS_COLORS).map(([spec, color]) => (
@@ -180,9 +257,9 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                   const isToday = d.toDateString() === todayDate.toDateString();
                   
                   // Find OTMs that fall in this hour
-                  const cellOTMs = calendarOTMs.filter(o => otmMatchesCalendarCell(o, d, hour));
+                  const cellOTMs = filteredOTMs.filter(o => otmMatchesCalendarCell(o, d, hour));
 
-                  const cellRoutines = routineRecords.filter(r => {
+                  const cellRoutines = filteredRoutines.filter(r => {
                     const rDate = new Date(r.record_date + 'T12:00:00');
                     return rDate.getFullYear() === d.getFullYear() &&
                            rDate.getMonth() === d.getMonth() &&

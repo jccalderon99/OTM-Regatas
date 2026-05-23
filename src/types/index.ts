@@ -113,6 +113,9 @@ export interface OTMRequest {
     technician_id: string;
     technician?: Profile;
   }[];
+  estimated_time?: number | null;
+  net_execution_time?: number | null;
+  pauses?: { paused_at: string; resumed_at: string | null }[] | null;
 }
 
 export interface OTMStatusLog {

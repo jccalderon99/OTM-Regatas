@@ -5,11 +5,13 @@ import StatusBadge from '../../components/StatusBadge';
 import { uploadToCloudinary } from '../../lib/cloudinary';
 
 export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack: () => void }) {
-  const { startTechnicianWork, finishTechnicianWork } = useOTM();
+  const { startTechnicianWork, pauseTechnicianWork, resumeTechnicianWork, finishTechnicianWork } = useOTM();
   const [notes, setNotes] = useState(otm.technician_notes || '');
   const [photos, setPhotos] = useState<{ name: string; type: string; url: string; file?: File }[]>([]);
   const [completing, setCompleting] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const isPaused = !!(otm.pauses && otm.pauses.length > 0 && otm.pauses[otm.pauses.length - 1].resumed_at === null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -22,6 +24,16 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
 
   const handleStartWork = () => {
     startTechnicianWork(otm.id);
+  };
+
+  const handlePauseWork = () => {
+    if (confirm('¿Deseas posponer esta orden de trabajo? El cronómetro se detendrá hasta que la retomes.')) {
+      pauseTechnicianWork(otm.id);
+    }
+  };
+
+  const handleResumeWork = () => {
+    resumeTechnicianWork(otm.id);
   };
 
   const handleComplete = async () => {
@@ -81,6 +93,13 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
           {isScheduled && (
             <button className="btn btn-primary" onClick={handleStartWork}>▶ Iniciar Trabajo</button>
           )}
+          {otm.status === 'in_progress' && (
+            isPaused ? (
+              <button className="btn" style={{ background: '#f59e0b', color: 'white', fontWeight: 600 }} onClick={handleResumeWork}>▶ Retomar Trabajo</button>
+            ) : (
+              <button className="btn btn-secondary" style={{ borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(239,68,68,0.1)', color: '#ef4444' }} onClick={handlePauseWork}>⏸️ Posponer</button>
+            )
+          )}
         </div>
 
         <div className="grid-2" style={{ gap: 12, fontSize: '0.85rem' }}>
@@ -104,7 +123,13 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
 
       {/* Work Section - only if in_progress */}
       {otm.status === 'in_progress' && (
-        <div className="slide-up">
+        <div className="slide-up" style={{ opacity: isPaused ? 0.6 : 1, pointerEvents: isPaused ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
+          {isPaused && (
+            <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: '0.85rem', textAlign: 'center', fontWeight: 500 }}>
+              ⚠️ TRABAJO POSPUESTO: Haz clic en el botón de arriba <strong>"▶ Retomar Trabajo"</strong> para reactivar y registrar tu ejecución.
+            </div>
+          )}
+          
           {/* Notes */}
           <div className="glass-card" style={{ marginBottom: 20 }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12 }}>📝 Notas Técnicas</h3>

@@ -5,6 +5,27 @@ import { useAuth } from './AuthContext';
 import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+export function calculateNetTime(startTime: string | null, endTime: string | null, pauses: { paused_at: string; resumed_at: string | null }[] | null | undefined): number {
+  if (!startTime || !endTime) return 0;
+  const start = new Date(startTime).getTime();
+  const end = new Date(endTime).getTime();
+  let totalElapsed = end - start;
+
+  let pausedMs = 0;
+  if (pauses) {
+    pauses.forEach(p => {
+      const pStart = new Date(p.paused_at).getTime();
+      const pEnd = p.resumed_at ? new Date(p.resumed_at).getTime() : end;
+      if (pStart >= start && pStart <= end) {
+        pausedMs += (pEnd - pStart);
+      }
+    });
+  }
+
+  const netMs = totalElapsed - pausedMs;
+  return Math.max(0, Math.round(netMs / 60000)); // Round to nearest minute
+}
+
 interface OTMContextType {
   otms: OTMRequest[];
   statusLogs: OTMStatusLog[];
@@ -12,13 +33,15 @@ interface OTMContextType {
   getOTMById: (id: string) => OTMRequest | undefined;
   createOTM: (data: Partial<OTMRequest>) => Promise<OTMRequest>;
   updateOTMStatus: (otmId: string, newStatus: OTMStatus, notes?: string) => void;
-  assignOTM: (otmId: string, technicianIds: string[], scheduledDate: string, supervisorNotes?: string) => void;
+  assignOTM: (otmId: string, technicianIds: string[], scheduledDate: string, supervisorNotes?: string, estimatedTime?: number) => void;
   assignSupervisor: (otmId: string, supervisorId: string) => void;
   assignContractor: (otmId: string, name: string, date: string, detail: string) => void;
   createRQ: (otmId: string, rqType: 'supply' | 'service', data: { materials?: string; quantities?: string; serviceDesc?: string; magnitude?: 'puntual' | 'integral' }) => void;
   cancelOTM: (otmId: string, reason: string, detail?: string) => void;
   updateOTMFields: (otmId: string, fields: Partial<OTMRequest>) => void;
   startTechnicianWork: (otmId: string) => void;
+  pauseTechnicianWork: (otmId: string) => void;
+  resumeTechnicianWork: (otmId: string) => void;
   finishTechnicianWork: (otmId: string, notes: string, photos: { file_url: string, file_name: string }[]) => void;
   approveWork: (otmId: string, notes?: string, start_time?: string, end_time?: string) => void;
   submitConformity: (otmId: string, rating: number, notes: string, signatureUrl?: string | null) => void;
@@ -241,7 +264,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     patchOTM(otmId, { supervisor_id: supervisorId });
   }, [isLive]);
 
-  const assignOTM = useCallback(async (otmId: string, technicianIds: string[], scheduledDate: string, supervisorNotes?: string) => {
+  const assignOTM = useCallback(async (otmId: string, technicianIds: string[], scheduledDate: string, supervisorNotes?: string, estimatedTime?: number) => {
     const otm = otms.find(o => o.id === otmId);
     if (!otm) return;
 
@@ -255,6 +278,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       supervisor_notes: supervisorNotes || otm.supervisor_notes,
       assignment_type: 'own' as AssignmentType,
       status: 'scheduled' as OTMStatus,
+      estimated_time: estimatedTime || null,
     };
 
     if (isLive) {
@@ -311,7 +335,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       }));
     }
 
-    addLog(otmId, otm.status, 'scheduled', `Asignado (Personal Propio: ${technicianIds.length} técnicos). ${supervisorNotes || ''}`);
+    addLog(otmId, otm.status, 'scheduled', `Asignado (Personal Propio: ${technicianIds.length} técnicos). Est. ${estimatedTime || 0} min. ${supervisorNotes || ''}`);
   }, [otms, user, isLive, users]);
 
   const assignContractor = useCallback((otmId: string, name: string, date: string, detail: string) => {
@@ -356,9 +380,41 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const startTechnicianWork = useCallback((otmId: string) => {
     const otm = otms.find(o => o.id === otmId);
     if (!otm) return;
-    patchOTM(otmId, { status: 'in_progress' as OTMStatus, job_start_time: new Date().toISOString() });
+    patchOTM(otmId, {
+      status: 'in_progress' as OTMStatus,
+      job_start_time: new Date().toISOString(),
+      net_execution_time: 0,
+      pauses: []
+    });
     addLog(otmId, otm.status, 'in_progress', 'Técnico inició el trabajo');
   }, [otms, user, isLive]);
+
+  const pauseTechnicianWork = useCallback((otmId: string) => {
+    const otm = otms.find(o => o.id === otmId);
+    if (!otm) return;
+    const currentPauses = otm.pauses || [];
+    const newPause = { paused_at: new Date().toISOString(), resumed_at: null };
+    patchOTM(otmId, {
+      pauses: [...currentPauses, newPause]
+    });
+    addLog(otmId, otm.status, otm.status, 'Técnico pospuso el trabajo (En Pausa)');
+  }, [otms, isLive, user]);
+
+  const resumeTechnicianWork = useCallback((otmId: string) => {
+    const otm = otms.find(o => o.id === otmId);
+    if (!otm) return;
+    const currentPauses = otm.pauses || [];
+    const updatedPauses = currentPauses.map((p, idx) => {
+      if (idx === currentPauses.length - 1 && p.resumed_at === null) {
+        return { ...p, resumed_at: new Date().toISOString() };
+      }
+      return p;
+    });
+    patchOTM(otmId, {
+      pauses: updatedPauses
+    });
+    addLog(otmId, otm.status, otm.status, 'Técnico retomó el trabajo (En Ejecución)');
+  }, [otms, isLive, user]);
 
   const finishTechnicianWork = useCallback(async (otmId: string, notes: string, photos: { file_url: string, file_name: string }[]) => {
     const otm = otms.find(o => o.id === otmId);
@@ -371,10 +427,17 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       }));
       await supabase.from('otm_attachments').insert(atts);
     }
+    
+    const endTime = new Date().toISOString();
+    const netTime = calculateNetTime(otm.job_start_time, endTime, otm.pauses);
+
     const fields: any = {
-      technician_notes: notes, status: 'awaiting_supervisor' as OTMStatus,
-      job_end_time: new Date().toISOString(),
+      technician_notes: notes,
+      status: 'awaiting_supervisor' as OTMStatus,
+      job_end_time: endTime,
+      net_execution_time: netTime
     };
+
     if (!isLive) {
       const newAttachments = photos.map((p, i) => ({
         id: `att-tech-${Date.now()}-${i}`, otm_id: otmId, uploaded_by: user!.id,
@@ -490,7 +553,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
       createOTM, updateOTMStatus, assignOTM, assignSupervisor, assignContractor,
       createRQ, cancelOTM, updateOTMFields,
-      startTechnicianWork, finishTechnicianWork, approveWork, submitConformity, refreshOTMs,
+      startTechnicianWork, pauseTechnicianWork, resumeTechnicianWork, finishTechnicianWork, approveWork, submitConformity, refreshOTMs,
       users, supervisors, addUser, updateUser,
       areas, addArea, updateArea,
       specialties, addSpecialty, updateSpecialty,
