@@ -232,17 +232,13 @@ Club de Regatas "Lima"
             {/* Elegant Vector Crest representing Regatas Lima */}
             <div style={{
               width: '60px',
-              height: '60px',
-              borderRadius: '50%',
-              background: '#ffffff',
+              height: '65px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid #fbbf24',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
               overflow: 'hidden'
             }}>
-              <img src="https://www.clubregatas.org.pe/wp-content/uploads/2021/04/logo-regatas-lima.png" alt="Club Regatas Lima" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }} />
+              <img src="/images/logo-crl.jpg" alt="Club Regatas Lima" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
             </div>
             <div>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '0.05em', color: '#0f172a', margin: 0 }}>CLUB DE REGATAS "LIMA"</h2>
