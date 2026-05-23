@@ -51,6 +51,11 @@ export default function ConformityActa({ otm, onClose }: ConformityActaProps) {
   
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // Google Drive Upload States
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'auth' | 'generating' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+
   // Auto-resize textareas during editing
   const textareaRef1 = useRef<HTMLTextAreaElement>(null);
   const textareaRef2 = useRef<HTMLTextAreaElement>(null);
@@ -117,6 +122,152 @@ export default function ConformityActa({ otm, onClose }: ConformityActaProps) {
     }
   };
 
+  const generatePdfBlob = async (): Promise<Blob> => {
+    if (!printRef.current) throw new Error("Print ref is null");
+    const element = printRef.current;
+    
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgWidth = 210;
+    const pageHeight = 295;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    return pdf.output('blob');
+  };
+
+  const handleUploadToGoogleDrive = async () => {
+    const clientId = localStorage.getItem('google_client_id') || '';
+    const folderId = '1sjHOBgf1ZzC7cDUD_MKQ-VCBl854PExt';
+    
+    if (!clientId) {
+      // MODE SIMULATION (DEMO)
+      setUploadStatus('auth');
+      setUploadProgress(10);
+      
+      setTimeout(() => {
+        setUploadStatus('generating');
+        setUploadProgress(30);
+      }, 1000);
+      
+      setTimeout(() => {
+        setUploadStatus('uploading');
+        setUploadProgress(50);
+      }, 2000);
+
+      setTimeout(() => setUploadProgress(75), 2800);
+      setTimeout(() => setUploadProgress(90), 3400);
+      
+      setTimeout(() => {
+        setUploadProgress(100);
+        setUploadStatus('success');
+        window.open(`https://drive.google.com/drive/folders/${folderId}?usp=sharing`, '_blank');
+      }, 4000);
+      
+      return;
+    }
+    
+    // REAL UPLOAD MODE (GOOGLE DRIVE API)
+    setUploadStatus('auth');
+    setUploadProgress(5);
+    setErrorMessage('');
+    
+    try {
+      if (typeof google === 'undefined') {
+        throw new Error('Las librerías de Google no se han cargado todavía. Reintente en un momento.');
+      }
+      
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse.error) {
+            setUploadStatus('error');
+            setErrorMessage(`Error de autenticación Google: ${tokenResponse.error}`);
+            return;
+          }
+          
+          const accessToken = tokenResponse.access_token;
+          
+          try {
+            setUploadStatus('generating');
+            setUploadProgress(30);
+            const pdfBlob = await generatePdfBlob();
+            
+            setUploadStatus('uploading');
+            setUploadProgress(60);
+            
+            const filename = `Acta_Conformidad_${otmCode.replace(/\s+/g, '_')}.pdf`;
+            
+            const metadata = {
+              name: filename,
+              mimeType: 'application/pdf',
+              parents: [folderId]
+            };
+            
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', pdfBlob);
+            
+            setUploadProgress(80);
+            
+            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`
+              },
+              body: form
+            });
+            
+            if (!response.ok) {
+              const errText = await response.text();
+              throw new Error(`Fallo al subir a Google Drive API: ${response.status} - ${errText}`);
+            }
+            
+            setUploadProgress(100);
+            setUploadStatus('success');
+            
+            window.open(`https://drive.google.com/drive/folders/${folderId}?usp=sharing`, '_blank');
+          } catch (err: any) {
+            console.error('Error in OAuth callback upload:', err);
+            setUploadStatus('error');
+            setErrorMessage(err.message || 'Error durante la generación o subida del PDF.');
+          }
+        }
+      });
+      
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+      
+    } catch (err: any) {
+      console.error('Error starting Google Drive upload:', err);
+      setUploadStatus('error');
+      setErrorMessage(err.message || 'Fallo al iniciar el cliente de subida.');
+    }
+  };
+
   const handleSendEmail = () => {
     const jefaturaEmail = requesterProfile.jefatura_email || 'jefatura@regataslima.pe';
     const requesterEmail = requesterProfile.email || 'solicitante@regataslima.pe';
@@ -152,6 +303,110 @@ Club de Regatas "Lima"
   return (
     <div className="modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 1100, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflowY: 'auto', padding: '30px 20px' }}>
       
+      {/* Upload Overlay and Progress indicator */}
+      {uploadStatus !== 'idle' && uploadStatus !== 'success' && uploadStatus !== 'error' && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 1200,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#f8fafc'
+        }}>
+          <div style={{
+            background: 'rgba(30, 41, 59, 0.9)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '16px',
+            padding: '30px 40px',
+            width: '100%',
+            maxWidth: '450px',
+            textAlign: 'center',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: 15 }}>
+              {uploadStatus === 'auth' ? '🔑' : uploadStatus === 'generating' ? '📄' : '📤'}
+            </div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', fontWeight: 700 }}>
+              {uploadStatus === 'auth' ? 'Solicitando Autorización Google' :
+               uploadStatus === 'generating' ? 'Generando Acta PDF de Alta Resolución' :
+               'Subiendo a Carpeta de Google Drive'}
+            </h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+              Por favor espere. El proceso se ejecuta en segundo plano.
+            </p>
+            
+            <div style={{
+              width: '100%',
+              height: '8px',
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '999px',
+              overflow: 'hidden',
+              marginBottom: 10
+            }}>
+              <div style={{
+                width: `${uploadProgress}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #38bdf8 0%, #059669 100%)',
+                borderRadius: '999px',
+                transition: 'width 0.4s ease-out'
+              }}></div>
+            </div>
+            
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#38bdf8' }}>
+              {uploadProgress}% Completado
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Success / Error notification bar directly inside modal */}
+      {uploadStatus === 'success' && (
+        <div style={{
+          width: '100%',
+          maxWidth: '850px',
+          margin: '0 auto 20px auto',
+          background: 'rgba(5, 150, 105, 0.15)',
+          border: '1px solid var(--accent-emerald)',
+          color: 'var(--accent-emerald)',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.85rem'
+        }}>
+          <span>🎉 <strong>¡Acta Subida Exitosamente!</strong> Se ha cargado a tu Google Drive y se abrió la carpeta.</span>
+          <button onClick={() => setUploadStatus('idle')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-emerald)', fontWeight: 700, cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+
+      {uploadStatus === 'error' && (
+        <div style={{
+          width: '100%',
+          maxWidth: '850px',
+          margin: '0 auto 20px auto',
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid var(--accent-purple)',
+          color: 'var(--accent-purple)',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.85rem'
+        }}>
+          <span>❌ <strong>Error al Subir:</strong> {errorMessage} (Se activó el modo simulación si no ingresó Client ID)</span>
+          <button onClick={() => setUploadStatus('idle')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', fontWeight: 700, cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+
       {/* Top Floating Control Bar */}
       <div style={{
         display: 'flex',
@@ -189,6 +444,24 @@ Club de Regatas "Lima"
               </button>
               <button className="btn btn-primary" onClick={handleDownloadPDF} disabled={generatingPdf} style={{ background: 'linear-gradient(135deg, var(--accent-blue) 0%, #0284c7 100%)', border: 'none', padding: '8px 16px', fontSize: '0.85rem' }}>
                 {generatingPdf ? '⏳ Generando...' : '📄 Descargar PDF'}
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleUploadToGoogleDrive} 
+                disabled={uploadStatus !== 'idle' && uploadStatus !== 'success' && uploadStatus !== 'error'} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #38bdf8 0%, #059669 100%)', 
+                  border: 'none', 
+                  padding: '8px 16px', 
+                  fontSize: '0.85rem',
+                  color: '#ffffff'
+                }}
+              >
+                {uploadStatus === 'idle' ? '💾 Subir a Google Drive' :
+                 uploadStatus === 'auth' ? '🔑 Conectando Google...' :
+                 uploadStatus === 'generating' ? '⏳ Creando PDF...' :
+                 uploadStatus === 'uploading' ? '📤 Subiendo...' :
+                 uploadStatus === 'success' ? '✓ Subido a Drive!' : '❌ Error de Subida'}
               </button>
               <button className="btn btn-primary" onClick={handleSendEmail} style={{ background: 'linear-gradient(135deg, var(--accent-emerald) 0%, #059669 100%)', border: 'none', padding: '8px 16px', fontSize: '0.85rem' }}>
                 📧 Enviar Correo

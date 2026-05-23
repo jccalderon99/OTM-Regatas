@@ -22,6 +22,17 @@ export default function OTMManagement() {
   const [sortField, setSortField] = useState<'created_at' | 'urgency' | 'status'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
+  // Google API Settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState(localStorage.getItem('google_client_id') || '');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+
+  const handleSaveSettings = () => {
+    localStorage.setItem('google_client_id', googleClientId);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
+
   // Manage panel state
   const [manageOTM, setManageOTM] = useState<OTMRequest | null>(null);
   const [actaOTM, setActaOTM] = useState<OTMRequest | null>(null);
@@ -149,7 +160,60 @@ export default function OTMManagement() {
 
   return (
     <div>
-      <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 20 }}>Administra, asigna y supervisa todas las órdenes de trabajo</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <p className="page-subtitle" style={{ margin: 0 }}>Administra, asigna y supervisa todas las órdenes de trabajo</p>
+        <button 
+          onClick={() => setShowSettings(!showSettings)}
+          className="btn btn-secondary"
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 8, 
+            padding: '6px 12px', 
+            fontSize: '0.8rem', 
+            borderColor: 'rgba(255,255,255,0.1)', 
+            background: showSettings ? 'rgba(78, 181, 230, 0.1)' : 'transparent',
+            color: '#f8fafc'
+          }}
+        >
+          ⚙️ {showSettings ? 'Ocultar Configuración Google' : 'Configurar Google Drive'}
+        </button>
+      </div>
+
+      {showSettings && (
+        <div style={{
+          background: 'rgba(30, 41, 59, 0.6)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+            🔑 Parámetros de Integración Google Drive
+          </h4>
+          <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: '#94a3b8', lineHeight: '1.4' }}>
+            Como administrador/desarrollador, ingresa tu <strong>Google Client ID</strong> creado en Google Cloud Console para habilitar la subida automática directa de las actas PDF. Si lo dejas en blanco, el sistema correrá en <strong>Modo Simulación Demo</strong> con animaciones premium.
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input 
+              type="text"
+              placeholder="Ej: 12345678-abc.apps.googleusercontent.com"
+              value={googleClientId}
+              onChange={e => setGoogleClientId(e.target.value)}
+              className="form-input"
+              style={{ flex: 1, fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(15,23,42,0.4)', borderColor: 'rgba(255,255,255,0.1)', color: '#f8fafc' }}
+            />
+            <button 
+              onClick={handleSaveSettings}
+              className="btn btn-primary"
+              style={{ padding: '8px 16px', fontSize: '0.8rem', background: saveStatus === 'saved' ? 'var(--accent-emerald)' : 'var(--accent-blue)', border: 'none', color: '#ffffff' }}
+            >
+              {saveStatus === 'saved' ? '✓ ¡Guardado!' : 'Guardar Clave'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="filter-bar responsive-actions" style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
