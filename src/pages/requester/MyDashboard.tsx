@@ -70,6 +70,38 @@ export default function MyDashboard() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [filtered]);
 
+  const vibrant = {
+    blue: '#0ea5e9',   // Sky 500
+    coral: '#f43f5e',  // Coral/Rose 500
+    orange: '#f97316', // Orange 500
+    green: '#10b981',  // Emerald 500
+    yellow: '#eab308', // Yellow 500
+    purple: '#a855f7', // Purple 500
+  };
+
+  const doughnutCircumference = 251.2;
+  
+  const priorityItems = useMemo(() => {
+    const items = [
+      { key: 'high', label: 'Alta', count: priorityData.high, color: vibrant.coral },
+      { key: 'medium', label: 'Media', count: priorityData.medium, color: vibrant.orange },
+      { key: 'low', label: 'Baja', count: priorityData.low, color: vibrant.green },
+    ];
+    let accumulatedCircumference = 0;
+    return items.map(item => {
+      const percent = priorityData.total > 0 ? item.count / priorityData.total : 0;
+      const strokeLength = percent * doughnutCircumference;
+      const currentOffset = -accumulatedCircumference;
+      accumulatedCircumference += strokeLength;
+      return {
+        ...item,
+        percent: Math.round(percent * 100),
+        strokeDasharray: `${strokeLength} ${doughnutCircumference}`,
+        strokeDashoffset: currentOffset,
+      };
+    });
+  }, [priorityData]);
+
   return (
     <div>
       <div className="page-header">
@@ -77,17 +109,26 @@ export default function MyDashboard() {
         <p className="page-subtitle">📍 Área: {user?.area_sector} — {user?.role === 'jefatura' ? 'Supervisión de carga de trabajo del área' : 'Seguimiento de tus solicitudes'}</p>
       </div>
 
-      <div className="kpi-mobile-small" style={{ marginBottom: 20 }}>
+      <div className="kpi-mobile-small" style={{ marginBottom: 24 }}>
         {[
-          { label: 'Total', value: counts.total, color: 'var(--accent-blue)' },
-          { label: 'Pendientes', value: counts.pending, color: 'var(--accent-amber)' },
-          { label: 'En Curso', value: counts.active, color: 'var(--accent-blue)' },
-          { label: 'Suministros (RQ)', value: counts.rq, color: 'var(--accent-purple)' },
-          { label: 'Por Confirmar', value: counts.awaiting, color: 'var(--accent-emerald)' },
-        ].map(c => (
-          <div key={c.label} className="kpi-card" style={{ '--kpi-color': c.color } as any}>
-            <div className="kpi-label">{c.label}</div>
-            <div className="kpi-value" style={{ color: c.color }}>{c.value}</div>
+          { label: 'Total', value: counts.total, color: vibrant.blue, icon: '📊' },
+          { label: 'Pendientes', value: counts.pending, color: vibrant.yellow, icon: '⏳' },
+          { label: 'En Curso', value: counts.active, color: vibrant.purple, icon: '⚙️' },
+          { label: 'Suministros (RQ)', value: counts.rq, color: vibrant.orange, icon: '📦' },
+          { label: 'Por Confirmar', value: counts.awaiting, color: vibrant.green, icon: '✅' },
+        ].map((c, i) => (
+          <div key={i} className="kpi-card" style={{
+            '--kpi-color': c.color,
+            boxShadow: `0 8px 24px ${c.color}18`,
+            border: `1px solid ${c.color}22`
+          } as any}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+              <div>
+                <div className="kpi-label">{c.label}</div>
+                <div className="kpi-value" style={{ fontSize: '1.5rem', fontWeight: 800 }}>{c.value}</div>
+              </div>
+              <span style={{ fontSize: '1.2rem', opacity: 0.8 }}>{c.icon}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -96,36 +137,52 @@ export default function MyDashboard() {
         <div className="responsive-chart-container dashboard-charts-col">
           <div className="glass-card" style={{ height: 'fit-content' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Distribución por Prioridad</h3>
-            <div className="flex items-center justify-center gap-6 py-4 flex-wrap">
-              <div style={{ position: 'relative', width: 100, height: 100 }}>
-                <svg width="100" height="100" viewBox="0 0 40 40" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="6" />
-                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-rose)" strokeWidth="6"
-                    strokeDasharray={`${(priorityData.high / (priorityData.total || 1)) * 100} 100`} />
-                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-amber)" strokeWidth="6"
-                    strokeDasharray={`${(priorityData.medium / (priorityData.total || 1)) * 100} 100`}
-                    strokeDashoffset={`-${(priorityData.high / (priorityData.total || 1)) * 100}`} />
-                  <circle cx="20" cy="20" r="15.915" fill="transparent" stroke="var(--accent-emerald)" strokeWidth="6"
-                    strokeDasharray={`${(priorityData.low / (priorityData.total || 1)) * 100} 100`}
-                    strokeDashoffset={`-${((priorityData.high + priorityData.medium) / (priorityData.total || 1)) * 100}`} />
+            <div className="flex items-center justify-around py-4 flex-wrap gap-4">
+              <div style={{ position: 'relative', width: '130px', height: '130px' }}>
+                <svg viewBox="0 0 100 100" className="animated-doughnut" style={{ width: '100%', height: '100%' }}>
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="11" />
+                  {priorityItems.map(item => (
+                    item.count > 0 && (
+                      <circle
+                        key={item.key}
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke={item.color}
+                        strokeWidth="11"
+                        strokeDasharray={item.strokeDasharray}
+                        strokeDashoffset={item.strokeDashoffset}
+                        strokeLinecap="round"
+                        transform="rotate(-90 50 50)"
+                        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+                      />
+                    )
+                  ))}
                 </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800 }}>
-                  {priorityData.total}
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#1e293b', lineHeight: 1 }}>
+                    {priorityData.total}
+                  </span>
+                  <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>
+                    OTMs
+                  </span>
                 </div>
               </div>
-              <div className="flex-col gap-1">
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-rose)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-rose)' }}></span>
-                  Alta: {priorityData.high}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-amber)' }}></span>
-                  Media: {priorityData.medium}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-emerald)' }}></span>
-                  Baja: {priorityData.low}
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: '110px' }}>
+                {priorityItems.map((item) => (
+                  <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, display: 'inline-block', boxShadow: `0 2px 6px ${item.color}44` }} />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', lineHeight: 1.1 }}>
+                        {item.label}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>
+                        {item.count} ({item.percent}%)
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -133,17 +190,28 @@ export default function MyDashboard() {
           <div className="glass-card" style={{ height: 'fit-content' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16 }}>Top Especialidades</h3>
             <div className="flex-col gap-3">
-              {specialtyData.slice(0, 5).map(([name, count]) => (
-                <div key={name}>
-                  <div className="flex justify-between" style={{ fontSize: '0.7rem', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600 }}>{name}</span>
-                    <span>{count}</span>
+              {specialtyData.slice(0, 5).map(([name, count], i) => {
+                const colors = [vibrant.blue, vibrant.green, vibrant.orange, vibrant.purple, vibrant.coral];
+                const color = colors[i % colors.length];
+                const maxCount = Math.max(...specialtyData.map(s => s[1]), 1);
+                return (
+                  <div key={name}>
+                    <div className="flex justify-between" style={{ fontSize: '0.75rem', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, color: '#475569' }}>{name}</span>
+                      <span style={{ fontWeight: 800, color: '#1e293b' }}>{count}</span>
+                    </div>
+                    <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+                        width: `${(count / maxCount) * 100}%`,
+                        borderRadius: 4,
+                        transition: 'width 0.6s ease'
+                      }}></div>
+                    </div>
                   </div>
-                  <div style={{ height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: 'var(--accent-blue)', width: `${(count / (counts.total || 1)) * 100}%` }}></div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -204,10 +272,19 @@ export default function MyDashboard() {
             </div>
           ) : (
             <div className="flex-col gap-3 scrollable-list-container" style={{ padding: '4px 10px', maxHeight: 'calc(100vh - 400px)', minHeight: 400 }}>
-              {filtered.map(otm => (
-                <div key={otm.id} className="glass-card" style={{ cursor: 'pointer', padding: 20, marginBottom: 12 }}
+              {filtered.map(otm => {
+                const urgencyColors = { high: '#f43f5e', medium: '#f97316', low: '#10b981' };
+                const urgencyColor = urgencyColors[otm.urgency] || '#cbd5e1';
+                return (
+                  <div key={otm.id} className="glass-card dashboard-list-card" style={{
+                    cursor: 'pointer',
+                    padding: '20px 20px 20px 24px',
+                    marginBottom: 12,
+                    borderLeft: `4px solid ${urgencyColor}`,
+                    transition: 'transform 0.25s ease, box-shadow 0.25s ease'
+                  }}
                   onClick={() => setSelectedOTM(selectedOTM?.id === otm.id ? null : otm)}>
-                  <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center">
                     <div>
                       <div className="flex items-center gap-2">
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>{otm.otm_code}</span>
@@ -335,7 +412,7 @@ export default function MyDashboard() {
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
@@ -344,6 +421,24 @@ export default function MyDashboard() {
       {showConformity && (
         <ConformityModal otm={showConformity} onClose={() => setShowConformity(null)} />
       )}
+
+      <style>{`
+        @keyframes rotateDoughnut {
+          from { transform: rotate(-90deg) scale(0.9); opacity: 0; }
+          to { transform: rotate(270deg) scale(1); opacity: 1; }
+        }
+        .animated-doughnut {
+          transform-origin: center;
+          animation: rotateDoughnut 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .dashboard-list-card {
+          transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dashboard-list-card:hover {
+          transform: translateY(-3px) scale(1.005);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+        }
+      `}</style>
     </div>
   );
 }
