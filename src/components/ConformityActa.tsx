@@ -415,32 +415,83 @@ Club de Regatas "Lima"
         </div>
       )}
 
+      <style>{`
+        .conformity-top-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+          max-width: 850px;
+          margin: 0 auto 20px auto;
+          background: rgba(30, 41, 59, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          padding: 12px 24px;
+          border-radius: 16px;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+          transition: all 0.3s ease;
+        }
+        .conformity-top-status {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: #f8fafc;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+        .conformity-top-actions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+        @media (max-width: 768px) {
+          .conformity-top-bar {
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            align-items: stretch;
+          }
+          .conformity-top-status {
+            justify-content: center;
+            font-size: 0.8rem;
+          }
+          .conformity-top-actions {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+          }
+          .conformity-top-actions button {
+            flex: 1 1 calc(50% - 8px);
+            font-size: 0.75rem;
+            padding: 8px 10px;
+            min-width: 110px;
+            justify-content: center;
+            display: flex;
+            align-items: center;
+          }
+        }
+        @media (max-width: 480px) {
+          .conformity-top-actions button {
+            flex: 1 1 100%;
+          }
+        }
+      `}</style>
+
       {/* Top Floating Control Bar */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '100%',
-        maxWidth: '850px',
-        margin: '0 auto 20px auto',
-        background: 'rgba(30, 41, 59, 0.9)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        padding: '12px 24px',
-        borderRadius: '16px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="conformity-top-bar">
+        <div className="conformity-top-status">
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: isEditing ? 'var(--accent-purple)' : 'var(--accent-emerald)', animation: isEditing ? 'pulse 2s infinite' : 'none' }}></div>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>
+          <span>
             {isEditing ? '📝 MODO DE EDICIÓN ACTIVO' : '👁️ PREVISUALIZACIÓN DE ACTA'}
           </span>
         </div>
         
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="conformity-top-actions">
           {isEditing ? (
             <button className="btn btn-primary" onClick={() => setIsSigning(true)} style={{ background: 'linear-gradient(135deg, var(--accent-purple) 0%, #7c3aed 100%)', border: 'none', padding: '8px 16px', fontSize: '0.85rem' }}>
               💾 Finalizar Edición
@@ -482,17 +533,19 @@ Club de Regatas "Lima"
         </div>
       </div>
 
-      {/* The Printable Document Container */}
-      <div 
-        ref={printRef} 
-        style={{
-          width: '100%',
-          maxWidth: '850px',
-          margin: '0 auto',
-          background: '#ffffff',
-          color: '#1e293b',
-          fontFamily: '"Inter", -apple-system, sans-serif',
-          padding: '40px 50px',
+      {/* The Printable Document Container (Scroll wrapper for Mobile high-fidelity rendering) */}
+      <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '10px 0' }}>
+        <div 
+          ref={printRef} 
+          style={{
+            width: '100%',
+            minWidth: '800px',
+            maxWidth: '850px',
+            margin: '0 auto',
+            background: '#ffffff',
+            color: '#1e293b',
+            fontFamily: '"Inter", -apple-system, sans-serif',
+            padding: '40px 50px',
           borderRadius: '16px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
           position: 'relative',
@@ -965,8 +1018,8 @@ Club de Regatas "Lima"
           <span>FECHA DE IMPRESIÓN: {new Date().toLocaleDateString('es')}</span>
           <span>PÁGINA 1 DE 1</span>
         </div>
-
       </div>
+    </div>
 
       {/* Supervisor Signature Capture Modal (Glassmorphic Premium Style) */}
       {isSigning && (
