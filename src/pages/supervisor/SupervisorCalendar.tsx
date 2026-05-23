@@ -208,7 +208,14 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
         <div style={{ minWidth: 1000, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{ display: 'flex', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ width: 60, borderRight: '1px solid var(--border)' }}></div>
+            <div style={{ 
+              width: 60, 
+              borderRight: '1px solid var(--border)',
+              position: 'sticky',
+              left: 0,
+              background: 'var(--bg-card)',
+              zIndex: 6
+            }}></div>
             {weekDays.map((d, i) => {
               const isToday = d.toDateString() === todayDate.toDateString();
               return (
@@ -247,7 +254,12 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                   padding: '8px 4px 0 0', 
                   fontSize: '0.75rem', 
                   fontWeight: 600,
-                  color: 'var(--text-muted)' 
+                  color: 'var(--text-muted)',
+                  position: 'sticky',
+                  left: 0,
+                  background: 'var(--bg-card)',
+                  zIndex: 5,
+                  boxShadow: '2px 0 4px rgba(0,0,0,0.05)'
                 }}>
                   {hour.toString().padStart(2, '0')}:00
                 </div>
