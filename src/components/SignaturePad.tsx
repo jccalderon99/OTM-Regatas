@@ -28,16 +28,27 @@ export default function SignaturePad({ onSignatureChange, strokeColor, lineWidth
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    
+    let clientX = 0;
+    let clientY = 0;
+    
     if ('touches' in e) {
-      return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top,
-      };
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
     }
-    return {
-      x: (e as React.MouseEvent).clientX - rect.left,
-      y: (e as React.MouseEvent).clientY - rect.top,
-    };
+    
+    const relativeX = clientX - rect.left;
+    const relativeY = clientY - rect.top;
+    
+    // Scale CSS coordinates to the actual canvas resolution backing store
+    const x = relativeX * (canvas.width / rect.width);
+    const y = relativeY * (canvas.height / rect.height);
+    
+    return { x, y };
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {

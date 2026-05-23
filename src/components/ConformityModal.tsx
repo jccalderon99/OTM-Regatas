@@ -58,7 +58,7 @@ export default function ConformityModal({ otm, onClose }: { otm: OTMRequest; onC
         {/* Signature */}
         <div className="form-group" style={{ marginBottom: 24 }}>
           <label className="form-label">Firma de Conformidad</label>
-          <SignaturePad onSignatureChange={setSignature} />
+          <SignaturePad onSignatureChange={setSignature} strokeColor="#0f172a" lineWidth={3} />
         </div>
 
         <div className="flex gap-3" style={{ justifyContent: 'flex-end' }}>

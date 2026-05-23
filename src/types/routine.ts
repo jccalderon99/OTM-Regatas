@@ -3,7 +3,7 @@ import { Profile } from './index';
 export interface RoutineQuestion {
   id: string;
   label: string;
-  type: 'text' | 'select' | 'number' | 'checkbox' | 'time';
+  type: 'text' | 'select' | 'number' | 'checkbox' | 'time' | 'button_group';
   options?: string[];
   required: boolean;
 }
@@ -22,17 +22,18 @@ export interface RoutineActivity {
 export interface RoutineRecord {
   id: string;
   user_id?: string;
+  technician_id: string;
   specialty: string;
   sub_specialty: string;
   activities_executed: string[];
   free_text_activity?: string | null;
+  answers?: Record<string, any>;
   record_date: string;
   start_time: string;
   end_time: string;
   photos: string[];
   status?: 'pending' | 'in_progress' | 'completed';
   notes?: string;
-  technician_id: string;
   created_at?: string;
   technician?: Profile;
 }

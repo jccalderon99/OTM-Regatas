@@ -59,6 +59,26 @@ export default function RoutineDetailModal({
               </ul>
             </div>
           )}
+          {record.answers && Object.keys(record.answers).length > 0 && (
+            <div>
+              <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 8 }}>Detalles y Parámetros</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {Object.entries(record.answers).map(([label, value]) => {
+                  let displayValue = '';
+                  if (typeof value === 'boolean') displayValue = value ? '✓ Conforme' : '✗ No realizado';
+                  else displayValue = String(value);
+                  return (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: '0.85rem', border: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+                      <span style={{ fontWeight: 700, padding: '2px 8px', background: typeof value === 'boolean' ? (value ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)') : 'rgba(168,85,247,0.1)', color: typeof value === 'boolean' ? (value ? '#22c55e' : '#ef4444') : 'var(--accent-purple)', borderRadius: 6 }}>
+                        {displayValue}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {record.free_text_activity && (
             <div>
               <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Descripción</strong>

@@ -10,34 +10,7 @@ export default function UserManagement() {
     deleteUser
   } = useOTM();
 
-  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios' | 'atributos'>('areas');
-
-  // Role adjustments states for Atributos tab
-  const [assignedAttributes, setAssignedAttributes] = useState<{
-    email: string;
-    assignedRole: UserRole;
-    originalRole: UserRole;
-  }[]>(() => {
-    const saved = localStorage.getItem('assigned_attributes');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [attrEmail, setAttrEmail] = useState('');
-  const [attrRole, setAttrRole] = useState<UserRole>('admin');
-  const [attrError, setAttrError] = useState('');
-  const [attrSuccess, setAttrSuccess] = useState('');
-
-  // Sync attributes with users state to maintain consistency
-  useEffect(() => {
-    // If a user in the assignedAttributes list has been updated elsewhere or needs re-sync
-    assignedAttributes.forEach(attr => {
-      const u = users.find(x => x.email.toLowerCase() === attr.email.toLowerCase());
-      if (u && u.role !== attr.assignedRole) {
-        // Enforce the attribute role
-        updateUser({ ...u, role: attr.assignedRole });
-      }
-    });
-  }, [users, assignedAttributes]);
+  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios'>('areas');
 
   // Unified Form States
   const [showForm, setShowForm] = useState(false);
@@ -217,7 +190,6 @@ export default function UserManagement() {
         <button className={`tab ${activeTab === 'supervisores' ? 'active' : ''}`} onClick={() => setActiveTab('supervisores')}>Supervisores</button>
         <button className={`tab ${activeTab === 'tecnicos' ? 'active' : ''}`} onClick={() => setActiveTab('tecnicos')}>Técnicos</button>
         <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Usuarios</button>
-        <button className={`tab ${activeTab === 'atributos' ? 'active' : ''}`} onClick={() => setActiveTab('atributos')}>🔑 Atributos</button>
       </div>
 
       <div className="glass-card slide-up" style={{ minHeight: 400 }}>
@@ -484,170 +456,7 @@ export default function UserManagement() {
           </div>
         )}
 
-        {/* TAB 7: ATRIBUTOS (GESTIÓN DE ROLES DINÁMICA POR EMAIL) */}
-        {activeTab === 'atributos' && (
-          <div>
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                🔑 Panel de Atribución Dinámica de Privilegios
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Modifica y sobreescribe los atributos y paneles de los colaboradores ingresando su correo electrónico. Si los quitas de la lista, volverán automáticamente a su rol anterior.
-              </p>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, alignItems: 'start' }}>
-              
-              {/* Form Section */}
-              <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid var(--border)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16, color: '#334155' }}>
-                  Añadir Atribución Especial
-                </h4>
-
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  setAttrError('');
-                  setAttrSuccess('');
-
-                  const foundUser = users.find(u => u.email.toLowerCase() === attrEmail.trim().toLowerCase());
-                  if (!foundUser) {
-                    setAttrError('⚠️ El correo ingresado no pertenece a ningún usuario registrado. Regístralo primero en la pestaña de Usuarios.');
-                    return;
-                  }
-
-                  // Check if already in attributes list
-                  const alreadyAssigned = assignedAttributes.find(x => x.email.toLowerCase() === attrEmail.trim().toLowerCase());
-                  if (alreadyAssigned) {
-                    setAttrError('⚠️ Este usuario ya tiene una atribución especial asignada. Edítala o restablécela en la tabla de la derecha.');
-                    return;
-                  }
-
-                  const newAttr = {
-                    email: foundUser.email,
-                    assignedRole: attrRole,
-                    originalRole: foundUser.role
-                  };
-
-                  // 1. Update the user role in the global OTM context
-                  updateUser({
-                    ...foundUser,
-                    role: attrRole
-                  });
-
-                  // 2. Save in attributesList state and persist
-                  const updatedList = [...assignedAttributes, newAttr];
-                  setAssignedAttributes(updatedList);
-                  localStorage.setItem('assigned_attributes', JSON.stringify(updatedList));
-
-                  setAttrSuccess(`✓ Atribución concedida con éxito. Correo ${attrEmail} asignado como ${attrRole === 'admin' ? 'Administrador' : attrRole === 'supervisor' ? 'Supervisor' : attrRole === 'technician' ? 'Técnico' : attrRole === 'jefatura' ? 'Jefatura' : 'Solicitante'}.`);
-                  setAttrEmail('');
-                }} className="flex-col gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Correo Institucional *</label>
-                    <input 
-                      type="email" 
-                      required 
-                      className="form-input" 
-                      placeholder="Ej: colaborador@regatas.pe"
-                      value={attrEmail} 
-                      onChange={e => setAttrEmail(e.target.value)} 
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Atributos / Rol a Conceder *</label>
-                    <select 
-                      className="form-select" 
-                      value={attrRole} 
-                      onChange={e => setAttrRole(e.target.value as UserRole)}
-                    >
-                      <option value="admin">Administrador Global 🛡️</option>
-                      <option value="supervisor">Supervisor de Mantenimiento 👷</option>
-                      <option value="technician">Personal Técnico 🛠️</option>
-                      <option value="jefatura">Jefatura de Área 📈</option>
-                      <option value="requester">Solicitante Común 👥</option>
-                    </select>
-                  </div>
-
-                  {attrError && <div style={{ fontSize: '0.8rem', color: 'var(--accent-red)', fontWeight: 600 }}>{attrError}</div>}
-                  {attrSuccess && <div style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>{attrSuccess}</div>}
-
-                  <button className="btn btn-primary w-full" type="submit" style={{ background: 'var(--accent-purple)', borderColor: 'var(--accent-purple)' }}>
-                    Conceder Atributos
-                  </button>
-                </form>
-              </div>
-
-              {/* Table Section */}
-              <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden' }}>
-                <h4 style={{ padding: '16px 20px', margin: 0, borderBottom: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: 700, color: '#334155' }}>
-                  Listado de Roles Sobreescritos ({assignedAttributes.length})
-                </h4>
-
-                <div className="scrollable-list-container">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Usuario (Correo)</th>
-                        <th>Atributo Especial</th>
-                        <th>Rol Original</th>
-                        <th>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assignedAttributes.map((attr, idx) => (
-                        <tr key={idx}>
-                          <td style={{ fontWeight: 600 }}>{attr.email}</td>
-                          <td>
-                            <span className={`role-badge role-${attr.assignedRole}`}>
-                              {attr.assignedRole === 'admin' ? 'Administrador' : attr.assignedRole === 'supervisor' ? 'Supervisor' : attr.assignedRole === 'technician' ? 'Técnico' : attr.assignedRole === 'jefatura' ? 'Jefatura' : 'Solicitante'}
-                            </span>
-                          </td>
-                          <td style={{ color: 'var(--text-muted)' }}>
-                            {attr.originalRole === 'admin' ? 'Administrador' : attr.originalRole === 'supervisor' ? 'Supervisor' : attr.originalRole === 'technician' ? 'Técnico' : attr.originalRole === 'jefatura' ? 'Jefatura' : 'Solicitante'}
-                          </td>
-                          <td>
-                            <button 
-                              className="btn btn-sm btn-ghost" 
-                              style={{ color: 'var(--accent-red)' }}
-                              onClick={() => {
-                                // Find user
-                                const foundUser = users.find(u => u.email.toLowerCase() === attr.email.toLowerCase());
-                                if (foundUser) {
-                                  // Restore original role
-                                  updateUser({
-                                    ...foundUser,
-                                    role: attr.originalRole
-                                  });
-                                }
-
-                                // Remove from attributesList
-                                const updatedList = assignedAttributes.filter(x => x.email.toLowerCase() !== attr.email.toLowerCase());
-                                setAssignedAttributes(updatedList);
-                                localStorage.setItem('assigned_attributes', JSON.stringify(updatedList));
-
-                                setAttrSuccess(`Restablecido rol de ${attr.email} a su estado original (${attr.originalRole}).`);
-                              }}
-                            >
-                              Restablecer Rol
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {assignedAttributes.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="text-center" style={{ padding: 40, color: 'var(--text-muted)' }}>
-                            No hay atribuciones especiales registradas en este momento.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
 
