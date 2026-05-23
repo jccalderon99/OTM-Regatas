@@ -3,6 +3,7 @@ import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
 import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import ConformityActa from '../../components/ConformityActa';
 
 type ManageAction = 'none' | 'assign' | 'rq' | 'cancel';
 type AssignSubAction = 'none' | 'own' | 'contractor';
@@ -10,7 +11,7 @@ type RQSubAction = 'none' | 'supply' | 'service';
 
 export default function OTMManagement() {
   const { user } = useAuth();
-  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors } = useOTM();
+  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs } = useOTM();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | ''>('');
   const [supervisorFilter, setSupervisorFilter] = useState<string>('');
@@ -23,6 +24,7 @@ export default function OTMManagement() {
 
   // Manage panel state
   const [manageOTM, setManageOTM] = useState<OTMRequest | null>(null);
+  const [actaOTM, setActaOTM] = useState<OTMRequest | null>(null);
   const [action, setAction] = useState<ManageAction>('none');
   const [assignSub, setAssignSub] = useState<AssignSubAction>('none');
   const [rqSub, setRQSub] = useState<RQSubAction>('none');
@@ -424,6 +426,102 @@ export default function OTMManagement() {
               </div>
             )}
 
+            {/* Conformity Data for Closed OTM */}
+            {manageOTM.status === 'closed' && (
+              <div style={{ marginBottom: 16, padding: 16, background: 'rgba(78,181,230,0.08)', borderRadius: 8, border: '1px solid rgba(78,181,230,0.2)' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-blue)', marginBottom: 12 }}>
+                  ⭐ Conformidad de Servicio
+                </div>
+                
+                <div className="flex-col gap-2">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Calificación:</span>
+                    <div style={{ color: 'var(--accent-amber)', fontSize: '1rem', fontWeight: 700 }}>
+                      {'★'.repeat(manageOTM.conformity_rating || 0)}{'☆'.repeat(5 - (manageOTM.conformity_rating || 0))}
+                    </div>
+                  </div>
+                  
+                  {manageOTM.conformity_date && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      📅 Fecha: {new Date(manageOTM.conformity_date).toLocaleString('es')}
+                    </div>
+                  )}
+
+                  {manageOTM.conformity_notes && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', background: 'var(--bg-secondary)', padding: 10, borderRadius: 6, marginTop: 4 }}>
+                      <strong>Comentarios: </strong> {manageOTM.conformity_notes}
+                    </div>
+                  )}
+
+                  {manageOTM.conformity_signature_url && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Firma de conformidad:</div>
+                      <div style={{ background: '#ffffff', padding: 8, borderRadius: 6, display: 'inline-block', border: '1px solid var(--border)' }}>
+                        <img src={manageOTM.conformity_signature_url} style={{ maxHeight: 60, objectFit: 'contain' }} alt="Firma" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button 
+                    className="btn btn-primary w-full" 
+                    style={{ 
+                      marginTop: 16, 
+                      background: 'linear-gradient(135deg, var(--accent-blue) 0%, #0284c7 100%)', 
+                      border: 'none',
+                      fontWeight: 700
+                    }} 
+                    onClick={() => setActaOTM(manageOTM)}
+                  >
+                    📄 Generar Acta de Conformidad
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Timeline Section */}
+            {(manageOTM.status === 'closed' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'in_progress') && (
+              <div style={{ marginBottom: 16, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
+                  ⏳ Historial del Proceso
+                </div>
+                
+                <div className="timeline">
+                  {statusLogs
+                    .filter(l => l.otm_id === manageOTM.id)
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    .map((log, index, arr) => {
+                      const changerName = log.changed_by_profile?.full_name || users.find(u => u.id === log.changed_by)?.full_name || 'Sistema';
+                      const isLast = index === arr.length - 1;
+                      
+                      return (
+                        <div key={log.id} className="timeline-item" style={{ paddingBottom: isLast ? 0 : 20 }}>
+                          <div className={`timeline-dot ${isLast ? 'active' : 'completed'}`} />
+                          <div className="timeline-time">
+                            {new Date(log.created_at).toLocaleString('es')} — <strong style={{ color: 'var(--text-secondary)' }}>{changerName}</strong>
+                          </div>
+                          <div className="timeline-label" style={{ fontSize: '0.8rem', marginTop: 2 }}>
+                            {log.previous_status ? `${STATUS_LABELS[log.previous_status as OTMStatus] || log.previous_status} ➔ ` : ''}
+                            <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>
+                              {STATUS_LABELS[log.new_status as OTMStatus] || log.new_status}
+                            </span>
+                          </div>
+                          {log.notes && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
+                              Nota: {log.notes}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  {statusLogs.filter(l => l.otm_id === manageOTM.id).length === 0 && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      No se encontraron registros de historial para esta OTM.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {action === 'none' && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_supervisor' && manageOTM.status !== 'awaiting_conformity' && (
               <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                 <button className="btn btn-primary" style={{ flex: 1, minWidth: 100 }} onClick={() => setAction('assign')}>🔧 ASIGNAR</button>
@@ -632,6 +730,16 @@ export default function OTMManagement() {
 
           </div>
         </>
+      )}
+
+      {actaOTM && (
+        <ConformityActa 
+          otm={actaOTM} 
+          onClose={() => {
+            setActaOTM(null);
+            setManageOTM(null);
+          }} 
+        />
       )}
     </div>
   );
