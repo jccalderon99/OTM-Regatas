@@ -46,12 +46,19 @@ export const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
+    id: 'reports',
+    title: 'Análisis y Reportes',
+    roles: ['supervisor', 'admin'],
+    items: [
+      { id: 'reports', label: 'Reportes', icon: '📈', roles: ['supervisor', 'admin'] },
+    ]
+  },
+  {
     id: 'personnel',
     title: 'Personal de Mantenimiento',
     roles: ['supervisor', 'admin'],
     items: [
-      { id: 'users', label: 'Panel de Usuarios', icon: '👥', roles: ['admin'] },
-      { id: 'routine-admin', label: 'Actividades Rutinarias', icon: '📋', roles: ['admin'] },
+      { id: 'users', label: 'Configuración', icon: '⚙️', roles: ['admin'] },
     ]
   }
 ];
@@ -154,8 +161,15 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
             >
               {sidebarOpen ? '✕' : '☰'}
             </button>
-            <span className="topbar-title">
-              {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.icon} {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.label || 'Plataforma Mantenimiento'}
+            <span className="topbar-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>
+                {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.icon} {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.label || 'Plataforma Mantenimiento'}
+              </span>
+              {currentView === 'dashboard' && (user.role === 'admin' || user.role === 'supervisor') && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400, borderLeft: '1px solid var(--border)', paddingLeft: 10, display: 'inline-block' }}>
+                  Centro de control - Mantenimiento
+                </span>
+              )}
             </span>
           </div>
           <div className="topbar-actions">

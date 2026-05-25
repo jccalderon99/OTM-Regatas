@@ -491,7 +491,7 @@ export default function RoutineRegister() {
       {/* ACTIVE RUNNING PROCESSES LIST (CONCURRENT TIMERS) */}
       {activeRecords.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
             Actividades en ejecución ({activeRecords.length})
           </h2>
@@ -539,7 +539,7 @@ export default function RoutineRegister() {
       )}
 
       {/* AVAILABLE ACTIVITIES IN MASTER CATALOG */}
-      <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 10 }}>
+      <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
         Actividades de {selectedSpecialty}
       </h2>
 
@@ -603,7 +603,7 @@ export default function RoutineRegister() {
       {/* TODAY'S HISTORIC SUBMITTED LOGS */}
       {completedTodayRecords.length > 0 && (
         <div style={{ marginTop: 32 }}>
-          <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 10 }}>
+          <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
             Reportadas hoy ({completedTodayRecords.length})
           </h2>
           <div style={{ display: 'grid', gap: 10 }}>

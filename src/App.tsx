@@ -16,6 +16,7 @@ import RoutineRegister from './pages/technician/RoutineRegister';
 import { RoutineActivityProvider } from './context/RoutineActivityContext';
 import { useRealtimeOTM } from './hooks/useRealtimeOTM';
 import WelcomePortal from './pages/WelcomePortal';
+import Reports from './pages/Reports';
 
 function AppContent() {
   useRealtimeOTM();
@@ -49,6 +50,7 @@ function AppContent() {
       case 'calendar': return user.role === 'technician' ? <TechnicianCalendar onNavigate={setCurrentView} /> : <SupervisorCalendar onNavigate={setCurrentView} />;
       case 'routine-admin': return <RoutineActivitiesAdmin />;
       case 'routine-register': return <RoutineRegister />;
+      case 'reports': return <Reports />;
       default: return defaultView();
     }
   };

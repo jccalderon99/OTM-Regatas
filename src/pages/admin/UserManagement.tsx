@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import { UserRole, Profile } from '../../types';
+import RoutineActivitiesAdmin from './RoutineActivitiesAdmin';
 export default function UserManagement() {
   const { 
     users, addUser, updateUser,
@@ -10,7 +11,7 @@ export default function UserManagement() {
     deleteUser
   } = useOTM();
 
-  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios'>('areas');
+  const [activeTab, setActiveTab] = useState<'areas' | 'especialidades' | 'ubicaciones' | 'supervisores' | 'tecnicos' | 'usuarios' | 'rutinas'>('areas');
 
   // Unified Form States
   const [showForm, setShowForm] = useState(false);
@@ -190,6 +191,7 @@ export default function UserManagement() {
         <button className={`tab ${activeTab === 'supervisores' ? 'active' : ''}`} onClick={() => setActiveTab('supervisores')}>Supervisores</button>
         <button className={`tab ${activeTab === 'tecnicos' ? 'active' : ''}`} onClick={() => setActiveTab('tecnicos')}>Técnicos</button>
         <button className={`tab ${activeTab === 'usuarios' ? 'active' : ''}`} onClick={() => setActiveTab('usuarios')}>Usuarios</button>
+        <button className={`tab ${activeTab === 'rutinas' ? 'active' : ''}`} onClick={() => setActiveTab('rutinas')}>Actividades Rutinarias</button>
       </div>
 
       <div className="glass-card slide-up" style={{ minHeight: 400 }}>
@@ -456,7 +458,10 @@ export default function UserManagement() {
           </div>
         )}
 
-
+        {/* TAB 7: RUTINAS */}
+        {activeTab === 'rutinas' && (
+          <RoutineActivitiesAdmin />
+        )}
 
       </div>
 

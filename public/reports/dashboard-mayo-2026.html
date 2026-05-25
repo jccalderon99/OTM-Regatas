@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard OTM — Club Regatas Lima</title>
+    <meta name="description" content="Dashboard de análisis de Órdenes de Trabajo de Mantenimiento del Club Regatas Lima">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a1f35;
+            --bg-card-hover: #222845;
+            --border-subtle: rgba(255,255,255,0.06);
+            --border-accent: rgba(99,102,241,0.3);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #6366f1;
+            --accent-blue-glow: rgba(99,102,241,0.25);
+            --accent-cyan: #22d3ee;
+            --accent-green: #34d399;
+            --accent-amber: #fbbf24;
+            --accent-red: #f87171;
+            --accent-purple: #a78bfa;
+            --accent-pink: #f472b6;
+            --accent-orange: #fb923c;
+            --gradient-1: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --gradient-2: linear-gradient(135deg, #22d3ee, #3b82f6);
+            --gradient-3: linear-gradient(135deg, #34d399, #059669);
+            --gradient-4: linear-gradient(135deg, #fbbf24, #f59e0b);
+            --gradient-red: linear-gradient(135deg, #f87171, #ef4444);
+            --shadow-lg: 0 20px 40px rgba(0,0,0,0.4);
+            --shadow-glow: 0 0 30px rgba(99,102,241,0.15);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background animated gradient */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 20%, rgba(99,102,241,0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(34,211,238,0.04) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+            z-index: 0;
+            pointer-events: none;
+        }
+        @keyframes bgShift {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-5%, -5%); }
+        }
+
+        .app { position: relative; z-index: 1; }
+
+        /* Header */
+        .header {
+            padding: 28px 40px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(17,24,39,0.7);
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: var(--gradient-1);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.35);
+        }
+        .header h1 {
+            font-size: 22px; font-weight: 800;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header .subtitle { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+        .header-right { display: flex; gap: 10px; align-items: center; }
+        .date-badge {
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.25);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        /* Navigation tabs */
+        .nav-tabs {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px 40px 0;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .nav-tab {
+            padding: 10px 22px;
+            border-radius: 10px 10px 0 0;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+        .nav-tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
+        .nav-tab.active {
+            background: var(--bg-card);
+            color: var(--accent-blue);
+            border-color: var(--border-subtle);
+        }
+
+        /* Main content */
+        .main {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px 40px 60px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-glow);
+            border-color: var(--border-accent);
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+        }
+        .kpi-card:nth-child(1)::before { background: var(--gradient-1); }
+        .kpi-card:nth-child(2)::before { background: var(--gradient-3); }
+        .kpi-card:nth-child(3)::before { background: var(--gradient-4); }
+        .kpi-card:nth-child(4)::before { background: var(--gradient-red); }
+        .kpi-card:nth-child(5)::before { background: var(--gradient-2); }
+        .kpi-card:nth-child(6)::before { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .kpi-value {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        .kpi-sub { font-size: 12px; color: var(--text-secondary); }
+        .kpi-icon {
+            position: absolute;
+            top: 20px; right: 20px;
+            font-size: 28px;
+            opacity: 0.4;
+        }
+
+        /* Charts grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 24px;
+            transition: all 0.3s;
+        }
+        .chart-card:hover { border-color: var(--border-accent); }
+        .chart-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chart-card h3 span { font-size: 18px; }
+        .chart-wrapper { position: relative; height: 300px; }
+        .chart-wrapper.pie-chart { height: 320px; }
+
+        /* Tables */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .table-card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .table-card-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-red { background: rgba(248,113,113,0.15); color: var(--accent-red); }
+        .badge-green { background: rgba(52,211,153,0.15); color: var(--accent-green); }
+        .badge-amber { background: rgba(251,191,36,0.15); color: var(--accent-amber); }
+        .badge-blue { background: rgba(99,102,241,0.15); color: var(--accent-blue); }
+        .badge-purple { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+        .badge-cyan { background: rgba(34,211,238,0.15); color: var(--accent-cyan); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            font-weight: 700;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-subtle);
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        tr:hover td { background: rgba(99,102,241,0.04); }
+        tr:last-child td { border-bottom: none; }
+        .table-scroll { max-height: 600px; overflow-y: auto; }
+        .table-scroll::-webkit-scrollbar { width: 6px; }
+        .table-scroll::-webkit-scrollbar-track { background: transparent; }
+        .table-scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+        /* Priority dot */
+        .priority-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+        .priority-dot.alto { background: var(--accent-red); box-shadow: 0 0 8px rgba(248,113,113,0.5); }
+        .priority-dot.medio { background: var(--accent-amber); box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+        .priority-dot.bajo { background: var(--accent-green); }
+        .priority-dot.emergencia { background: #ff0040; box-shadow: 0 0 12px rgba(255,0,64,0.6); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* Performance bars */
+        .perf-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .perf-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        /* Stars */
+        .stars { color: var(--accent-amber); letter-spacing: 2px; font-size: 14px; }
+        .stars-empty { color: var(--text-muted); }
+
+        /* Technician avatar */
+        .tech-avatar {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+        .tech-name-cell { display: flex; align-items: center; gap: 12px; }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-subtle);
+            background: transparent;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .filter-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .filter-btn.active {
+            background: rgba(99,102,241,0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { padding: 20px; }
+            .main { padding: 16px; }
+            .nav-tabs { padding: 16px 16px 0; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .kpi-value { font-size: 28px; }
+        }
+
+        /* Alert banner */
+        .alert-banner {
+            background: rgba(248,113,113,0.08);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--accent-red);
+        }
+        .alert-banner .alert-icon { font-size: 20px; flex-shrink: 0; }
+
+        /* Section title */
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title span { font-size: 22px; }
+
+        /* Summary stat inline */
+        .stat-inline {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .stat-inline strong { color: var(--text-primary); }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <div class="logo-icon">🔧</div>
+                <div>
+                    <h1>Dashboard OTM</h1>
+                    <div class="subtitle">Club Regatas Lima — Sistema de Órdenes de Trabajo</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="date-badge">📅 Mayo 2026 (4 - 25 mayo)</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <div class="nav-tabs" id="navTabs">
+        <div class="nav-tab active" data-tab="overview">📊 Resumen General</div>
+        <div class="nav-tab" data-tab="technicians">👷 Técnicos</div>
+        <div class="nav-tab" data-tab="pending">🔴 OTs Pendientes</div>
+        <div class="nav-tab" data-tab="details">📋 Detalle Completo</div>
+    </div>
+
+    <main class="main">
+        <!-- TAB: Overview -->
+        <div class="tab-content active" id="tab-overview">
+            <!-- KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-label">Total OTs</div>
+                    <div class="kpi-value" style="color: var(--accent-blue)">72</div>
+                    <div class="kpi-sub">Registradas en período</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">✅</div>
+                    <div class="kpi-label">Finalizadas</div>
+                    <div class="kpi-value" style="color: var(--accent-green)" id="kpiFinalizadas">33</div>
+                    <div class="kpi-sub">45.8% del total</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⏳</div>
+                    <div class="kpi-label">Pendientes</div>
+                    <div class="kpi-value" style="color: var(--accent-amber)" id="kpiPendientes">25</div>
+                    <div class="kpi-sub">RQ / Sin asignar</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">🔴</div>
+                    <div class="kpi-label">Alta Prioridad Pendiente</div>
+                    <div class="kpi-value" style="color: var(--accent-red)">13</div>
+                    <div class="kpi-sub">Requieren atención urgente</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⭐</div>
+                    <div class="kpi-label">Calificación Prom.</div>
+                    <div class="kpi-value" style="color: var(--accent-amber)">3.4</div>
+                    <div class="kpi-sub">De 15 evaluaciones</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">👷</div>
+                    <div class="kpi-label">Técnicos Activos</div>
+                    <div class="kpi-value" style="color: var(--accent-purple)">12</div>
+                    <div class="kpi-sub">Incluyendo contratistas</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3><span>🎯</span> Estado de OTs</h3>
+                    <div class="chart-wrapper pie-chart">
+                        <canvas id="chartEstado"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>🔧</span> OTs por Especialidad</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="chartEspecialidad"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>⚡</span> Distribución por Prioridad</h3>
+                    <div class="chart-wrapper pie-chart">
+                        <canvas id="chartPrioridad"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>🏢</span> OTs por Área Solicitante</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="chartArea"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>📍</span> Top 10 Ubicaciones</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="chartUbicacion"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>👤</span> OTs por Supervisor</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="chartSupervisor"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Technicians -->
+        <div class="tab-content" id="tab-technicians">
+            <div class="section-title"><span>👷</span> Análisis de Desempeño por Técnico</div>
+
+            <div class="kpi-grid" style="margin-bottom: 24px;">
+                <div class="kpi-card">
+                    <div class="kpi-icon">🏆</div>
+                    <div class="kpi-label">Técnico Más Activo</div>
+                    <div class="kpi-value" style="font-size: 22px; color: var(--accent-cyan);">Rogelio H.</div>
+                    <div class="kpi-sub">11 OTs ejecutadas</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⭐</div>
+                    <div class="kpi-label">Mejor Calificado</div>
+                    <div class="kpi-value" style="font-size: 22px; color: var(--accent-amber);">Jose Canchari</div>
+                    <div class="kpi-sub">Promedio: 4.0 ⭐</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⚡</div>
+                    <div class="kpi-label">Más Rápido (promedio)</div>
+                    <div class="kpi-value" style="font-size: 22px; color: var(--accent-green);">Elizabeth P.</div>
+                    <div class="kpi-sub">Promedio: 52 min</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3><span>📊</span> OTs por Técnico Principal</h3>
+                    <div class="chart-wrapper" style="height: 400px;">
+                        <canvas id="chartTecnicos"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>⏱️</span> Tiempo Promedio por Técnico (min)</h3>
+                    <div class="chart-wrapper" style="height: 400px;">
+                        <canvas id="chartTiempoTecnico"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="table-card-header">
+                    <h3>📋 Tabla de Desempeño Detallada</h3>
+                </div>
+                <div class="table-scroll">
+                    <table id="techTable">
+                        <thead>
+                            <tr>
+                                <th>Técnico</th>
+                                <th>OTs Asignadas</th>
+                                <th>Finalizadas</th>
+                                <th>% Completado</th>
+                                <th>Calificación</th>
+                                <th>Tiempo Prom.</th>
+                                <th>Especialidades</th>
+                                <th>Rendimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="techTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Pending -->
+        <div class="tab-content" id="tab-pending">
+            <div class="section-title"><span>🔴</span> OTs Pendientes — Priorización</div>
+
+            <div class="alert-banner">
+                <div class="alert-icon">⚠️</div>
+                <div>
+                    <strong>Atención:</strong> Hay <strong>13 OTs de prioridad ALTA</strong> sin finalizar, varias con riesgo de seguridad para los asociados. 
+                    Se recomienda revisión inmediata.
+                </div>
+            </div>
+
+            <div class="filter-bar" id="pendingFilters">
+                <button class="filter-btn active" data-filter="all">Todas</button>
+                <button class="filter-btn" data-filter="alto">🔴 Alta</button>
+                <button class="filter-btn" data-filter="medio">🟡 Media</button>
+                <button class="filter-btn" data-filter="bajo">🟢 Baja</button>
+            </div>
+
+            <div class="table-card">
+                <div class="table-card-header">
+                    <h3>📋 OTs Pendientes ordenadas por prioridad</h3>
+                    <span class="badge badge-red" id="pendingCount">25 pendientes</span>
+                </div>
+                <div class="table-scroll" style="max-height: 700px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>ID OT</th>
+                                <th>Prioridad</th>
+                                <th>Descripción</th>
+                                <th>Ubicación</th>
+                                <th>Especialidad</th>
+                                <th>Solicitante</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                                <th>Riesgo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Details -->
+        <div class="tab-content" id="tab-details">
+            <div class="section-title"><span>📋</span> Detalle Completo de OTs</div>
+
+            <div class="filter-bar" id="detailFilters">
+                <button class="filter-btn active" data-filter="all">Todas</button>
+                <button class="filter-btn" data-filter="finalizado">✅ Finalizadas</button>
+                <button class="filter-btn" data-filter="pendiente">⏳ Pendientes</button>
+                <button class="filter-btn" data-filter="electricidad">⚡ Electricidad</button>
+                <button class="filter-btn" data-filter="carpinteria">🪚 Carpintería</button>
+                <button class="filter-btn" data-filter="gasfiteria">🚿 Gasfitería</button>
+                <button class="filter-btn" data-filter="albanileria">🧱 Albañilería</button>
+                <button class="filter-btn" data-filter="pintura">🎨 Pintura</button>
+            </div>
+
+            <div class="table-card">
+                <div class="table-card-header">
+                    <h3>Todas las Órdenes de Trabajo</h3>
+                    <span class="badge badge-blue" id="detailCount">72 registros</span>
+                </div>
+                <div class="table-scroll" style="max-height: 700px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Ubicación</th>
+                                <th>Especialidad</th>
+                                <th>Prioridad</th>
+                                <th>Técnico</th>
+                                <th>Estado</th>
+                                <th>Calif.</th>
+                                <th>Tiempo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+// ========================== DATA ==========================
+const otData = [
+    { id: "OT-0001", fecha: "4/5/2026", desc: "Aire acondicionado no enciende", ubicacion: "Módulo administrativo", ubExacta: "Oficina de jefatura", especialidad: "Electricidad", prioridad: "Bajo", supervisor: "Diana Altamirano", tecPrincipal: "Ciro Diaz Sifuentes", tecApoyo: "John Hurtado Quintanilla", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "8h 13min", tiempoMin: 493, area: "22. MANTENIMIENTO", solicitante: "jccalderon", riesgo: "" },
+    { id: "OTM2203-0002", fecha: "7/5/2026", desc: "No hay energía en la oficina", ubicacion: "Edificio cultural", ubExacta: "Oficina de mantto", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "CONTRATISTA ENMANUEL", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "0 min", tiempoMin: 0, area: "22. MANTENIMIENTO", solicitante: "Claudia Pulache", riesgo: "" },
+    { id: "OTM2703-0003", fecha: "7/5/2026", desc: "Máquina de hielo no produce hielo, quejas de asociados", ubicacion: "Terraza N° 1", ubExacta: "Máquina de hielo terraza 1", especialidad: "Electricidad", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "⚠️ Quejas asociados" },
+    { id: "OTM2703-0004", fecha: "8/5/2026", desc: "Dispensador de agua no funciona", ubicacion: "Zona de peluquerías", ubExacta: "Al costado de Atención al Asociado", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "Jose Canchari Sanchez", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "45 min", tiempoMin: 45, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "" },
+    { id: "OTMGE03-0005", fecha: "8/5/2026", desc: "Cambio de reflectores quemados en coliseo", ubicacion: "Polideportivo", ubExacta: "Coliseo Malecón", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Lybe Diaz", riesgo: "" },
+    { id: "OTMGE02-0006", fecha: "8/5/2026", desc: "Arreglo de puerta de baño de varones", ubicacion: "Polideportivo", ubExacta: "Coliseo Polideportivo", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "Cirilo Inca Taquire", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Lybe Diaz", riesgo: "" },
+    { id: "OTMGE02-0007", fecha: "8/5/2026", desc: "Arreglo de piso de madera ingreso cancha (HUECO)", ubicacion: "Polideportivo", ubExacta: "", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Lybe Diaz", riesgo: "🚨 Peligro caída" },
+    { id: "OTM1303-0008", fecha: "9/5/2026", desc: "Casillero 44 - se quemó luminaria", ubicacion: "Galpón de botes", ubExacta: "Galpón de botes", especialidad: "Electricidad", prioridad: "Medio", supervisor: "Marlon Rivera", tecPrincipal: "Jose Canchari Sanchez", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "30 min", tiempoMin: 30, area: "13. DEPORTES", solicitante: "Ricardo Valdivieso", riesgo: "" },
+    { id: "OTM2701-0009", fecha: "9/5/2026", desc: "Losetas rotas en espigón 2, peligro descalzos", ubicacion: "Espigón 2", ubExacta: "Inicio de espigón N° 02", especialidad: "Albañilería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "🚨 Riesgo seguridad" },
+    { id: "OTM2704-0010", fecha: "9/5/2026", desc: "Fuga de agua en ducha manual playa 3", ubicacion: "Playa N° 3", ubExacta: "Ducha manual ingreso playa 3", especialidad: "Gasfitería", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "1 h", tiempoMin: 60, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "" },
+    { id: "OTMGE04-0011", fecha: "9/5/2026", desc: "Caño no se puede cerrar ingreso playa 3", ubicacion: "Playa N° 3", ubExacta: "Caño ingreso playa 3", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "1 h", tiempoMin: 60, area: "22. MANTENIMIENTO", solicitante: "Raúl Rachitoff", riesgo: "" },
+    { id: "OTMGE04-0012", fecha: "9/5/2026", desc: "Llave de paso perdiendo agua, malecón", ubicacion: "Playa N° 3", ubExacta: "Malecón altura Rest Capirena", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "22. MANTENIMIENTO", solicitante: "Raúl Rachitoff", riesgo: "⚠️ Fuga de agua" },
+    { id: "OTMGE01-0013", fecha: "9/5/2026", desc: "Reparar sardinel de estacionamiento desprendido", ubicacion: "Playa de estacionamiento", ubExacta: "Estacionamiento minusválidos", especialidad: "Albañilería", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "Jeyson Palomino Rodriguez", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "13h 45min", tiempoMin: 825, area: "22. MANTENIMIENTO", solicitante: "Raúl Rachitoff", riesgo: "" },
+    { id: "OTMGE02-0014", fecha: "11/5/2026", desc: "Cambio de pestillo en puerta de baño", ubicacion: "Playa N° 2", ubExacta: "Ropería damas pabellón zona 2", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Elizabeth Panez Abollaneda", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "1 h", tiempoMin: 60, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2904-0015", fecha: "11/5/2026", desc: "Revisión de fluxómetro en inodoro", ubicacion: "Playa N° 2", ubExacta: "Ropería Pabellón damas zona", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Elizabeth Panez Abollaneda", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "2 h", tiempoMin: 120, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2902-0016", fecha: "11/5/2026", desc: "Revisión y arreglo de puertas de melamine", ubicacion: "Playa N° 2", ubExacta: "Ropería Pabellón damas zona 2", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "1 h", tiempoMin: 60, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2702-0017", fecha: "11/5/2026", desc: "Tablón de banca levantado", ubicacion: "Juego de niños", ubExacta: "Banca espaldas estatua Sta. Rosa", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "45 min", tiempoMin: 45, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "" },
+    { id: "OTM2704-0018", fecha: "11/5/2026", desc: "Reposición del botón pulsador de ducha", ubicacion: "Playa N° 3", ubExacta: "Ducha frente a Capirena", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Elizabeth Panez Abollaneda", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "1 h", tiempoMin: 60, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "" },
+    { id: "OTM2704-0019", fecha: "11/5/2026", desc: "Falta de rejillas en canaleta de patera", ubicacion: "Piscina Olímpica y Patera", ubExacta: "Canaleta zona inferior toboganes", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Luis Zamata Canaza", tecApoyo: "", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "Sin datos", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "🚨 Riesgo seguridad" },
+    { id: "OTM2902-0020", fecha: "11/5/2026", desc: "Reparación de dos sillas de madera para bebés", ubicacion: "Terraza N° 2", ubExacta: "Ropería bebés lactancia", especialidad: "Carpintería", prioridad: "Medio", supervisor: "Diana Altamirano", tecPrincipal: "Maximo Rodriguez Huamani", tecApoyo: "", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM1305-0021", fecha: "12/5/2026", desc: "Pintado sala de tenis de mesa internamente", ubicacion: "Edificio de baile", ubExacta: "Sala tenis de mesa 2do piso", especialidad: "Pintura", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Gissela Celi", riesgo: "" },
+    { id: "OTM1302-0022", fecha: "12/5/2026", desc: "Reubicar pizarra de corcho en sala", ubicacion: "Edificio de baile", ubExacta: "Sala tenis de mesa", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Diana Altamirano", tecPrincipal: "Maximo Rodriguez Huamani", tecApoyo: "", tipo: "Soporte", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Gissela Celi", riesgo: "" },
+    { id: "OTM2903-0023", fecha: "12/5/2026", desc: "Colocar tomacorriente para refrigeradora", ubicacion: "Terraza N° 2", ubExacta: "Ropería caballeros pab. deportivo", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "Jose Canchari Sanchez", tecApoyo: "", tipo: "Soporte", estado: "Finalizado", calificacion: 0, tiempo: "1h 30min", tiempoMin: 90, area: "29. SERVICIOS GENERALES", solicitante: "Jesús Higinio", riesgo: "" },
+    { id: "OTM1302-0024", fecha: "12/5/2026", desc: "Asegurar tornillo mesa 8 tenis de mesa", ubicacion: "Edificio de baile", ubExacta: "Sala tenis de mesa", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 4, tiempo: "1 h", tiempoMin: 60, area: "13. DEPORTES", solicitante: "Gissela Celi", riesgo: "" },
+    { id: "OTM2902-0025", fecha: "12/5/2026", desc: "Colocación de vidrio en ventanal suelto", ubicacion: "Terraza N° 1", ubExacta: "Ropería damas A zona 1", especialidad: "Carpintería", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "Elizabeth Panez Abollaneda", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "2 h", tiempoMin: 120, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2903-0026", fecha: "12/5/2026", desc: "Cambio de fluorescente quemado", ubicacion: "Terraza N° 1", ubExacta: "Ropería damas A", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "Jose Canchari Sanchez", tecApoyo: "Eliseo Cuadros Moya", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "0 min", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2904-0027", fecha: "12/5/2026", desc: "Colocar tapa de inodoro roto", ubicacion: "Terraza N° 2", ubExacta: "Ropería caballeros pab. deportivo", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "30 min", tiempoMin: 30, area: "29. SERVICIOS GENERALES", solicitante: "Jesús Higinio", riesgo: "" },
+    { id: "OTM1305-0028", fecha: "12/5/2026", desc: "Puerta del baño completar maderas y pintar", ubicacion: "Edificio de baile", ubExacta: "Sala tenis de mesa", especialidad: "Pintura", prioridad: "Bajo", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Gissela Celi", riesgo: "" },
+    { id: "OTM1302-0029", fecha: "12/5/2026", desc: "Asegurar puerta plegable, no bloquea luz", ubicacion: "Edificio de baile", ubExacta: "Sala tenis de mesa", especialidad: "Carpintería", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Gissela Celi", riesgo: "" },
+    { id: "OTM2902-0030", fecha: "12/5/2026", desc: "Asegurar puerta de SS.HH. suelto", ubicacion: "Terraza N° 1", ubExacta: "Ropería caballeros 2° piso A", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Diana Altamirano", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "Cirilo Inca Taquire", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "1h 20min", tiempoMin: 80, area: "29. SERVICIOS GENERALES", solicitante: "Jesús Higinio", riesgo: "" },
+    { id: "OTM2904-0031", fecha: "12/5/2026", desc: "Revisión llave de paso agua caliente con problemas", ubicacion: "Terraza N° 1", ubExacta: "Ropería damas B", especialidad: "Gasfitería", prioridad: "Bajo", supervisor: "Diana Altamirano", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "Elizabeth Panez Abollaneda", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "5h 34min", tiempoMin: 334, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2901-0032", fecha: "12/5/2026", desc: "Arreglo de mayólicas y zócalos rotos", ubicacion: "Terraza N° 1", ubExacta: "Ropería damas B", especialidad: "Albañilería", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2902-0033", fecha: "12/5/2026", desc: "Cambio total de zócalo de madera oxidado", ubicacion: "Terraza N° 1", ubExacta: "Ropería damas B", especialidad: "Carpintería", prioridad: "Bajo", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2904-0034", fecha: "12/5/2026", desc: "Asegurar regadera de ducha con fuga de agua", ubicacion: "Piscina Olímpica y Patera", ubExacta: "Ropería caballeros piscina temperada", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Cirilo Inca Taquire", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "1 h", tiempoMin: 60, area: "29. SERVICIOS GENERALES", solicitante: "Jesús Higinio", riesgo: "" },
+    { id: "OTM2904-0035", fecha: "12/5/2026", desc: "Retiro de boquilla para colocación de manguera", ubicacion: "Playa N° 2", ubExacta: "Ropería damas piscina", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Elizabeth Panez Abollaneda", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "1 h", tiempoMin: 60, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTMGE07-0036", fecha: "12/5/2026", desc: "Extintor vencido en grifo de combustible", ubicacion: "Departamento de Náutico", ubExacta: "Grifo combustible zona náutica", especialidad: "Otros", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Javier Sotomayor", riesgo: "🚨 Seguridad contra incendios" },
+    { id: "OTM1305-0037", fecha: "13/5/2026", desc: "Pintado escuela náutica, videoteca e ingreso", ubicacion: "Departamento de Náutico", ubExacta: "Escuela náutica y videoteca", especialidad: "Pintura", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Pedro Flores", riesgo: "" },
+    { id: "OTM1305-0038", fecha: "13/5/2026", desc: "Pintado ingreso paredes y reja amarilla", ubicacion: "Departamento de Náutico", ubExacta: "Ingreso galpón náutico", especialidad: "Pintura", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Pedro Flores", riesgo: "" },
+    { id: "OTM1305-0039", fecha: "13/5/2026", desc: "Pintado de caseta de madera de muelle", ubicacion: "Muelle Náutico", ubExacta: "Muelle náutico", especialidad: "Pintura", prioridad: "Medio", supervisor: "Diana Altamirano", tecPrincipal: "Antonio Angulo Malasquez", tecApoyo: "", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Pedro Flores", riesgo: "" },
+    { id: "OTM1307-0040", fecha: "13/5/2026", desc: "Reparación de puerta de conejera de optimist", ubicacion: "Departamento de Náutico", ubExacta: "Terraza náutica", especialidad: "Carpintería", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "13. DEPORTES", solicitante: "Pedro Flores", riesgo: "" },
+    { id: "OTM2701-0041", fecha: "13/5/2026", desc: "Losetas rotas en terraza 1", ubicacion: "Terraza N° 1", ubExacta: "Terraza 1", especialidad: "Albañilería", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "🚨 Riesgo seguridad" },
+    { id: "OTM2701-0042", fecha: "13/5/2026", desc: "Arreglo del piso de la sala de juegos", ubicacion: "Hall principal", ubExacta: "Sala de juegos 1er piso", especialidad: "Albañilería", prioridad: "Alto", supervisor: "Diana Altamirano", tecPrincipal: "", tecApoyo: "", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "⚠️ Piso dañado" },
+    { id: "OTM2702-0043", fecha: "13/5/2026", desc: "Camino de tablas mal estado, levantadas (accidentes)", ubicacion: "Playa N° 1", ubExacta: "Primera entrada playa 1", especialidad: "Carpintería", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "Cierre", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Oscar Vilas", riesgo: "🚨 Riesgo de accidentes" },
+    { id: "OTM2704-0044", fecha: "13/5/2026", desc: "Falta botón de presión para ducha", ubicacion: "Playa N° 1", ubExacta: "Duchas playa 1", especialidad: "Gasfitería", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "Maximo Rodriguez Huamani", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "1 h", tiempoMin: 60, area: "27. SEGURIDAD", solicitante: "Oscar Vilas", riesgo: "" },
+    { id: "OTM2707-0045", fecha: "13/5/2026", desc: "Mantto colchonetas protectoras de postes", ubicacion: "Juego de niños", ubExacta: "Juegos de niños", especialidad: "Otros", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "" },
+    { id: "OTM2705-0046", fecha: "13/5/2026", desc: "Mantto baranda donde se sujetan niños", ubicacion: "Juego de niños", ubExacta: "Juegos para niños pequeños", especialidad: "Pintura", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "⚠️ Seguridad niños" },
+    { id: "OTM2203-0047", fecha: "13/5/2026", desc: "Iluminación defectuosa en oficina director", ubicacion: "Hall principal", ubExacta: "Oficina de Hospitalidad", especialidad: "Electricidad", prioridad: "Medio", supervisor: "Marlon Rivera", tecPrincipal: "Jose Canchari Sanchez", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "0 min", tiempoMin: 0, area: "22. MANTENIMIENTO", solicitante: "Raúl Rachitoff", riesgo: "" },
+    { id: "OTM2707-0048", fecha: "14/5/2026", desc: "Alfombra entrada desnivel, riesgo tropiezo", ubicacion: "Playa N° 3", ubExacta: "Primera entrada zona kayak", especialidad: "Otros", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "Cierre", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Oscar Vilas", riesgo: "⚠️ Riesgo tropiezo" },
+    { id: "OTM2902-0049", fecha: "14/5/2026", desc: "Reparación de puerta SSHH caballeros", ubicacion: "Polideportivo", ubExacta: "SSHH Caballeros", especialidad: "Carpintería", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Miguel Yzquierdo", riesgo: "" },
+    { id: "OTM2904-0050", fecha: "14/5/2026", desc: "Revisión área por filtración de agua", ubicacion: "Terraza N° 1", ubExacta: "Sótano damas zona 1", especialidad: "Gasfitería", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "⚠️ Filtración" },
+    { id: "OTM2907-0051", fecha: "14/5/2026", desc: "Luna rota/salida en camerín, pegar/cambiar", ubicacion: "Edificio de servicios", ubExacta: "Camerín damas A y B", especialidad: "Otros", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "Elizabeth Panez Abollaneda", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "4 h", tiempoMin: 240, area: "29. SERVICIOS GENERALES", solicitante: "Miguel Yzquierdo", riesgo: "" },
+    { id: "OTM1307-0052", fecha: "14/5/2026", desc: "Tablero de basket muy salido, riesgo de caída", ubicacion: "Coliseo de basquet", ubExacta: "Tablero de basket coliseo", especialidad: "Otros", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "Cirilo Inca Taquire", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "4 h", tiempoMin: 240, area: "13. DEPORTES", solicitante: "Lybe Diaz", riesgo: "" },
+    { id: "OTM2903-0053", fecha: "14/5/2026", desc: "Retiro e instalación de dos ventiladores", ubicacion: "Cancha de futbol y basquet", ubExacta: "Ropería caballeros fulbito", especialidad: "Electricidad", prioridad: "Medio", supervisor: "Marlon Rivera", tecPrincipal: "Martin Salazar Salcedo", tecApoyo: "Eduardo Jorge Rivera", tipo: "Preventivo", estado: "Finalizado", calificacion: 0, tiempo: "4 h", tiempoMin: 240, area: "29. SERVICIOS GENERALES", solicitante: "Jesús Higinio", riesgo: "" },
+    { id: "OTMGE05-0054", fecha: "14/5/2026", desc: "Gradas sin cinta antideslizante", ubicacion: "Terraza N° 1", ubExacta: "Gradas rest 1875", especialidad: "Pintura", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "Antonio Angulo Malasquez", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "2 h", tiempoMin: 120, area: "27. SEGURIDAD", solicitante: "Aracely Rebatta", riesgo: "" },
+    { id: "OTM2702-0055", fecha: "14/5/2026", desc: "Listón de madera roto en camino a playa", ubicacion: "Playa N° 2", ubExacta: "Ingreso frente canchas frontón", especialidad: "Carpintería", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Aracely Rebatta", riesgo: "" },
+    { id: "OTM2705-0056", fecha: "14/5/2026", desc: "Bancas se despintan y descascaran", ubicacion: "Juego de niños", ubExacta: "Alrededor tobogán grande", especialidad: "Pintura", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Zenaida Cardenas", riesgo: "" },
+    { id: "OTMGE03-0057", fecha: "14/5/2026", desc: "Alarma sonora luces de emergencia biblioteca 5to piso", ubicacion: "Edificio 7 pisos", ubExacta: "Biblioteca 5to piso", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "Eduardo Jorge Rivera", tecApoyo: "", tipo: "Soporte", estado: "Finalizado", calificacion: 0, tiempo: "1 h", tiempoMin: 60, area: "01. ACT. CULTURALES", solicitante: "mvela", riesgo: "" },
+    { id: "OTM2903-0058", fecha: "14/5/2026", desc: "Luminaria y ventilador para cambiar", ubicacion: "Comedor de servicios", ubExacta: "Baño personal estables", especialidad: "Electricidad", prioridad: "Bajo", supervisor: "Marlon Rivera", tecPrincipal: "Jose Canchari Sanchez", tecApoyo: "Eliseo Cuadros Moya", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "1h 56min", tiempoMin: 116, area: "29. SERVICIOS GENERALES", solicitante: "Miguel Yzquierdo", riesgo: "" },
+    { id: "OTM2907-0059", fecha: "14/5/2026", desc: "Luna salida puede caer a alguien", ubicacion: "Coliseo de basquet", ubExacta: "Zona de basket", especialidad: "Otros", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "1 h", tiempoMin: 60, area: "29. SERVICIOS GENERALES", solicitante: "Miguel Yzquierdo", riesgo: "" },
+    { id: "OTM2701-0060", fecha: "15/5/2026", desc: "Mayólica agrietada terraza 1, riesgo descalzos", ubicacion: "Terraza N° 1", ubExacta: "Frente hall principal", especialidad: "Albañilería", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Fredy Pastrana", riesgo: "⚠️ Riesgo descalzos" },
+    { id: "OTM2707-0061", fecha: "15/5/2026", desc: "Saltarín azul sin resortes, infraestructura precaria", ubicacion: "Playa N° 1", ubExacta: "Zona juegos niños saltarín", especialidad: "Otros", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Fredy Pastrana", riesgo: "🚨 Riesgo niños" },
+    { id: "OTMGE07-0062", fecha: "15/5/2026", desc: "Cambio de luna en ventana mirador seguridad", ubicacion: "Departamento de Náutico", ubExacta: "Mirador 2do nivel", especialidad: "Otros", prioridad: "Alto", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "22. MANTENIMIENTO", solicitante: "Jose Calderon", riesgo: "" },
+    { id: "OTM2903-0063", fecha: "15/5/2026", desc: "Ascensor sin botón", ubicacion: "Edificio estacionamiento", ubExacta: "Ascensor estacionamiento", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Wiliam Anticona", tecPrincipal: "", tecApoyo: "", tipo: "RQ", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Miguel Yzquierdo", riesgo: "⚠️ Servicio interrumpido" },
+    { id: "OTM2707-0064", fecha: "15/5/2026", desc: "Mayólicas pared interna piscina despegándose", ubicacion: "Piscina Olímpica y Patera", ubExacta: "Piscina temperada logo CRL", especialidad: "Otros", prioridad: "Alto", supervisor: "Diana Altamirano", tecPrincipal: "", tecApoyo: "", tipo: "Emergencia", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Aracely Rebatta", riesgo: "🚨 Emergencia" },
+    { id: "OTMGE04-0065", fecha: "15/5/2026", desc: "Filtración de agua baño personal Capirena", ubicacion: "Capirena", ubExacta: "Baño mujeres personal", especialidad: "Gasfitería", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "Sin datos", tiempoMin: 0, area: "10. CONCESIONES", solicitante: "Gean Espinoza", riesgo: "⚠️ Filtración" },
+    { id: "OTM2903-0066", fecha: "15/5/2026", desc: "Validar viabilidad de 3 puntos de energía y agua para dispensadores", ubicacion: "Edificio cultural", ubExacta: "Entre container playa 3 y Ed. Cultural", especialidad: "Electricidad", prioridad: "Medio", supervisor: "Marlon Rivera", tecPrincipal: "Eduardo Jorge Rivera", tecApoyo: "Martin Salazar Salcedo", tipo: "Soporte", estado: "Finalizado", calificacion: 0, tiempo: "2 h", tiempoMin: 120, area: "29. SERVICIOS GENERALES", solicitante: "Diego Valentin", riesgo: "" },
+    { id: "OTM2907-0067", fecha: "15/5/2026", desc: "Botón de ascensor 1er piso se salió", ubicacion: "Edificio estacionamiento", ubExacta: "1er piso control ascensor", especialidad: "Otros", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Diego Valentin", riesgo: "" },
+    { id: "OTM2904-0068", fecha: "15/5/2026", desc: "Canaletas piscina temperada despiden mal olor", ubicacion: "Piscina Olímpica y Patera", ubExacta: "Rejillas canaleta piscina temperada", especialidad: "Gasfitería", prioridad: "Medio", supervisor: "Diana Altamirano", tecPrincipal: "Maximo Rodriguez Huamani", tecApoyo: "Julio Briceño Llerena", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "0 min", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Miguel Yzquierdo", riesgo: "" },
+    { id: "OTM2905-0069", fecha: "17/5/2026", desc: "Pintado de balanza", ubicacion: "Playa N° 2", ubExacta: "Ropería piscina damas", especialidad: "Pintura", prioridad: "Medio", supervisor: "Leomar Huaraca", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2902-0070", fecha: "17/5/2026", desc: "Arreglo o pegado de zócalo cancha vóley", ubicacion: "Coliseo de voley", ubExacta: "Cancha coliseo vóley", especialidad: "Carpintería", prioridad: "Medio", supervisor: "Diana Altamirano", tecPrincipal: "Rogelio Herrera Lazaro", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 0, tiempo: "30 min", tiempoMin: 30, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2902-0071", fecha: "17/5/2026", desc: "Arreglo de puerta de casillero madera", ubicacion: "Edificio 7 pisos", ubExacta: "Piscina niños ropería", especialidad: "Carpintería", prioridad: "Medio", supervisor: "Diana Altamirano", tecPrincipal: "Maximo Rodriguez Huamani", tecApoyo: "", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
+    { id: "OTM2707-0072", fecha: "17/5/2026", desc: "Colchoneta de poltrona en mal estado", ubicacion: "Terraza N° 2", ubExacta: "Frente a Duzka", especialidad: "Otros", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "Cierre", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Zenaida Cardenas", riesgo: "" },
+];
+
+// ========================== HELPERS ==========================
+const colors = {
+    blue: '#6366f1', cyan: '#22d3ee', green: '#34d399', amber: '#fbbf24',
+    red: '#f87171', purple: '#a78bfa', pink: '#f472b6', orange: '#fb923c',
+    teal: '#2dd4bf', lime: '#a3e635', rose: '#fb7185', sky: '#38bdf8'
+};
+const techColors = ['#6366f1','#22d3ee','#34d399','#fbbf24','#f87171','#a78bfa','#fb923c','#f472b6','#2dd4bf','#a3e635','#38bdf8','#fb7185'];
+
+function countBy(arr, key) {
+    return arr.reduce((acc, o) => { acc[o[key]] = (acc[o[key]] || 0) + 1; return acc; }, {});
+}
+
+function renderStars(n) {
+    if (!n) return '<span class="stars-empty">sin datos</span>';
+    let s = '';
+    for (let i = 0; i < 5; i++) s += i < n ? '★' : '☆';
+    return `<span class="stars">${s}</span>`;
+}
+
+function priorityClass(p) {
+    if (p.toLowerCase().includes('alto') || p.toLowerCase().includes('emergencia')) return 'alto';
+    if (p.toLowerCase().includes('medio')) return 'medio';
+    return 'bajo';
+}
+
+// ========================== CHARTS ==========================
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+Chart.defaults.font.family = "'Inter', sans-serif";
+
+// 1. Estado de OTs
+const estadoCount = countBy(otData, 'estado');
+new Chart(document.getElementById('chartEstado'), {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(estadoCount),
+        datasets: [{
+            data: Object.values(estadoCount),
+            backgroundColor: [colors.green, colors.amber, colors.red],
+            borderWidth: 0,
+            hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10 } }
+        },
+        cutout: '65%'
+    }
+});
+
+// 2. Especialidad
+const espLabels = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura','Otros'];
+const espCount = espLabels.map(e => otData.filter(o => o.especialidad === e).length);
+const espFinished = espLabels.map(e => otData.filter(o => o.especialidad === e && o.estado === 'Finalizado').length);
+new Chart(document.getElementById('chartEspecialidad'), {
+    type: 'bar',
+    data: {
+        labels: espLabels,
+        datasets: [
+            { label: 'Total', data: espCount, backgroundColor: 'rgba(99,102,241,0.5)', borderRadius: 6 },
+            { label: 'Finalizadas', data: espFinished, backgroundColor: 'rgba(52,211,153,0.6)', borderRadius: 6 }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
+    }
+});
+
+// 3. Prioridad
+const prioLabels = ['Alto','Medio','Bajo','Emergencia'];
+const prioColors = [colors.red, colors.amber, colors.green, '#ff0040'];
+const prioCount = prioLabels.map(p => otData.filter(o => o.prioridad.includes(p) || (p === 'Emergencia' && o.prioridad === 'Emergencia')).length);
+new Chart(document.getElementById('chartPrioridad'), {
+    type: 'doughnut',
+    data: {
+        labels: prioLabels.filter((_,i) => prioCount[i] > 0),
+        datasets: [{
+            data: prioCount.filter(c => c > 0),
+            backgroundColor: prioColors.filter((_,i) => prioCount[i] > 0),
+            borderWidth: 0, hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10 } } },
+        cutout: '65%'
+    }
+});
+
+// 4. Area
+const areaCount = countBy(otData, 'area');
+const areaLabels = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]);
+new Chart(document.getElementById('chartArea'), {
+    type: 'bar',
+    data: {
+        labels: areaLabels.map(a => a.replace(/^\d+\.\s*/, '')),
+        datasets: [{ data: areaLabels.map(a => areaCount[a]), backgroundColor: techColors, borderRadius: 6 }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
+    }
+});
+
+// 5. Ubicacion
+const ubiCount = countBy(otData, 'ubicacion');
+const ubiSorted = Object.entries(ubiCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
+new Chart(document.getElementById('chartUbicacion'), {
+    type: 'bar',
+    data: {
+        labels: ubiSorted.map(u => u[0]),
+        datasets: [{ data: ubiSorted.map(u => u[1]), backgroundColor: techColors, borderRadius: 6 }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
+    }
+});
+
+// 6. Supervisor
+const supData = otData.filter(o => o.supervisor);
+const supCount = countBy(supData, 'supervisor');
+new Chart(document.getElementById('chartSupervisor'), {
+    type: 'bar',
+    data: {
+        labels: Object.keys(supCount),
+        datasets: [{ data: Object.values(supCount), backgroundColor: [colors.cyan, colors.blue, colors.purple, colors.amber], borderRadius: 6 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
+    }
+});
+
+// ========================== TECHNICIAN TABLE ==========================
+const techMap = {};
+otData.forEach(o => {
+    if (!o.tecPrincipal) return;
+    if (!techMap[o.tecPrincipal]) techMap[o.tecPrincipal] = { total: 0, finished: 0, ratings: [], times: [], specialties: new Set() };
+    techMap[o.tecPrincipal].total++;
+    if (o.estado === 'Finalizado') techMap[o.tecPrincipal].finished++;
+    if (o.calificacion > 0) techMap[o.tecPrincipal].ratings.push(o.calificacion);
+    if (o.tiempoMin > 0) techMap[o.tecPrincipal].times.push(o.tiempoMin);
+    techMap[o.tecPrincipal].specialties.add(o.especialidad);
+});
+
+const techArr = Object.entries(techMap).map(([name, d]) => ({
+    name,
+    total: d.total,
+    finished: d.finished,
+    pct: d.total ? Math.round(d.finished / d.total * 100) : 0,
+    avgRating: d.ratings.length ? (d.ratings.reduce((a,b) => a+b, 0) / d.ratings.length).toFixed(1) : null,
+    avgTime: d.times.length ? Math.round(d.times.reduce((a,b) => a+b, 0) / d.times.length) : null,
+    specialties: [...d.specialties]
+})).sort((a,b) => b.total - a.total);
+
+const techBody = document.getElementById('techTableBody');
+techArr.forEach((t, i) => {
+    const pctColor = t.pct >= 80 ? colors.green : t.pct >= 50 ? colors.amber : colors.red;
+    const barGrad = t.pct >= 80 ? 'linear-gradient(90deg, #34d399, #059669)' : t.pct >= 50 ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' : 'linear-gradient(90deg, #f87171, #ef4444)';
+    const specBadges = t.specialties.map(s => {
+        const cls = s === 'Electricidad' ? 'badge-amber' : s === 'Carpintería' ? 'badge-purple' : s === 'Gasfitería' ? 'badge-cyan' : s === 'Albañilería' ? 'badge-red' : s === 'Pintura' ? 'badge-green' : 'badge-blue';
+        return `<span class="badge ${cls}" style="margin:2px;">${s}</span>`;
+    }).join('');
+    techBody.innerHTML += `<tr>
+        <td><div class="tech-name-cell"><div class="tech-avatar" style="background:${techColors[i % techColors.length]}">${t.name.split(' ').map(w => w[0]).slice(0,2).join('')}</div><div><strong style="color:var(--text-primary)">${t.name}</strong></div></div></td>
+        <td><strong style="color:var(--text-primary)">${t.total}</strong></td>
+        <td><strong style="color:${colors.green}">${t.finished}</strong></td>
+        <td><div style="display:flex;align-items:center;gap:10px;"><div class="perf-bar-container" style="width:80px"><div class="perf-bar" style="width:${t.pct}%;background:${barGrad}"></div></div><span style="color:${pctColor};font-weight:700">${t.pct}%</span></div></td>
+        <td>${t.avgRating ? renderStars(Math.round(parseFloat(t.avgRating))) + ' <span style="font-size:11px;color:var(--text-muted)">(' + t.avgRating + ')</span>' : '<span class="stars-empty">—</span>'}</td>
+        <td>${t.avgTime ? '<strong style="color:var(--text-primary)">' + t.avgTime + ' min</strong>' : '<span class="stars-empty">—</span>'}</td>
+        <td>${specBadges}</td>
+        <td>${t.pct >= 80 ? '<span class="badge badge-green">Excelente</span>' : t.pct >= 50 ? '<span class="badge badge-amber">Regular</span>' : '<span class="badge badge-red">Bajo</span>'}</td>
+    </tr>`;
+});
+
+// Technician chart
+const techNames = techArr.map(t => t.name.split(' ').slice(0,2).join(' '));
+new Chart(document.getElementById('chartTecnicos'), {
+    type: 'bar',
+    data: {
+        labels: techNames,
+        datasets: [
+            { label: 'Asignadas', data: techArr.map(t => t.total), backgroundColor: 'rgba(99,102,241,0.5)', borderRadius: 6 },
+            { label: 'Finalizadas', data: techArr.map(t => t.finished), backgroundColor: 'rgba(52,211,153,0.6)', borderRadius: 6 }
+        ]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
+        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
+    }
+});
+
+new Chart(document.getElementById('chartTiempoTecnico'), {
+    type: 'bar',
+    data: {
+        labels: techArr.filter(t => t.avgTime).map(t => t.name.split(' ').slice(0,2).join(' ')),
+        datasets: [{ label: 'Tiempo promedio (min)', data: techArr.filter(t => t.avgTime).map(t => t.avgTime),
+            backgroundColor: techArr.filter(t => t.avgTime).map((_,i) => techColors[i % techColors.length]),
+            borderRadius: 6 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
+    }
+});
+
+// ========================== PENDING TABLE ==========================
+const pendingOTs = otData.filter(o => o.estado === 'Pendiente')
+    .sort((a, b) => {
+        const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
+        const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
+        const bP = Object.keys(prio).find(k => b.prioridad.includes(k)) || 'Bajo';
+        if (prio[aP] !== prio[bP]) return prio[aP] - prio[bP];
+        return (b.riesgo ? 1 : 0) - (a.riesgo ? 1 : 0);
+    });
+
+function renderPendingTable(filter) {
+    const tbody = document.getElementById('pendingTableBody');
+    const filtered = filter === 'all' ? pendingOTs : pendingOTs.filter(o => priorityClass(o.prioridad) === filter);
+    document.getElementById('pendingCount').textContent = filtered.length + ' pendientes';
+    tbody.innerHTML = filtered.map((o, i) => `<tr>
+        <td>${i+1}</td>
+        <td><strong style="color:var(--text-primary);font-size:12px">${o.id}</strong></td>
+        <td><div style="display:flex;align-items:center"><span class="priority-dot ${priorityClass(o.prioridad)}"></span>${o.prioridad}</div></td>
+        <td style="max-width:250px;color:var(--text-primary)">${o.desc}</td>
+        <td>${o.ubicacion}</td>
+        <td><span class="badge ${o.especialidad === 'Electricidad' ? 'badge-amber' : o.especialidad === 'Carpintería' ? 'badge-purple' : o.especialidad === 'Gasfitería' ? 'badge-cyan' : o.especialidad === 'Albañilería' ? 'badge-red' : o.especialidad === 'Pintura' ? 'badge-green' : 'badge-blue'}">${o.especialidad}</span></td>
+        <td>${o.solicitante}</td>
+        <td style="font-size:12px">${o.fecha}</td>
+        <td>${o.tecPrincipal ? '<span class="badge badge-blue">Asignada</span>' : '<span class="badge badge-red">Sin asignar</span>'}</td>
+        <td>${o.riesgo || '<span style="color:var(--text-muted)">—</span>'}</td>
+    </tr>`).join('');
+}
+renderPendingTable('all');
+
+// ========================== DETAIL TABLE ==========================
+function renderDetailTable(filter) {
+    const tbody = document.getElementById('detailTableBody');
+    let filtered = otData;
+    if (filter === 'finalizado') filtered = otData.filter(o => o.estado === 'Finalizado');
+    else if (filter === 'pendiente') filtered = otData.filter(o => o.estado === 'Pendiente');
+    else if (filter === 'electricidad') filtered = otData.filter(o => o.especialidad === 'Electricidad');
+    else if (filter === 'carpinteria') filtered = otData.filter(o => o.especialidad === 'Carpintería');
+    else if (filter === 'gasfiteria') filtered = otData.filter(o => o.especialidad === 'Gasfitería');
+    else if (filter === 'albanileria') filtered = otData.filter(o => o.especialidad === 'Albañilería');
+    else if (filter === 'pintura') filtered = otData.filter(o => o.especialidad === 'Pintura');
+    document.getElementById('detailCount').textContent = filtered.length + ' registros';
+    tbody.innerHTML = filtered.map(o => `<tr>
+        <td><strong style="color:var(--text-primary);font-size:11px">${o.id}</strong></td>
+        <td style="font-size:12px;white-space:nowrap">${o.fecha}</td>
+        <td style="max-width:220px;color:var(--text-primary)">${o.desc}</td>
+        <td>${o.ubicacion}</td>
+        <td><span class="badge ${o.especialidad === 'Electricidad' ? 'badge-amber' : o.especialidad === 'Carpintería' ? 'badge-purple' : o.especialidad === 'Gasfitería' ? 'badge-cyan' : o.especialidad === 'Albañilería' ? 'badge-red' : o.especialidad === 'Pintura' ? 'badge-green' : 'badge-blue'}">${o.especialidad}</span></td>
+        <td><div style="display:flex;align-items:center"><span class="priority-dot ${priorityClass(o.prioridad)}"></span>${o.prioridad.split(' ')[0]}</div></td>
+        <td style="font-size:12px">${o.tecPrincipal || '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td>${o.estado === 'Finalizado' ? '<span class="badge badge-green">Finalizado</span>' : '<span class="badge badge-amber">Pendiente</span>'}</td>
+        <td>${renderStars(o.calificacion)}</td>
+        <td style="font-size:12px">${o.tiempo || '<span style="color:var(--text-muted)">—</span>'}</td>
+    </tr>`).join('');
+}
+renderDetailTable('all');
+
+// ========================== TAB NAVIGATION ==========================
+document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+});
+
+// Filter buttons
+document.querySelectorAll('#pendingFilters .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#pendingFilters .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderPendingTable(btn.dataset.filter);
+    });
+});
+document.querySelectorAll('#detailFilters .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#detailFilters .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderDetailTable(btn.dataset.filter);
+    });
+});
+</script>
+</body>
+</html>
