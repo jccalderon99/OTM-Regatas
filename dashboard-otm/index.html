@@ -601,13 +601,65 @@
 
         <!-- TAB: Pending -->
         <div class="tab-content" id="tab-pending">
-            <div class="section-title"><span>🔴</span> OTs Pendientes — Priorización</div>
+            <div class="section-title"><span>🔴</span> OTs Pendientes — Priorización y Cuellos de Botella</div>
+
+            <div class="alert-banner" style="background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.2); color: var(--accent-amber);">
+                <div class="alert-icon">🚧</div>
+                <div>
+                    <strong>Cuellos de Botella de Personal detectados:</strong><br>
+                    • <strong>Carpintería:</strong> Detenido por falta de operario disponible.<br>
+                    • <strong>Pintura:</strong> Solo se cuenta con 1 operario activo.<br>
+                    • <strong>Albañilería:</strong> Solo hay 1 operario activo.
+                </div>
+            </div>
 
             <div class="alert-banner">
                 <div class="alert-icon">⚠️</div>
                 <div>
-                    <strong>Atención:</strong> Hay <strong>13 OTs de prioridad ALTA</strong> sin finalizar, varias con riesgo de seguridad para los asociados. 
-                    Se recomienda revisión inmediata.
+                    <strong>Atención:</strong> Hay <strong id="alertAltaCount">13 OTs de prioridad ALTA</strong> sin finalizar. Muchas se encuentran detenidas por falta de suministros (RQ).
+                </div>
+            </div>
+
+            <div class="kpi-grid" style="margin-bottom: 24px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+                <div class="kpi-card" style="padding: 16px;">
+                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">⏳</div>
+                    <div class="kpi-label" style="font-size:10px;">Total Pendientes</div>
+                    <div class="kpi-value" style="color: var(--text-primary); font-size: 26px;" id="kpiPendingTotal">0</div>
+                </div>
+                <div class="kpi-card" style="padding: 16px; border-color: rgba(167,139,250,0.5);">
+                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">📦</div>
+                    <div class="kpi-label" style="font-size:10px;">Falta Suministros (RQ)</div>
+                    <div class="kpi-value" style="color: var(--accent-purple); font-size: 26px;" id="kpiPendingRQ">0</div>
+                </div>
+                <div class="kpi-card" style="padding: 16px;">
+                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🪚</div>
+                    <div class="kpi-label" style="font-size:10px;">En Carpintería</div>
+                    <div class="kpi-value" style="color: var(--accent-orange); font-size: 26px;" id="kpiPendingCarpinteria">0</div>
+                </div>
+                <div class="kpi-card" style="padding: 16px;">
+                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🎨</div>
+                    <div class="kpi-label" style="font-size:10px;">En Pintura</div>
+                    <div class="kpi-value" style="color: var(--accent-cyan); font-size: 26px;" id="kpiPendingPintura">0</div>
+                </div>
+                <div class="kpi-card" style="padding: 16px;">
+                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🧱</div>
+                    <div class="kpi-label" style="font-size:10px;">En Albañilería</div>
+                    <div class="kpi-value" style="color: var(--accent-red); font-size: 26px;" id="kpiPendingAlbanileria">0</div>
+                </div>
+            </div>
+
+            <div class="charts-grid" style="margin-bottom: 24px;">
+                <div class="chart-card">
+                    <h3><span>📦</span> Pendientes: Requerimientos (RQ) vs Resto</h3>
+                    <div class="chart-wrapper pie-chart" style="height: 250px;">
+                        <canvas id="chartPendingReason"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3><span>🔧</span> Pendientes por Especialidad</h3>
+                    <div class="chart-wrapper" style="height: 250px;">
+                        <canvas id="chartPendingSpecialty"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -1010,6 +1062,58 @@ function renderPendingTable(filter) {
     </tr>`).join('');
 }
 renderPendingTable('all');
+
+// === NEW PENDING CHARTS LOGIC ===
+const totalPending = pendingOTs.length;
+const rqPending = pendingOTs.filter(o => o.tipo === 'RQ').length;
+const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
+const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
+const albanileriaPending = pendingOTs.filter(o => o.especialidad === 'Albañilería').length;
+
+document.getElementById('kpiPendingTotal').textContent = totalPending;
+document.getElementById('kpiPendingRQ').textContent = rqPending;
+document.getElementById('kpiPendingCarpinteria').textContent = carpinteriaPending;
+document.getElementById('kpiPendingPintura').textContent = pinturaPending;
+document.getElementById('kpiPendingAlbanileria').textContent = albanileriaPending;
+
+const highPriorityPending = pendingOTs.filter(o => priorityClass(o.prioridad) === 'alto').length;
+document.getElementById('alertAltaCount').textContent = highPriorityPending + ' OTs de prioridad ALTA';
+
+new Chart(document.getElementById('chartPendingReason'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Falta Material (RQ)', 'Otros / Sin asignar'],
+        datasets: [{
+            data: [rqPending, totalPending - rqPending],
+            backgroundColor: [colors.purple, 'rgba(255,255,255,0.1)'],
+            borderWidth: 0, hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
+        cutout: '65%'
+    }
+});
+
+const pendEspCount = countBy(pendingOTs, 'especialidad');
+const pendEspLabels = Object.keys(pendEspCount).sort((a,b) => pendEspCount[b] - pendEspCount[a]);
+new Chart(document.getElementById('chartPendingSpecialty'), {
+    type: 'bar',
+    data: {
+        labels: pendEspLabels,
+        datasets: [{
+            data: pendEspLabels.map(l => pendEspCount[l]),
+            backgroundColor: pendEspLabels.map((l,i) => techColors[i % techColors.length]),
+            borderRadius: 6
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { precision: 0 } }, x: { grid: { display: false } } }
+    }
+});
 
 // ========================== DETAIL TABLE ==========================
 function renderDetailTable(filter) {
