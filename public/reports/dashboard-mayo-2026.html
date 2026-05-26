@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -116,16 +118,24 @@
         }
 
         /* Navigation tabs */
-        .nav-tabs {
+        .sub-header-container {
             max-width: 1600px;
-            margin: 0 auto;
-            padding: 20px 40px 0;
+            margin: 0 auto 20px;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .nav-tabs {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
         }
         .nav-tab {
-            padding: 10px 22px;
+            padding: 14px 22px;
             border-radius: 10px 10px 0 0;
             font-size: 13px;
             font-weight: 600;
@@ -135,6 +145,7 @@
             background: transparent;
             color: var(--text-muted);
             transition: all 0.3s;
+            margin-bottom: -1px;
         }
         .nav-tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
         .nav-tab.active {
@@ -165,7 +176,7 @@
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius);
-            padding: 24px;
+            padding: 16px 20px;
             position: relative;
             overflow: hidden;
             transition: all 0.3s;
@@ -197,7 +208,7 @@
             margin-bottom: 8px;
         }
         .kpi-value {
-            font-size: 36px;
+            font-size: 30px;
             font-weight: 800;
             line-height: 1;
             margin-bottom: 6px;
@@ -379,43 +390,48 @@
             color: var(--accent-blue);
         }
 
-        /* Global filter bar */
-        .global-filter-bar {
-            max-width: 1600px;
-            margin: 0 auto 20px;
-            padding: 16px 24px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius);
+        /* Global Sub-Header Inline Layout */
+        .date-filter-inline {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            gap: 8px;
+            padding-top: 10px;
+            padding-bottom: 10px;
         }
         .filter-group {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
-        .filter-group-label {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-right: 8px;
+        
+        /* Slide-down date picker row */
+        .custom-date-row {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 40px;
+            margin-bottom: 0;
         }
-        .custom-date-container {
-            display: flex;
+        .custom-date-row.active {
+            max-height: 80px;
+            opacity: 1;
+            margin-bottom: 20px;
+        }
+        .custom-date-bar {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(0,0,0,0.2);
+            background: var(--bg-card);
             border: 1px solid var(--border-subtle);
-            padding: 6px 14px;
-            border-radius: 20px;
+            padding: 8px 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-glow);
         }
-        .custom-date-container input {
+        .custom-date-bar input {
             background: transparent;
             border: none;
             color: var(--text-primary);
@@ -424,13 +440,47 @@
             outline: none;
             cursor: pointer;
         }
-        .custom-date-container input::-webkit-calendar-picker-indicator {
+        .custom-date-bar input::-webkit-calendar-picker-indicator {
             filter: invert(0.8);
             cursor: pointer;
         }
-        .custom-date-container span {
+        .custom-date-bar span {
             color: var(--text-muted);
             font-size: 12px;
+        }
+
+        /* Main Top Row Grid (Daily Balance & Status) */
+        .main-charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        @media (max-width: 1024px) {
+            .main-charts-row { grid-template-columns: 1fr; }
+        }
+        
+        /* Zoom Control Buttons */
+        .zoom-controls {
+            display: flex;
+            gap: 6px;
+        }
+        .zoom-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .zoom-btn:hover {
+            background: rgba(99,102,241,0.15);
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
         }
 
         /* Responsive */
@@ -498,32 +548,39 @@
         </div>
     </header>
 
-    <!-- Global Date Filter (Binance-style) -->
-    <div class="global-filter-bar">
-        <div class="filter-group" id="globalDateFilters">
-            <span class="filter-group-label">📅 Rango de Fechas:</span>
-            <button class="filter-btn active" data-date-range="all">Todo</button>
-            <button class="filter-btn" data-date-range="1d">1D (Día)</button>
-            <button class="filter-btn" data-date-range="1w">1S (Semana)</button>
-            <button class="filter-btn" data-date-range="1m">1M (Mes)</button>
-            <button class="filter-btn" data-date-range="3m">3M (3 Meses)</button>
-            <button class="filter-btn" data-date-range="6m">6M (6 Meses)</button>
-            <button class="filter-btn" data-date-range="1y">1A (Año)</button>
-            <button class="filter-btn" data-date-range="custom">Personalizado</button>
+    <!-- Inline Sub-Header Container (Tabs & Date Filters side-by-side) -->
+    <div class="sub-header-container">
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs" id="navTabs">
+            <div class="nav-tab active" data-tab="overview">📊 Resumen General</div>
+            <div class="nav-tab" data-tab="technicians">👷 Técnicos</div>
+            <div class="nav-tab" data-tab="pending">🔴 OTs Pendientes</div>
+            <div class="nav-tab" data-tab="details">📋 Detalle Completo</div>
         </div>
-        <div class="custom-date-container" id="customDateContainer" style="display: none;">
-            <input type="date" id="customDateFrom" placeholder="Desde">
-            <span>a</span>
-            <input type="date" id="customDateTo" placeholder="Hasta">
+
+        <!-- Global Date Filter (Binance-style direct buttons) -->
+        <div class="date-filter-inline">
+            <div class="filter-group" id="globalDateFilters">
+                <button class="filter-btn active" data-date-range="all">Todo</button>
+                <button class="filter-btn" data-date-range="1d">1D</button>
+                <button class="filter-btn" data-date-range="1w">1S</button>
+                <button class="filter-btn" data-date-range="1m">1M</button>
+                <button class="filter-btn" data-date-range="3m">3M</button>
+                <button class="filter-btn" data-date-range="6m">6M</button>
+                <button class="filter-btn" data-date-range="1y">1A</button>
+                <button class="filter-btn" data-date-range="custom">Personalizado</button>
+            </div>
         </div>
     </div>
 
-    <!-- Navigation -->
-    <div class="nav-tabs" id="navTabs">
-        <div class="nav-tab active" data-tab="overview">📊 Resumen General</div>
-        <div class="nav-tab" data-tab="technicians">👷 Técnicos</div>
-        <div class="nav-tab" data-tab="pending">🔴 OTs Pendientes</div>
-        <div class="nav-tab" data-tab="details">📋 Detalle Completo</div>
+    <!-- Custom Date Range slide-down row -->
+    <div class="custom-date-row" id="customDateRow">
+        <div class="custom-date-bar">
+            <span style="font-size:12px; font-weight:700; color:var(--text-primary);">Desde:</span>
+            <input type="date" id="customDateFrom">
+            <span style="font-size:12px; font-weight:700; color:var(--text-primary); margin-left:8px;">Hasta:</span>
+            <input type="date" id="customDateTo">
+        </div>
     </div>
 
     <main class="main">
@@ -569,14 +626,31 @@
                 </div>
             </div>
 
-            <!-- Charts -->
-            <div class="charts-grid">
+            <!-- Top Charts Row (Line Balance & Status Doughnut) -->
+            <div class="main-charts-row">
+                <div class="chart-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                        <h3 style="margin-bottom:0;"><span>📈</span> Balance Diario: OTs Creadas vs Finalizadas</h3>
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="btnZoomIn">➕ Zoom</button>
+                            <button class="zoom-btn" id="btnZoomOut">➖ Zoom</button>
+                            <button class="zoom-btn" id="btnResetZoom">🔄 Reset</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper" style="height:320px;">
+                        <canvas id="chartBalanceDiario"></canvas>
+                    </div>
+                </div>
                 <div class="chart-card">
                     <h3><span>🎯</span> Estado de OTs</h3>
-                    <div class="chart-wrapper pie-chart">
+                    <div class="chart-wrapper pie-chart" style="height:320px;">
                         <canvas id="chartEstado"></canvas>
                     </div>
                 </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
                 <div class="chart-card">
                     <h3><span>🔧</span> OTs por Especialidad</h3>
                     <div class="chart-wrapper">
@@ -1158,6 +1232,113 @@ function renderOverviewTab(data) {
     document.getElementById('mainKpiTechs').textContent = activeTechs;
 
     // --- Overview Charts ---
+    // 0. Balance Diario: OTs Creadas vs Finalizadas daily balance grouping & sorting
+    const datesMap = {};
+    data.forEach(o => {
+        const d = parseDateStr(o.fecha);
+        if (!d) return;
+        const time = d.getTime();
+        if (!datesMap[time]) {
+            datesMap[time] = {
+                dateStr: o.fecha,
+                dateObj: d,
+                requested: 0,
+                finalized: 0
+            };
+        }
+        datesMap[time].requested += 1;
+        if (o.estado === 'Finalizado') {
+            datesMap[time].finalized += 1;
+        }
+    });
+
+    const sortedTimes = Object.keys(datesMap).map(Number).sort((a, b) => a - b);
+    const dailyLabels = sortedTimes.map(t => datesMap[t].dateStr);
+    const dailyRequested = sortedTimes.map(t => datesMap[t].requested);
+    const dailyFinalized = sortedTimes.map(t => datesMap[t].finalized);
+
+    const canvasBalance = document.getElementById('chartBalanceDiario');
+    let gradientCreated = 'rgba(99, 102, 241, 0.2)';
+    let gradientFinalized = 'rgba(52, 211, 153, 0.2)';
+    if (canvasBalance) {
+        const ctxBalance = canvasBalance.getContext('2d');
+        if (ctxBalance) {
+            gradientCreated = ctxBalance.createLinearGradient(0, 0, 0, 300);
+            gradientCreated.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+            gradientCreated.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+            gradientFinalized = ctxBalance.createLinearGradient(0, 0, 0, 300);
+            gradientFinalized.addColorStop(0, 'rgba(52, 211, 153, 0.35)');
+            gradientFinalized.addColorStop(1, 'rgba(52, 211, 153, 0)');
+        }
+    }
+
+    safeCreateChart('chartBalanceDiario', {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [
+                {
+                    label: 'Creadas (Total)',
+                    data: dailyRequested,
+                    borderColor: colors.blue,
+                    backgroundColor: gradientCreated,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointBackgroundColor: colors.blue,
+                    pointBorderColor: '#ffffff',
+                    pointHoverRadius: 6,
+                    pointRadius: 4
+                },
+                {
+                    label: 'Finalizadas',
+                    data: dailyFinalized,
+                    borderColor: colors.green,
+                    backgroundColor: gradientFinalized,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointBackgroundColor: colors.green,
+                    pointBorderColor: '#ffffff',
+                    pointHoverRadius: 6,
+                    pointRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: { display: false },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true, speed: 0.05 },
+                        pinch: { enabled: true },
+                        mode: 'x'
+                    },
+                    pan: { enabled: true, mode: 'x' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { precision: 0 }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
     // 1. Estado de OTs
     const estadoCount = countBy(data, 'estado');
     safeCreateChart('chartEstado', {
@@ -1663,12 +1844,26 @@ document.querySelectorAll('#globalDateFilters .filter-btn').forEach(btn => {
         currentGlobalDateRange = btn.dataset.dateRange;
         
         if (currentGlobalDateRange === 'custom') {
-            document.getElementById('customDateContainer').style.display = 'flex';
+            document.getElementById('customDateRow').classList.add('active');
         } else {
-            document.getElementById('customDateContainer').style.display = 'none';
+            document.getElementById('customDateRow').classList.remove('active');
         }
         updateDashboard();
     });
+});
+
+// Daily Line Chart programatic X-axis zoom/pan listeners
+document.getElementById('btnZoomIn').addEventListener('click', () => {
+    const chart = chartInstances['chartBalanceDiario'];
+    if (chart) chart.zoom(1.1);
+});
+document.getElementById('btnZoomOut').addEventListener('click', () => {
+    const chart = chartInstances['chartBalanceDiario'];
+    if (chart) chart.zoom(0.9);
+});
+document.getElementById('btnResetZoom').addEventListener('click', () => {
+    const chart = chartInstances['chartBalanceDiario'];
+    if (chart) chart.resetZoom();
 });
 
 // Custom Date pickers
