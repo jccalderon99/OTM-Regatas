@@ -80,17 +80,25 @@ if (rows.length <= 1) {
 // Skip header row
 const dataRows = rows.slice(1);
 const mappedOts = dataRows.map((col, index) => {
-    if (col.length < 10) return null; // skip malformed lines
+    let targetCol = col;
+    if (col.length === 1 && col[0].includes(',')) {
+        const subRows = parseCSV(col[0]);
+        if (subRows.length > 0) {
+            targetCol = subRows[0];
+        }
+    }
+
+    if (targetCol.length < 10) return null; // skip malformed lines
 
     // Date formatting: extract date part
     let fechaStr = "4/5/2026";
-    if (col[1]) {
-        fechaStr = col[1].split(' ')[0].trim();
+    if (targetCol[1]) {
+        fechaStr = targetCol[1].split(' ')[0].trim();
     }
 
     // Specialty mapping
     let esp = "Otros";
-    const s = col[9] || "";
+    const s = targetCol[9] || "";
     if (s.includes("Electric")) esp = "Electricidad";
     else if (s.includes("Carpinter")) esp = "Carpintería";
     else if (s.includes("Gasfiter")) esp = "Gasfitería";
@@ -99,29 +107,29 @@ const mappedOts = dataRows.map((col, index) => {
 
     // Priority mapping
     let prio = "Bajo";
-    const p = (col[10] || "").toLowerCase();
+    const p = (targetCol[10] || "").toLowerCase();
     if (p.includes("alto")) prio = "Alto";
     else if (p.includes("medio")) prio = "Medio";
     else if (p.includes("emergencia")) prio = "Emergencia";
 
     // Location formatting
-    let ubi = col[6] || "Club Regatas";
+    let ubi = targetCol[6] || "Club Regatas";
     if (ubi.match(/^\d+\.\s*/)) {
         ubi = ubi.replace(/^\d+\.\s*/, "");
     }
 
     // Solicitante mapping
-    let solicitante = col[4] || "jccalderon";
-    if (!solicitante && col[2]) {
-        solicitante = col[2].split('@')[0];
+    let solicitante = targetCol[4] || "jccalderon";
+    if (!solicitante && targetCol[2]) {
+        solicitante = targetCol[2].split('@')[0];
     }
 
     // Time parsing
-    const tiempoStr = col[34] || "";
+    const tiempoStr = targetCol[34] || "";
     const min = parseExecutionTime(tiempoStr);
 
     // ID generation if empty
-    let otId = col[0] || "";
+    let otId = targetCol[0] || "";
     if (!otId) {
         otId = `OT-${String(index + 1).padStart(4, '0')}`;
     }
@@ -129,22 +137,22 @@ const mappedOts = dataRows.map((col, index) => {
     return {
         id: otId,
         fecha: fechaStr,
-        desc: col[8] || "",
+        desc: targetCol[8] || "",
         ubicacion: ubi,
-        ubExacta: col[7] || "",
+        ubExacta: targetCol[7] || "",
         especialidad: esp,
         prioridad: prio,
-        supervisor: col[12] || "",
-        tecPrincipal: col[14] || "",
-        tecApoyo: col[15] || "",
-        tipo: col[16] || "Correctivo",
-        estado: (col[25] || "").toLowerCase().includes("finalizado") ? "Finalizado" : "Pendiente",
-        calificacion: parseInt(col[27], 10) || 0,
+        supervisor: targetCol[12] || "",
+        tecPrincipal: targetCol[14] || "",
+        tecApoyo: targetCol[15] || "",
+        tipo: targetCol[16] || "Correctivo",
+        estado: (targetCol[25] || "").toLowerCase().includes("finalizado") ? "Finalizado" : "Pendiente",
+        calificacion: parseInt(targetCol[27], 10) || 0,
         tiempo: tiempoStr,
         tiempoMin: min,
-        area: col[3] || "22. MANTENIMIENTO",
+        area: targetCol[3] || "22. MANTENIMIENTO",
         solicitante: solicitante,
-        riesgo: (col[10] || "").toLowerCase().includes("emergencia") ? "🚨 Emergencia" : ""
+        riesgo: (targetCol[10] || "").toLowerCase().includes("emergencia") ? "🚨 Emergencia" : ""
     };
 }).filter(Boolean);
 
