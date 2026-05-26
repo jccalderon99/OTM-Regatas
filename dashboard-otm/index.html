@@ -7,6 +7,7 @@
     <meta name="description" content="Dashboard de análisis de Órdenes de Trabajo de Mantenimiento del Club Regatas Lima">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -847,6 +848,28 @@ function priorityClass(p) {
 Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
 Chart.defaults.font.family = "'Inter', sans-serif";
+
+Chart.register(ChartDataLabels);
+Chart.defaults.plugins.datalabels = {
+    color: '#ffffff',
+    font: { weight: 'bold', size: 10, family: "'Inter', sans-serif" },
+    textShadowBlur: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    formatter: (value, ctx) => {
+        if (!value || value === 0) return null;
+        if (ctx.chart.config.type === 'doughnut' || ctx.chart.config.type === 'pie') {
+            let sum = 0;
+            ctx.chart.data.datasets[0].data.forEach(data => { sum += Number(data) || 0; });
+            const percentage = ((value * 100) / sum).toFixed(1) + '%';
+            return [value, percentage];
+        }
+        return value;
+    },
+    align: (ctx) => ctx.chart.config.type === 'bar' ? (ctx.chart.config.options.indexAxis === 'y' ? 'right' : 'top') : 'center',
+    anchor: (ctx) => ctx.chart.config.type === 'bar' ? 'end' : 'center',
+    offset: 4,
+    textAlign: 'center'
+};
 
 // 1. Estado de OTs
 const estadoCount = countBy(otData, 'estado');
