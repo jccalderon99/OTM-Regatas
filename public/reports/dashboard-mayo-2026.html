@@ -108,11 +108,11 @@
         .date-badge {
             background: rgba(99,102,241,0.12);
             border: 1px solid rgba(99,102,241,0.25);
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 15px;
             color: var(--accent-blue);
-            font-weight: 600;
+            font-weight: 700;
         }
 
         /* Navigation tabs */
@@ -379,6 +379,60 @@
             color: var(--accent-blue);
         }
 
+        /* Global filter bar */
+        .global-filter-bar {
+            max-width: 1600px;
+            margin: 0 auto 20px;
+            padding: 16px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-group-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-right: 8px;
+        }
+        .custom-date-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+        .custom-date-container input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+        .custom-date-container input::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+        .custom-date-container span {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .header { padding: 20px; }
@@ -443,6 +497,26 @@
             </div>
         </div>
     </header>
+
+    <!-- Global Date Filter (Binance-style) -->
+    <div class="global-filter-bar">
+        <div class="filter-group" id="globalDateFilters">
+            <span class="filter-group-label">📅 Rango de Fechas:</span>
+            <button class="filter-btn active" data-date-range="all">Todo</button>
+            <button class="filter-btn" data-date-range="1d">1D (Día)</button>
+            <button class="filter-btn" data-date-range="1w">1S (Semana)</button>
+            <button class="filter-btn" data-date-range="1m">1M (Mes)</button>
+            <button class="filter-btn" data-date-range="3m">3M (3 Meses)</button>
+            <button class="filter-btn" data-date-range="6m">6M (6 Meses)</button>
+            <button class="filter-btn" data-date-range="1y">1A (Año)</button>
+            <button class="filter-btn" data-date-range="custom">Personalizado</button>
+        </div>
+        <div class="custom-date-container" id="customDateContainer" style="display: none;">
+            <input type="date" id="customDateFrom" placeholder="Desde">
+            <span>a</span>
+            <input type="date" id="customDateTo" placeholder="Hasta">
+        </div>
+    </div>
 
     <!-- Navigation -->
     <div class="nav-tabs" id="navTabs">
@@ -540,38 +614,68 @@
         <div class="tab-content" id="tab-technicians">
             <div class="section-title"><span>👷</span> Análisis de Desempeño por Técnico</div>
 
-            <div class="kpi-grid" style="margin-bottom: 24px;">
-                <div class="kpi-card">
-                    <div class="kpi-icon">🏆</div>
-                    <div class="kpi-label">Técnico Más Activo</div>
-                    <div class="kpi-value" style="font-size: 22px; color: var(--accent-cyan);">Rogelio H.</div>
-                    <div class="kpi-sub">11 OTs ejecutadas</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon">⭐</div>
-                    <div class="kpi-label">Mejor Calificado</div>
-                    <div class="kpi-value" style="font-size: 22px; color: var(--accent-amber);">Jose Canchari</div>
-                    <div class="kpi-sub">Promedio: 4.0 ⭐</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon">⚡</div>
-                    <div class="kpi-label">Más Rápido (promedio)</div>
-                    <div class="kpi-value" style="font-size: 22px; color: var(--accent-green);">Elizabeth P.</div>
-                    <div class="kpi-sub">Promedio: 52 min</div>
+            <!-- Single large KPI card for Man-Hours -->
+            <div style="margin-bottom: 20px;">
+                <div class="kpi-card" style="padding: 24px 30px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--accent-cyan);">
+                    <div>
+                        <div class="kpi-label" style="font-size: 13px; margin-bottom: 6px;">Total de Horas Hombre Ejecutadas</div>
+                        <div class="kpi-value" id="kpiTotalHorasHombre" style="color: var(--accent-cyan); font-size: 42px; margin-bottom: 4px;">0.0 hrs</div>
+                        <div class="kpi-sub" id="kpiTotalHorasHombreSub" style="font-size: 13px;">Acumulado en el período filtrado</div>
+                    </div>
+                    <div style="font-size: 50px; opacity: 0.6; margin-right: 10px;">⏱️</div>
                 </div>
             </div>
 
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <h3><span>📊</span> OTs por Técnico Principal</h3>
-                    <div class="chart-wrapper" style="height: 400px;">
-                        <canvas id="chartTecnicos"></canvas>
+            <!-- Specialty Filter Bar local to this tab -->
+            <div class="filter-bar" id="techSpecialtyFilters" style="background: rgba(255,255,255,0.02); padding: 12px 20px; border-radius: 12px; border: 1px solid var(--border-subtle); margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
+                <span class="filter-group-label" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Especialidad:</span>
+                <button class="filter-btn active" data-specialty="all">Todas</button>
+                <button class="filter-btn" data-specialty="Carpintería">🪚 Carpintería</button>
+                <button class="filter-btn" data-specialty="Electricidad">⚡ Electricidad</button>
+                <button class="filter-btn" data-specialty="Gasfitería">🚿 Gasfitería</button>
+                <button class="filter-btn" data-specialty="Albañilería">🧱 Albañilería</button>
+                <button class="filter-btn" data-specialty="Pintura">🎨 Pintura</button>
+                <button class="filter-btn" data-specialty="Otros">Otros</button>
+            </div>
+
+            <!-- Block 1: Personal Interno -->
+            <div style="margin-bottom: 32px;">
+                <div class="section-title" style="font-size: 15px; text-transform: uppercase; color: var(--accent-blue); border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 16px;">
+                    <span>👤</span> Personal Interno (Técnicos del Club)
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3><span>📊</span> Cantidad de OTs - Personal Interno</h3>
+                        <div class="chart-wrapper" style="height: 350px;">
+                            <canvas id="chartTecnicosCantidad"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><span>⏱️</span> Horas Hombre Totales - Personal Interno</h3>
+                        <div class="chart-wrapper" style="height: 350px;">
+                            <canvas id="chartTecnicosHoras"></canvas>
+                        </div>
                     </div>
                 </div>
-                <div class="chart-card">
-                    <h3><span>⏱️</span> Tiempo Promedio por Técnico (min)</h3>
-                    <div class="chart-wrapper" style="height: 400px;">
-                        <canvas id="chartTiempoTecnico"></canvas>
+            </div>
+
+            <!-- Block 2: Contratistas -->
+            <div style="margin-bottom: 32px;">
+                <div class="section-title" style="font-size: 15px; text-transform: uppercase; color: var(--accent-purple); border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 16px;">
+                    <span>🏢</span> Contratistas y Servicios Externos
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3><span>📊</span> Cantidad de OTs - Contratistas</h3>
+                        <div class="chart-wrapper" style="height: 350px;">
+                            <canvas id="chartContratistasCantidad"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><span>⏱️</span> Horas Hombre Totales - Contratistas</h3>
+                        <div class="chart-wrapper" style="height: 350px;">
+                            <canvas id="chartContratistasHoras"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -839,264 +943,658 @@ function renderStars(n) {
 }
 
 function priorityClass(p) {
+    if (!p) return 'bajo';
     if (p.toLowerCase().includes('alto') || p.toLowerCase().includes('emergencia')) return 'alto';
     if (p.toLowerCase().includes('medio')) return 'medio';
     return 'bajo';
 }
 
-// ========================== CHARTS ==========================
+function parseDateStr(str) {
+    if (!str) return null;
+    const parts = str.split('/');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const year = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+}
+
+// Find maximum date dynamically to act as relative reference
+let maxDate = null;
+otData.forEach(o => {
+    const d = parseDateStr(o.fecha);
+    if (d && (!maxDate || d > maxDate)) maxDate = d;
+});
+const referenceToday = maxDate || new Date(2026, 4, 25);
+
+// Classify Internal vs Contractor
+function isContractor(name) {
+    if (!name) return false;
+    const n = name.toUpperCase();
+    return n.includes('CONTRATISTA') || n.includes('CONTRATA') || n.includes('EMPRESA') || n.includes('SAC') || n.includes('S.A.C.') || n.includes('SERVICE') || n.includes('S.R.L.');
+}
+
+// Global Filter State
+let currentGlobalDateRange = 'all';
+let customDateFromVal = '';
+let customDateToVal = '';
+let currentTechSpecialty = 'all';
+
+// Chart references
+const chartInstances = {};
+
+function safeCreateChart(id, config) {
+    if (chartInstances[id]) {
+        chartInstances[id].destroy();
+    }
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    chartInstances[id] = new Chart(canvas, config);
+    return chartInstances[id];
+}
+
+// Chart.js global settings & datalabels default
 Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
 Chart.defaults.font.family = "'Inter', sans-serif";
 
 Chart.register(ChartDataLabels);
-Chart.defaults.plugins.datalabels = {
+
+// Center Text Plugin for Doughnut charts
+const centerTextPlugin = {
+    id: 'centerText',
+    afterDraw(chart) {
+        if (chart.config.type === 'doughnut') {
+            const { ctx, width, height } = chart;
+            ctx.save();
+            let sum = 0;
+            chart.data.datasets[0].data.forEach(v => { sum += Number(v) || 0; });
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Draw in center
+            ctx.fillText(`Total: ${sum}`, width / 2, height / 2);
+            ctx.restore();
+        }
+    }
+};
+Chart.register(centerTextPlugin);
+
+// Default datalabel configuration for doughnut
+const doughnutDatalabels = {
     color: '#ffffff',
-    font: { weight: 'bold', size: 10, family: "'Inter', sans-serif" },
+    anchor: 'end',
+    align: 'end',
+    font: { weight: 'bold', size: 12 },
+    offset: 8,
+    formatter: (value, ctx) => {
+        if (!value || value === 0) return null;
+        let sum = 0;
+        ctx.chart.data.datasets[0].data.forEach(data => { sum += Number(data) || 0; });
+        const percentage = ((value * 100) / sum).toFixed(1) + '%';
+        return `${value}\n(${percentage})`;
+    }
+};
+
+// Default datalabel configuration for bar
+const barDatalabels = {
+    color: '#ffffff',
+    font: { weight: 'bold', size: 11 },
     textShadowBlur: 4,
     textShadowColor: 'rgba(0,0,0,0.8)',
     formatter: (value, ctx) => {
         if (!value || value === 0) return null;
-        if (ctx.chart.config.type === 'doughnut' || ctx.chart.config.type === 'pie') {
-            let sum = 0;
-            ctx.chart.data.datasets[0].data.forEach(data => { sum += Number(data) || 0; });
-            const percentage = ((value * 100) / sum).toFixed(1) + '%';
-            return [value, percentage];
-        }
+        if (ctx.chart.config.options.indexAxis === 'y') return value;
         return value;
     },
-    align: (ctx) => ctx.chart.config.type === 'bar' ? (ctx.chart.config.options.indexAxis === 'y' ? 'right' : 'top') : 'center',
-    anchor: (ctx) => ctx.chart.config.type === 'bar' ? 'end' : 'center',
-    offset: 4,
-    textAlign: 'center'
+    align: (ctx) => ctx.chart.config.options.indexAxis === 'y' ? 'right' : 'top',
+    anchor: 'end',
+    offset: 4
 };
 
-// 1. Estado de OTs
-const estadoCount = countBy(otData, 'estado');
-new Chart(document.getElementById('chartEstado'), {
-    type: 'doughnut',
-    data: {
-        labels: Object.keys(estadoCount),
-        datasets: [{
-            data: Object.values(estadoCount),
-            backgroundColor: [colors.green, colors.amber, colors.red],
-            borderWidth: 0,
-            hoverOffset: 8
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-            legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10 } }
-        },
-        cutout: '65%'
+// Helper to filter by global date range
+function applyDateFilter(data) {
+    if (currentGlobalDateRange === 'all') return data;
+    
+    const refTime = referenceToday.getTime();
+    let minTime = 0;
+    
+    if (currentGlobalDateRange === '1d') {
+        minTime = refTime - 1 * 24 * 60 * 60 * 1000;
+    } else if (currentGlobalDateRange === '1w') {
+        minTime = refTime - 7 * 24 * 60 * 60 * 1000;
+    } else if (currentGlobalDateRange === '1m') {
+        minTime = refTime - 30 * 24 * 60 * 60 * 1000;
+    } else if (currentGlobalDateRange === '3m') {
+        minTime = refTime - 90 * 24 * 60 * 60 * 1000;
+    } else if (currentGlobalDateRange === '6m') {
+        minTime = refTime - 180 * 24 * 60 * 60 * 1000;
+    } else if (currentGlobalDateRange === '1y') {
+        minTime = refTime - 365 * 24 * 60 * 60 * 1000;
+    } else if (currentGlobalDateRange === 'custom') {
+        let fromDate = null;
+        let toDate = null;
+        
+        if (customDateFromVal) {
+            const parts = customDateFromVal.split('-');
+            fromDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        if (customDateToVal) {
+            const parts = customDateToVal.split('-');
+            toDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            // Set to end of the day
+            toDate.setHours(23, 59, 59, 999);
+        }
+        
+        return data.filter(o => {
+            const d = parseDateStr(o.fecha);
+            if (!d) return false;
+            if (fromDate && d < fromDate) return false;
+            if (toDate && d > toDate) return false;
+            return true;
+        });
     }
-});
+    
+    // For relative options, filter from minTime to refTime
+    return data.filter(o => {
+        const d = parseDateStr(o.fecha);
+        return d && d.getTime() >= minTime && d.getTime() <= refTime;
+    });
+}
 
-// 2. Especialidad
-const espLabels = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura','Otros'];
-const espCount = espLabels.map(e => otData.filter(o => o.especialidad === e).length);
-const espFinished = espLabels.map(e => otData.filter(o => o.especialidad === e && o.estado === 'Finalizado').length);
-new Chart(document.getElementById('chartEspecialidad'), {
-    type: 'bar',
-    data: {
-        labels: espLabels,
-        datasets: [
-            { label: 'Total', data: espCount, backgroundColor: 'rgba(99,102,241,0.5)', borderRadius: 6 },
-            { label: 'Finalizadas', data: espFinished, backgroundColor: 'rgba(52,211,153,0.6)', borderRadius: 6 }
-        ]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
-        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
+// Master reactive update function
+function updateDashboard() {
+    const filteredData = applyDateFilter(otData);
+    
+    // Update Header Date Description dynamically
+    let badgeText = `📅 Mayo 2026 (4 - 25 mayo)`;
+    if (currentGlobalDateRange === 'all') {
+        badgeText = `📅 Todo el Período (4 - 25 Mayo)`;
+    } else if (currentGlobalDateRange === '1d') {
+        badgeText = `📅 Último Día (25 Mayo)`;
+    } else if (currentGlobalDateRange === '1w') {
+        badgeText = `📅 Última Semana (19 - 25 Mayo)`;
+    } else if (currentGlobalDateRange === '1m') {
+        badgeText = `📅 Último Mes`;
+    } else if (currentGlobalDateRange === 'custom') {
+        const fromDesc = customDateFromVal ? customDateFromVal.split('-').reverse().join('/') : 'Inicio';
+        const toDesc = customDateToVal ? customDateToVal.split('-').reverse().join('/') : 'Fin';
+        badgeText = `📅 Personalizado: ${fromDesc} a ${toDesc}`;
+    } else {
+        badgeText = `📅 Rango: ${currentGlobalDateRange.toUpperCase()}`;
     }
-});
+    document.querySelector('.date-badge').textContent = badgeText;
 
-// 3. Prioridad
-const prioLabels = ['Alto','Medio','Bajo','Emergencia'];
-const prioColors = [colors.red, colors.amber, colors.green, '#ff0040'];
-const prioCount = prioLabels.map(p => otData.filter(o => o.prioridad.includes(p) || (p === 'Emergencia' && o.prioridad === 'Emergencia')).length);
-new Chart(document.getElementById('chartPrioridad'), {
-    type: 'doughnut',
-    data: {
-        labels: prioLabels.filter((_,i) => prioCount[i] > 0),
-        datasets: [{
-            data: prioCount.filter(c => c > 0),
-            backgroundColor: prioColors.filter((_,i) => prioCount[i] > 0),
-            borderWidth: 0, hoverOffset: 8
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10 } } },
-        cutout: '65%'
-    }
-});
+    // Render each tab reactively
+    renderOverviewTab(filteredData);
+    renderTechniciansTab(filteredData);
+    renderPendingTab(filteredData);
+    renderDetailTab(filteredData);
+}
 
-// 4. Area
-const areaCount = countBy(otData, 'area');
-const areaLabels = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]);
-new Chart(document.getElementById('chartArea'), {
-    type: 'bar',
-    data: {
-        labels: areaLabels.map(a => a.replace(/^\d+\.\s*/, '')),
-        datasets: [{ data: areaLabels.map(a => areaCount[a]), backgroundColor: techColors, borderRadius: 6 }]
-    },
-    options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
-    }
-});
-
-// 5. Ubicacion
-const ubiCount = countBy(otData, 'ubicacion');
-const ubiSorted = Object.entries(ubiCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
-new Chart(document.getElementById('chartUbicacion'), {
-    type: 'bar',
-    data: {
-        labels: ubiSorted.map(u => u[0]),
-        datasets: [{ data: ubiSorted.map(u => u[1]), backgroundColor: techColors, borderRadius: 6 }]
-    },
-    options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
-    }
-});
-
-// 6. Supervisor
-const supData = otData.filter(o => o.supervisor);
-const supCount = countBy(supData, 'supervisor');
-new Chart(document.getElementById('chartSupervisor'), {
-    type: 'bar',
-    data: {
-        labels: Object.keys(supCount),
-        datasets: [{ data: Object.values(supCount), backgroundColor: [colors.cyan, colors.blue, colors.purple, colors.amber], borderRadius: 6 }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
-    }
-});
-
-// ========================== TECHNICIAN TABLE ==========================
-const techMap = {};
-otData.forEach(o => {
-    if (!o.tecPrincipal) return;
-    if (!techMap[o.tecPrincipal]) techMap[o.tecPrincipal] = { total: 0, finished: 0, ratings: [], times: [], specialties: new Set() };
-    techMap[o.tecPrincipal].total++;
-    if (o.estado === 'Finalizado') techMap[o.tecPrincipal].finished++;
-    if (o.calificacion > 0) techMap[o.tecPrincipal].ratings.push(o.calificacion);
-    if (o.tiempoMin > 0) techMap[o.tecPrincipal].times.push(o.tiempoMin);
-    techMap[o.tecPrincipal].specialties.add(o.especialidad);
-});
-
-const techArr = Object.entries(techMap).map(([name, d]) => ({
-    name,
-    total: d.total,
-    finished: d.finished,
-    pct: d.total ? Math.round(d.finished / d.total * 100) : 0,
-    avgRating: d.ratings.length ? (d.ratings.reduce((a,b) => a+b, 0) / d.ratings.length).toFixed(1) : null,
-    avgTime: d.times.length ? Math.round(d.times.reduce((a,b) => a+b, 0) / d.times.length) : null,
-    specialties: [...d.specialties]
-})).sort((a,b) => b.total - a.total);
-
-const techBody = document.getElementById('techTableBody');
-techArr.forEach((t, i) => {
-    const pctColor = t.pct >= 80 ? colors.green : t.pct >= 50 ? colors.amber : colors.red;
-    const barGrad = t.pct >= 80 ? 'linear-gradient(90deg, #34d399, #059669)' : t.pct >= 50 ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' : 'linear-gradient(90deg, #f87171, #ef4444)';
-    const specBadges = t.specialties.map(s => {
-        const cls = s === 'Electricidad' ? 'badge-amber' : s === 'Carpintería' ? 'badge-purple' : s === 'Gasfitería' ? 'badge-cyan' : s === 'Albañilería' ? 'badge-red' : s === 'Pintura' ? 'badge-green' : 'badge-blue';
-        return `<span class="badge ${cls}" style="margin:2px;">${s}</span>`;
-    }).join('');
-    techBody.innerHTML += `<tr>
-        <td><div class="tech-name-cell"><div class="tech-avatar" style="background:${techColors[i % techColors.length]}">${t.name.split(' ').map(w => w[0]).slice(0,2).join('')}</div><div><strong style="color:var(--text-primary)">${t.name}</strong></div></div></td>
-        <td><strong style="color:var(--text-primary)">${t.total}</strong></td>
-        <td><strong style="color:${colors.green}">${t.finished}</strong></td>
-        <td><div style="display:flex;align-items:center;gap:10px;"><div class="perf-bar-container" style="width:80px"><div class="perf-bar" style="width:${t.pct}%;background:${barGrad}"></div></div><span style="color:${pctColor};font-weight:700">${t.pct}%</span></div></td>
-        <td>${t.avgRating ? renderStars(Math.round(parseFloat(t.avgRating))) + ' <span style="font-size:11px;color:var(--text-muted)">(' + t.avgRating + ')</span>' : '<span class="stars-empty">—</span>'}</td>
-        <td>${t.avgTime ? '<strong style="color:var(--text-primary)">' + t.avgTime + ' min</strong>' : '<span class="stars-empty">—</span>'}</td>
-        <td>${specBadges}</td>
-        <td>${t.pct >= 80 ? '<span class="badge badge-green">Excelente</span>' : t.pct >= 50 ? '<span class="badge badge-amber">Regular</span>' : '<span class="badge badge-red">Bajo</span>'}</td>
-    </tr>`;
-});
-
-// Technician chart
-const techNames = techArr.map(t => t.name.split(' ').slice(0,2).join(' '));
-new Chart(document.getElementById('chartTecnicos'), {
-    type: 'bar',
-    data: {
-        labels: techNames,
-        datasets: [
-            { label: 'Asignadas', data: techArr.map(t => t.total), backgroundColor: 'rgba(99,102,241,0.5)', borderRadius: 6 },
-            { label: 'Finalizadas', data: techArr.map(t => t.finished), backgroundColor: 'rgba(52,211,153,0.6)', borderRadius: 6 }
-        ]
-    },
-    options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
-        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
-    }
-});
-
-new Chart(document.getElementById('chartTiempoTecnico'), {
-    type: 'bar',
-    data: {
-        labels: techArr.filter(t => t.avgTime).map(t => t.name.split(' ').slice(0,2).join(' ')),
-        datasets: [{ label: 'Tiempo promedio (min)', data: techArr.filter(t => t.avgTime).map(t => t.avgTime),
-            backgroundColor: techArr.filter(t => t.avgTime).map((_,i) => techColors[i % techColors.length]),
-            borderRadius: 6 }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
-    }
-});
-
-// ========================== DYNAMIC MAIN KPIs ==========================
-(function() {
-    const totalOTs = otData.length;
-    const finalizadasCount = otData.filter(o => o.estado === 'Finalizado').length;
-    const pendientesCount = otData.filter(o => o.estado === 'Pendiente').length;
-    const altaPrioridadCount = otData.filter(o => o.estado === 'Pendiente' && priorityClass(o.prioridad) === 'alto').length;
-
-    // Calificación
-    const ratedOTs = otData.filter(o => o.calificacion > 0);
+// RENDER TAB: Resumen General
+function renderOverviewTab(data) {
+    const totalOTs = data.length;
+    const finalizadasCount = data.filter(o => o.estado === 'Finalizado').length;
+    const pendientesCount = data.filter(o => o.estado === 'Pendiente').length;
+    const altaPrioridadCount = data.filter(o => o.estado === 'Pendiente' && priorityClass(o.prioridad) === 'alto').length;
+    
+    const ratedOTs = data.filter(o => o.calificacion > 0);
     const avgRating = ratedOTs.length > 0 ? (ratedOTs.reduce((sum, o) => sum + o.calificacion, 0) / ratedOTs.length).toFixed(1) : '0.0';
+    const activeTechs = new Set(data.map(o => o.tecPrincipal).filter(Boolean)).size;
 
-    // Técnicos activos (unique techPrincipal names)
-    const activeTechs = new Set(otData.map(o => o.tecPrincipal).filter(Boolean)).size;
-
-    // Update HTML
+    // Update KPIs
     document.getElementById('mainKpiTotal').textContent = totalOTs;
     document.getElementById('mainKpiFinalizadas').textContent = finalizadasCount;
-    document.getElementById('mainKpiFinalizadasSub').textContent = `${((finalizadasCount * 100) / totalOTs).toFixed(1)}% del total`;
+    document.getElementById('mainKpiFinalizadasSub').textContent = totalOTs > 0 ? `${((finalizadasCount * 100) / totalOTs).toFixed(1)}% del total` : '0% del total';
     document.getElementById('mainKpiPendientes').textContent = pendientesCount;
-    document.getElementById('mainKpiPendientesSub').textContent = `${((pendientesCount * 100) / totalOTs).toFixed(1)}% del total`;
+    document.getElementById('mainKpiPendientesSub').textContent = totalOTs > 0 ? `${((pendientesCount * 100) / totalOTs).toFixed(1)}% del total` : '0% del total';
     document.getElementById('mainKpiAltaPrioridad').textContent = altaPrioridadCount;
     document.getElementById('mainKpiRating').textContent = avgRating;
     document.getElementById('mainKpiRatingSub').textContent = `De ${ratedOTs.length} evaluaciones`;
     document.getElementById('mainKpiTechs').textContent = activeTechs;
-})();
 
-// ========================== PENDING TABLE ==========================
-const pendingOTs = otData.filter(o => o.estado === 'Pendiente')
-    .sort((a, b) => {
-        const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
-        const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
-        const bP = Object.keys(prio).find(k => b.prioridad.includes(k)) || 'Bajo';
-        if (prio[aP] !== prio[bP]) return prio[aP] - prio[bP];
-        return (b.riesgo ? 1 : 0) - (a.riesgo ? 1 : 0);
+    // --- Overview Charts ---
+    // 1. Estado de OTs
+    const estadoCount = countBy(data, 'estado');
+    safeCreateChart('chartEstado', {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(estadoCount),
+            datasets: [{
+                data: Object.values(estadoCount),
+                backgroundColor: [colors.green, colors.amber, colors.red],
+                borderWidth: 0, hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            layout: { padding: 30 },
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: doughnutDatalabels
+            },
+            cutout: '65%'
+        }
     });
 
+    // 2. Especialidad
+    const espLabels = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura','Otros'];
+    const espCount = espLabels.map(e => data.filter(o => o.especialidad === e).length);
+    const espFinished = espLabels.map(e => data.filter(o => o.especialidad === e && o.estado === 'Finalizado').length);
+    safeCreateChart('chartEspecialidad', {
+        type: 'bar',
+        data: {
+            labels: espLabels,
+            datasets: [
+                { label: 'Total', data: espCount, backgroundColor: 'rgba(99,102,241,0.5)', borderRadius: 6 },
+                { label: 'Finalizadas', data: espFinished, backgroundColor: 'rgba(52,211,153,0.6)', borderRadius: 6 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: barDatalabels
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 3. Prioridad
+    const prioLabels = ['Alto','Medio','Bajo','Emergencia'];
+    const prioColors = [colors.red, colors.amber, colors.green, '#ff0040'];
+    const prioCount = prioLabels.map(p => data.filter(o => o.prioridad.includes(p) || (p === 'Emergencia' && o.prioridad === 'Emergencia')).length);
+    safeCreateChart('chartPrioridad', {
+        type: 'doughnut',
+        data: {
+            labels: prioLabels.filter((_,i) => prioCount[i] > 0),
+            datasets: [{
+                data: prioCount.filter(c => c > 0),
+                backgroundColor: prioColors.filter((_,i) => prioCount[i] > 0),
+                borderWidth: 0, hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            layout: { padding: 30 },
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: doughnutDatalabels
+            },
+            cutout: '65%'
+        }
+    });
+
+    // 4. Area
+    const areaCount = countBy(data, 'area');
+    const areaLabels = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]);
+    safeCreateChart('chartArea', {
+        type: 'bar',
+        data: {
+            labels: areaLabels.map(a => a.replace(/^\d+\.\s*/, '')),
+            datasets: [{ data: areaLabels.map(a => areaCount[a]), backgroundColor: techColors, borderRadius: 6 }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 5. Ubicacion
+    const ubiCount = countBy(data, 'ubicacion');
+    const ubiLabels = Object.keys(ubiCount).sort((a,b) => ubiCount[b] - ubiCount[a]).slice(0, 10);
+    safeCreateChart('chartUbicacion', {
+        type: 'bar',
+        data: {
+            labels: ubiLabels,
+            datasets: [{ data: ubiLabels.map(u => ubiCount[u]), backgroundColor: techColors.slice().reverse(), borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // 6. Supervisor
+    const supCount = countBy(data, 'supervisor');
+    const supLabels = Object.keys(supCount).filter(Boolean).sort((a,b) => supCount[b] - supCount[a]);
+    safeCreateChart('chartSupervisor', {
+        type: 'bar',
+        data: {
+            labels: supLabels,
+            datasets: [{ data: supLabels.map(s => supCount[s]), backgroundColor: techColors, borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// RENDER TAB: Técnicos
+function renderTechniciansTab(globalFilteredData) {
+    // Apply local specialty filter
+    const techData = globalFilteredData.filter(o => 
+        currentTechSpecialty === 'all' || o.especialidad === currentTechSpecialty
+    );
+
+    // Sum Total Man-Hours
+    let totalMinutes = 0;
+    techData.forEach(o => {
+        totalMinutes += o.tiempoMin || 0;
+    });
+    const totalHours = totalMinutes / 60;
+    document.getElementById('kpiTotalHorasHombre').textContent = `${totalHours.toFixed(1)} hrs`;
+    document.getElementById('kpiTotalHorasHombreSub').textContent = `Acumulado para ${techData.length} OTs en el período filtrado`;
+
+    // Process statistics
+    const internalStats = {};
+    const contractorStats = {};
+
+    techData.forEach(o => {
+        const name = o.tecPrincipal;
+        if (!name) return; // skip unassigned
+        
+        const minutes = o.tiempoMin || 0;
+        const hours = minutes / 60;
+        
+        if (isContractor(name)) {
+            if (!contractorStats[name]) {
+                contractorStats[name] = { count: 0, hours: 0, completed: 0, ratings: [], times: [] };
+            }
+            contractorStats[name].count += 1;
+            contractorStats[name].hours += hours;
+            if (o.estado === 'Finalizado') {
+                contractorStats[name].completed += 1;
+                if (o.calificacion > 0) contractorStats[name].ratings.push(o.calificacion);
+                contractorStats[name].times.push(o.tiempoMin || 0);
+            }
+        } else {
+            if (!internalStats[name]) {
+                internalStats[name] = { count: 0, hours: 0, completed: 0, ratings: [], times: [] };
+            }
+            internalStats[name].count += 1;
+            internalStats[name].hours += hours;
+            if (o.estado === 'Finalizado') {
+                internalStats[name].completed += 1;
+                if (o.calificacion > 0) internalStats[name].ratings.push(o.calificacion);
+                internalStats[name].times.push(o.tiempoMin || 0);
+            }
+        }
+    });
+
+    // --- Block 1: Internal Staff Charts ---
+    const intNames = Object.keys(internalStats).sort((a, b) => internalStats[b].count - internalStats[a].count);
+    const intNamesByHours = Object.keys(internalStats).sort((a, b) => internalStats[b].hours - internalStats[a].hours);
+    
+    // Internal OTs Quantity
+    safeCreateChart('chartTecnicosCantidad', {
+        type: 'bar',
+        data: {
+            labels: intNames.map(n => n.split(' ').slice(0, 2).join(' ')),
+            datasets: [{ data: intNames.map(n => internalStats[n].count), backgroundColor: techColors, borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // Internal OTs Hours
+    safeCreateChart('chartTecnicosHoras', {
+        type: 'bar',
+        data: {
+            labels: intNamesByHours.map(n => n.split(' ').slice(0, 2).join(' ')),
+            datasets: [{ data: intNamesByHours.map(n => parseFloat(internalStats[n].hours.toFixed(1))), backgroundColor: colors.cyan, borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Horas Hombre', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // --- Block 2: Contractors Charts ---
+    const contNames = Object.keys(contractorStats).sort((a, b) => contractorStats[b].count - contractorStats[a].count);
+    const contNamesByHours = Object.keys(contractorStats).sort((a, b) => contractorStats[b].hours - contractorStats[a].hours);
+    
+    // Contractors OTs Quantity
+    safeCreateChart('chartContratistasCantidad', {
+        type: 'bar',
+        data: {
+            labels: contNames.map(n => n.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ')),
+            datasets: [{ data: contNames.map(n => contractorStats[n].count), backgroundColor: techColors.slice(4), borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // Contractors OTs Hours
+    safeCreateChart('chartContratistasHoras', {
+        type: 'bar',
+        data: {
+            labels: contNamesByHours.map(n => n.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ')),
+            datasets: [{ data: contNamesByHours.map(n => parseFloat(contractorStats[n].hours.toFixed(1))), backgroundColor: colors.purple, borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Horas Hombre', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+
+    // --- Detailed Performance Table ---
+    const allStats = { ...internalStats, ...contractorStats };
+    const sortedTechNames = Object.keys(allStats).sort((a,b) => allStats[b].count - allStats[a].count);
+    
+    const techBody = document.getElementById('techTableBody');
+    if (techBody) {
+        techBody.innerHTML = sortedTechNames.map(name => {
+            const stat = allStats[name];
+            const pct = stat.count > 0 ? ((stat.completed * 100) / stat.count).toFixed(0) + '%' : '0%';
+            const avgRating = stat.ratings.length > 0 ? (stat.ratings.reduce((sum, r) => sum + r, 0) / stat.ratings.length).toFixed(1) : null;
+            const avgMin = stat.times.length > 0 ? stat.times.reduce((sum, t) => sum + t, 0) / stat.times.length : 0;
+            const avgTimeStr = avgMin > 0 ? (avgMin >= 60 ? `${Math.floor(avgMin/60)}h ${Math.round(avgMin%60)}min` : `${Math.round(avgMin)} min`) : '—';
+            
+            // Specialties
+            const specialties = new Set(techData.filter(o => o.tecPrincipal === name).map(o => o.especialidad));
+            const specArray = Array.from(specialties).slice(0,2);
+            
+            // Performance rating
+            let ratingText = 'Bajo';
+            let barColor = 'rgba(248,113,113,0.8)';
+            const ratio = stat.completed / (stat.count || 1);
+            if (ratio >= 0.8) { ratingText = 'Excelente'; barColor = colors.green; }
+            else if (ratio >= 0.5) { ratingText = 'Medio'; barColor = colors.amber; }
+
+            const initial = name.split(' ').map(n => n[0]).slice(0, 2).join('');
+            
+            return `<tr>
+                <td>
+                    <div class="tech-name-cell">
+                        <div class="tech-avatar" style="background:${colors.blue}">${initial}</div>
+                        <div>
+                            <strong>${name}</strong>
+                            <div style="font-size:10px;color:var(--text-muted)">${isContractor(name) ? '🏢 Contratista' : '👷 Personal Interno'}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><strong>${stat.count}</strong></td>
+                <td>${stat.completed}</td>
+                <td><strong>${pct}</strong></td>
+                <td>${renderStars(avgRating ? Math.round(avgRating) : 0)} <span style="font-size:10px;color:var(--text-secondary)">(${avgRating || '—'})</span></td>
+                <td>${avgTimeStr}</td>
+                <td>${specArray.map(s => `<span class="badge badge-blue" style="margin-right:2px">${s}</span>`).join('')}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div class="perf-bar-container"><div class="perf-bar" style="width:${pct};background:${barColor}"></div></div>
+                        <span style="font-size:11px;font-weight:700">${ratingText}</span>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+}
+
+// RENDER TAB: OTs Pendientes
+function renderPendingTab(data) {
+    const pendingOTs = data.filter(o => o.estado === 'Pendiente')
+        .sort((a, b) => {
+            const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
+            const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
+            const bP = Object.keys(prio).find(k => b.prioridad.includes(k)) || 'Bajo';
+            if (prio[aP] !== prio[bP]) return prio[aP] - prio[bP];
+            return (b.riesgo ? 1 : 0) - (a.riesgo ? 1 : 0);
+        });
+
+    window.pendingOTsRef = pendingOTs;
+
+    const totalPending = pendingOTs.length;
+    const rqPending = pendingOTs.filter(o => o.tipo === 'RQ').length;
+    const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
+    const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
+    const albanileriaPending = pendingOTs.filter(o => o.especialidad === 'Albañilería').length;
+
+    // Update KPIs
+    document.getElementById('kpiPendingTotal').textContent = totalPending;
+    document.getElementById('kpiPendingRQ').textContent = rqPending;
+    document.getElementById('kpiPendingCarpinteria').textContent = carpinteriaPending;
+    document.getElementById('kpiPendingPintura').textContent = pinturaPending;
+    document.getElementById('kpiPendingAlbanileria').textContent = albanileriaPending;
+
+    const highPriorityPending = pendingOTs.filter(o => priorityClass(o.prioridad) === 'alto').length;
+    document.getElementById('alertAltaCount').textContent = highPriorityPending + ' OTs de prioridad ALTA';
+
+    // 1. Pending Reason chart (Doughnut)
+    safeCreateChart('chartPendingReason', {
+        type: 'doughnut',
+        data: {
+            labels: ['Falta Material (RQ)', 'Otros / Sin asignar'],
+            datasets: [{
+                data: [rqPending, totalPending - rqPending],
+                backgroundColor: [colors.purple, 'rgba(255,255,255,0.1)'],
+                borderWidth: 0, hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            layout: { padding: 25 },
+            plugins: {
+                legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: doughnutDatalabels
+            },
+            cutout: '65%'
+        }
+    });
+
+    // 2. Pending by Specialty chart (Bar)
+    const pendEspCount = countBy(pendingOTs, 'especialidad');
+    const pendEspLabels = Object.keys(pendEspCount).sort((a,b) => pendEspCount[b] - pendEspCount[a]);
+    safeCreateChart('chartPendingSpecialty', {
+        type: 'bar',
+        data: {
+            labels: pendEspLabels,
+            datasets: [{
+                data: pendEspLabels.map(l => pendEspCount[l]),
+                backgroundColor: pendEspLabels.map((l,i) => techColors[i % techColors.length]),
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'OTM', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { precision: 0 }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Render local pending table
+    const currentActivePendingFilter = document.querySelector('#pendingFilters .filter-btn.active')?.dataset.filter || 'all';
+    renderPendingTable(currentActivePendingFilter);
+}
+
 function renderPendingTable(filter) {
+    const pendingOTs = window.pendingOTsRef || [];
     const tbody = document.getElementById('pendingTableBody');
+    if (!tbody) return;
+
     const filtered = filter === 'all' ? pendingOTs : pendingOTs.filter(o => priorityClass(o.prioridad) === filter);
     document.getElementById('pendingCount').textContent = filtered.length + ' pendientes';
+    
     tbody.innerHTML = filtered.map((o, i) => `<tr>
         <td>${i+1}</td>
         <td><strong style="color:var(--text-primary);font-size:12px">${o.id}</strong></td>
@@ -1110,71 +1608,28 @@ function renderPendingTable(filter) {
         <td>${o.riesgo || '<span style="color:var(--text-muted)">—</span>'}</td>
     </tr>`).join('');
 }
-renderPendingTable('all');
 
-// === NEW PENDING CHARTS LOGIC ===
-const totalPending = pendingOTs.length;
-const rqPending = pendingOTs.filter(o => o.tipo === 'RQ').length;
-const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
-const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
-const albanileriaPending = pendingOTs.filter(o => o.especialidad === 'Albañilería').length;
+// RENDER TAB: Detalle Completo
+function renderDetailTab(data) {
+    window.detailDataRef = data;
+    const filter = document.querySelector('#detailFilters .filter-btn.active')?.dataset.filter || 'all';
+    renderDetailTable(filter);
+}
 
-document.getElementById('kpiPendingTotal').textContent = totalPending;
-document.getElementById('kpiPendingRQ').textContent = rqPending;
-document.getElementById('kpiPendingCarpinteria').textContent = carpinteriaPending;
-document.getElementById('kpiPendingPintura').textContent = pinturaPending;
-document.getElementById('kpiPendingAlbanileria').textContent = albanileriaPending;
-
-const highPriorityPending = pendingOTs.filter(o => priorityClass(o.prioridad) === 'alto').length;
-document.getElementById('alertAltaCount').textContent = highPriorityPending + ' OTs de prioridad ALTA';
-
-new Chart(document.getElementById('chartPendingReason'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Falta Material (RQ)', 'Otros / Sin asignar'],
-        datasets: [{
-            data: [rqPending, totalPending - rqPending],
-            backgroundColor: [colors.purple, 'rgba(255,255,255,0.1)'],
-            borderWidth: 0, hoverOffset: 8
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
-        cutout: '65%'
-    }
-});
-
-const pendEspCount = countBy(pendingOTs, 'especialidad');
-const pendEspLabels = Object.keys(pendEspCount).sort((a,b) => pendEspCount[b] - pendEspCount[a]);
-new Chart(document.getElementById('chartPendingSpecialty'), {
-    type: 'bar',
-    data: {
-        labels: pendEspLabels,
-        datasets: [{
-            data: pendEspLabels.map(l => pendEspCount[l]),
-            backgroundColor: pendEspLabels.map((l,i) => techColors[i % techColors.length]),
-            borderRadius: 6
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { precision: 0 } }, x: { grid: { display: false } } }
-    }
-});
-
-// ========================== DETAIL TABLE ==========================
 function renderDetailTable(filter) {
+    const data = window.detailDataRef || otData;
     const tbody = document.getElementById('detailTableBody');
-    let filtered = otData;
-    if (filter === 'finalizado') filtered = otData.filter(o => o.estado === 'Finalizado');
-    else if (filter === 'pendiente') filtered = otData.filter(o => o.estado === 'Pendiente');
-    else if (filter === 'electricidad') filtered = otData.filter(o => o.especialidad === 'Electricidad');
-    else if (filter === 'carpinteria') filtered = otData.filter(o => o.especialidad === 'Carpintería');
-    else if (filter === 'gasfiteria') filtered = otData.filter(o => o.especialidad === 'Gasfitería');
-    else if (filter === 'albanileria') filtered = otData.filter(o => o.especialidad === 'Albañilería');
-    else if (filter === 'pintura') filtered = otData.filter(o => o.especialidad === 'Pintura');
+    if (!tbody) return;
+
+    let filtered = data;
+    if (filter === 'finalizado') filtered = data.filter(o => o.estado === 'Finalizado');
+    else if (filter === 'pendiente') filtered = data.filter(o => o.estado === 'Pendiente');
+    else if (filter === 'electricidad') filtered = data.filter(o => o.especialidad === 'Electricidad');
+    else if (filter === 'carpinteria') filtered = data.filter(o => o.especialidad === 'Carpintería');
+    else if (filter === 'gasfiteria') filtered = data.filter(o => o.especialidad === 'Gasfitería');
+    else if (filter === 'albanileria') filtered = data.filter(o => o.especialidad === 'Albañilería');
+    else if (filter === 'pintura') filtered = data.filter(o => o.especialidad === 'Pintura');
+    
     document.getElementById('detailCount').textContent = filtered.length + ' registros';
     tbody.innerHTML = filtered.map(o => `<tr>
         <td><strong style="color:var(--text-primary);font-size:11px">${o.id}</strong></td>
@@ -1189,9 +1644,8 @@ function renderDetailTable(filter) {
         <td style="font-size:12px">${o.tiempo || '<span style="color:var(--text-muted)">—</span>'}</td>
     </tr>`).join('');
 }
-renderDetailTable('all');
 
-// ========================== TAB NAVIGATION ==========================
+// ========================== NAVIGATION & FILTERS LISTENERS ==========================
 document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => {
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -1201,7 +1655,43 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
     });
 });
 
-// Filter buttons
+// Global Date Range filters
+document.querySelectorAll('#globalDateFilters .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#globalDateFilters .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentGlobalDateRange = btn.dataset.dateRange;
+        
+        if (currentGlobalDateRange === 'custom') {
+            document.getElementById('customDateContainer').style.display = 'flex';
+        } else {
+            document.getElementById('customDateContainer').style.display = 'none';
+        }
+        updateDashboard();
+    });
+});
+
+// Custom Date pickers
+document.getElementById('customDateFrom').addEventListener('change', (e) => {
+    customDateFromVal = e.target.value;
+    updateDashboard();
+});
+document.getElementById('customDateTo').addEventListener('change', (e) => {
+    customDateToVal = e.target.value;
+    updateDashboard();
+});
+
+// Specialty filter inside Technicians tab
+document.querySelectorAll('#techSpecialtyFilters .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#techSpecialtyFilters .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTechSpecialty = btn.dataset.specialty;
+        updateDashboard();
+    });
+});
+
+// Sub-filters on Pending tab
 document.querySelectorAll('#pendingFilters .filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('#pendingFilters .filter-btn').forEach(b => b.classList.remove('active'));
@@ -1209,6 +1699,8 @@ document.querySelectorAll('#pendingFilters .filter-btn').forEach(btn => {
         renderPendingTable(btn.dataset.filter);
     });
 });
+
+// Sub-filters on Detail tab
 document.querySelectorAll('#detailFilters .filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('#detailFilters .filter-btn').forEach(b => b.classList.remove('active'));
@@ -1216,6 +1708,9 @@ document.querySelectorAll('#detailFilters .filter-btn').forEach(btn => {
         renderDetailTable(btn.dataset.filter);
     });
 });
+
+// ========================== INITIALIZATION ==========================
+updateDashboard();
 </script>
 </body>
 </html>
