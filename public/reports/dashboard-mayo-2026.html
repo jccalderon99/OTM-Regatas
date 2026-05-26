@@ -922,7 +922,7 @@
 
 <script>
 // ========================== DATA ==========================
-const otData = [
+const staticOtData = [
     { id: "OT-0001", fecha: "4/5/2026", desc: "Aire acondicionado no enciende", ubicacion: "Módulo administrativo", ubExacta: "Oficina de jefatura", especialidad: "Electricidad", prioridad: "Bajo", supervisor: "Diana Altamirano", tecPrincipal: "Ciro Diaz Sifuentes", tecApoyo: "John Hurtado Quintanilla", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "8h 13min", tiempoMin: 493, area: "22. MANTENIMIENTO", solicitante: "jccalderon", riesgo: "" },
     { id: "OTM2203-0002", fecha: "7/5/2026", desc: "No hay energía en la oficina", ubicacion: "Edificio cultural", ubExacta: "Oficina de mantto", especialidad: "Electricidad", prioridad: "Alto", supervisor: "Marlon Rivera", tecPrincipal: "CONTRATISTA ENMANUEL", tecApoyo: "", tipo: "Correctivo", estado: "Finalizado", calificacion: 3, tiempo: "0 min", tiempoMin: 0, area: "22. MANTENIMIENTO", solicitante: "Claudia Pulache", riesgo: "" },
     { id: "OTM2703-0003", fecha: "7/5/2026", desc: "Máquina de hielo no produce hielo, quejas de asociados", ubicacion: "Terraza N° 1", ubExacta: "Máquina de hielo terraza 1", especialidad: "Electricidad", prioridad: "Alto", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Berenice Cornetero", riesgo: "⚠️ Quejas asociados" },
@@ -996,6 +996,118 @@ const otData = [
     { id: "OTM2902-0071", fecha: "17/5/2026", desc: "Arreglo de puerta de casillero madera", ubicacion: "Edificio 7 pisos", ubExacta: "Piscina niños ropería", especialidad: "Carpintería", prioridad: "Medio", supervisor: "Diana Altamirano", tecPrincipal: "Maximo Rodriguez Huamani", tecApoyo: "", tipo: "Correctivo", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "29. SERVICIOS GENERALES", solicitante: "Janet Martínez", riesgo: "" },
     { id: "OTM2707-0072", fecha: "17/5/2026", desc: "Colchoneta de poltrona en mal estado", ubicacion: "Terraza N° 2", ubExacta: "Frente a Duzka", especialidad: "Otros", prioridad: "Medio", supervisor: "", tecPrincipal: "", tecApoyo: "", tipo: "Cierre", estado: "Pendiente", calificacion: 0, tiempo: "", tiempoMin: 0, area: "27. SEGURIDAD", solicitante: "Zenaida Cardenas", riesgo: "" },
 ];
+
+let otData = [];
+
+function loadOtData() {
+    try {
+        const saved = localStorage.getItem('demo_otms_v3');
+        if (saved) {
+            const rawOts = JSON.parse(saved);
+            if (Array.isArray(rawOts) && rawOts.length > 0) {
+                // Map the OTMRequest format to the dashboard format
+                return rawOts.map(o => {
+                    // Date formatting: OTMRequest created_at is ISO string, we need D/M/YYYY
+                    let fechaStr = "4/5/2026";
+                    if (o.created_at) {
+                        const d = new Date(o.created_at);
+                        fechaStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+                    } else if (o.fecha) {
+                        fechaStr = o.fecha;
+                    }
+                    
+                    // Specialty mapping
+                    let esp = "Otros";
+                    const s = o.failure_type || "";
+                    if (s.includes("Electric")) esp = "Electricidad";
+                    else if (s.includes("Carpinter")) esp = "Carpintería";
+                    else if (s.includes("Gasfiter")) esp = "Gasfitería";
+                    else if (s.includes("Albañil") || s.includes("Albañilería")) esp = "Albañilería";
+                    else if (s.includes("Pint")) esp = "Pintura";
+                    
+                    // Priority mapping
+                    let prio = "Bajo";
+                    const u = o.urgency || "";
+                    if (u === "high") prio = "Alto";
+                    else if (u === "medium") prio = "Medio";
+                    else if (u === "low") prio = "Bajo";
+                    if (o.status === "cancelled") prio = "Bajo";
+                    if (o.status === "emergency") prio = "Emergencia";
+                    if (o.status === "rq") prio = "Medio";
+                    
+                    // Supervisor name mapping
+                    let sup = "";
+                    if (o.supervisor_id === "sup-1") sup = "Diana Altamirano";
+                    else if (o.supervisor_id === "sup-2") sup = "Marlon Rivera";
+                    else if (o.supervisor_id === "sup-3") sup = "Wiliam Anticona";
+                    else if (o.supervisor_id === "sup-4") sup = "Leomar Huaraca";
+                    else if (o.supervisor_name) sup = o.supervisor_name;
+                    
+                    // Technician mapping
+                    let tec = "";
+                    let tecApoyo = "";
+                    if (o.assigned_technicians && o.assigned_technicians.length > 0) {
+                        tec = o.assigned_technicians[0]?.technician?.full_name || "";
+                        if (o.assigned_technicians.length > 1) {
+                            tecApoyo = o.assigned_technicians[1]?.technician?.full_name || "";
+                        }
+                    } else if (o.technician_id) {
+                        tec = o.technician_id;
+                    }
+                    
+                    // State mapping
+                    let est = o.status === "closed" ? "Finalizado" : "Pendiente";
+                    
+                    // Time mapping
+                    const min = o.net_execution_time || o.tiempoMin || 0;
+                    const hrs = Math.floor(min / 60);
+                    const leftMin = min % 60;
+                    let tiempoStr = "";
+                    if (min > 0) {
+                        tiempoStr = hrs > 0 ? `${hrs}h ${leftMin}min` : `${leftMin} min`;
+                    }
+                    
+                    // RQ classification
+                    let type = o.rq_type ? "RQ" : "Correctivo";
+                    if (o.assignment_type === "contractor") {
+                        tec = o.contractor_name || "CONTRATISTA";
+                    }
+
+                    let ubi = o.location || "Club Regatas";
+                    if (typeof ubi === "string" && ubi.match(/^\d+\.\s*/)) {
+                        ubi = ubi.replace(/^\d+\.\s*/, "");
+                    }
+                    
+                    return {
+                        id: o.otm_code || o.id,
+                        fecha: fechaStr,
+                        desc: o.description || "",
+                        ubicacion: ubi,
+                        ubExacta: o.exact_location || "",
+                        especialidad: esp,
+                        prioridad: prio,
+                        supervisor: sup,
+                        tecPrincipal: tec,
+                        tecApoyo: tecApoyo,
+                        tipo: type,
+                        estado: est,
+                        calificacion: o.conformity_rating || 0,
+                        tiempo: tiempoStr,
+                        tiempoMin: min,
+                        area: o.area_sector || "22. MANTENIMIENTO",
+                        solicitante: o.requester_name || "jccalderon",
+                        riesgo: o.status === "cancelled" ? "🚨 Cancelado" : (o.status === "rq" ? "⚠️ Falta Suministro" : "")
+                    };
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Error loading localStorage OTMs:", e);
+    }
+    return staticOtData;
+}
+
+otData = loadOtData();
 
 // ========================== HELPERS ==========================
 const colors = {
