@@ -1031,6 +1031,12 @@
                         <canvas id="chartSupervisor"></canvas>
                     </div>
                 </div>
+                <div class="chart-card">
+                    <h3><span>⚙️</span> Tipo de Mantenimiento</h3>
+                    <div class="chart-wrapper pie-chart" style="height:320px;">
+                        <canvas id="chartTipoMantenimiento"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1987,6 +1993,68 @@ function renderOverviewTab(data) {
             }
         }
     });
+
+    // 7. Tipo de Mantenimiento (Doughnut)
+    const typeCount = {};
+    data.forEach(o => {
+        let type = o.tipo ? o.tipo.trim() : '';
+        if (!type || type === '') {
+            type = 'Sin Clasificar';
+        } else if (type === 'Correctivo') {
+            type = 'Correctivo';
+        } else if (type === 'Preventivo') {
+            type = 'Preventivo';
+        } else if (type === 'Soporte') {
+            type = 'Soporte';
+        } else if (type === 'Cierre') {
+            type = 'Canceladas (Cierre)';
+        } else if (type === 'RQ') {
+            type = 'En Proceso (RQ)';
+        }
+        typeCount[type] = (typeCount[type] || 0) + 1;
+    });
+
+    const typeLabels = Object.keys(typeCount).sort((a,b) => typeCount[b] - typeCount[a]);
+    const typeData = typeLabels.map(t => typeCount[t]);
+
+    const colorMap = {
+        'Correctivo': colors.blue,
+        'Preventivo': colors.green,
+        'Soporte': colors.cyan,
+        'En Proceso (RQ)': colors.amber,
+        'Canceladas (Cierre)': '#64748b',
+        'Sin Clasificar': colors.purple
+    };
+    const backgroundColors = typeLabels.map(label => colorMap[label] || colors.sky);
+
+    safeCreateChart('chartTipoMantenimiento', {
+        type: 'doughnut',
+        data: {
+            labels: typeLabels,
+            datasets: [{
+                data: typeData,
+                backgroundColor: backgroundColors,
+                borderWidth: 0, hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 25,
+                    bottom: 40,
+                    left: 15,
+                    right: 15
+                }
+            },
+            rotation: 45,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 35, usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: doughnutDatalabels
+            },
+            cutout: '65%'
+        }
+    });
 }
 
 // RENDER TAB: Técnicos
@@ -2811,12 +2879,17 @@ function updateReportPreview() {
                             <canvas id="chartReportUbicacion"></canvas>
                         </div>
                     </div>
-                </div>
-
-                <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; margin-top: 14px; background: white;">
-                    <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Asignación de OTs por Supervisor</h4>
-                    <div style="height: 110px; position: relative;">
-                        <canvas id="chartReportSupervisor"></canvas>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">OTs por Supervisor</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportSupervisor"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Tipo de Mantenimiento</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportTipoMantenimiento"></canvas>
+                        </div>
                     </div>
                 </div>
             `;
@@ -3322,23 +3395,66 @@ function renderReportCharts(filteredData, activeSections) {
                     borderRadius: 3
                 }]
             },
+            options: getPrintBarOptions(false, false)
+        });
+
+        // --- 7b. chartReportTipoMantenimiento (Doughnut) ---
+        const typeCount = {};
+        filteredData.forEach(o => {
+            let type = o.tipo ? o.tipo.trim() : '';
+            if (!type || type === '') {
+                type = 'Sin Clasificar';
+            } else if (type === 'Correctivo') {
+                type = 'Correctivo';
+            } else if (type === 'Preventivo') {
+                type = 'Preventivo';
+            } else if (type === 'Soporte') {
+                type = 'Soporte';
+            } else if (type === 'Cierre') {
+                type = 'Canceladas (Cierre)';
+            } else if (type === 'RQ') {
+                type = 'En Proceso (RQ)';
+            }
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        });
+        const typeLabels = Object.keys(typeCount).sort((a,b) => typeCount[b] - typeCount[a]);
+        const typeData = typeLabels.map(t => typeCount[t]);
+
+        const printColorMap = {
+            'Correctivo': printColors.blue,
+            'Preventivo': printColors.green,
+            'Soporte': printColors.cyan,
+            'En Proceso (RQ)': printColors.amber,
+            'Canceladas (Cierre)': '#94a3b8',
+            'Sin Clasificar': printColors.purple
+        };
+        const printBackgroundColors = typeLabels.map(label => printColorMap[label] || printColors.purple);
+
+        const typeReportOpts = getPrintDoughnutOptions(filteredData.length);
+        safeCreateReportChart('chartReportTipoMantenimiento', {
+            type: 'doughnut',
+            data: {
+                labels: typeLabels,
+                datasets: [{
+                    data: typeData,
+                    backgroundColor: printBackgroundColors,
+                    borderWidth: 1,
+                    borderColor: '#ffffff'
+                }]
+            },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...typeReportOpts,
+                rotation: 45,
+                layout: { padding: { top: 10, bottom: 25, left: 10, right: 10 } },
                 plugins: {
-                    legend: { display: false },
-                    datalabels: {
-                        color: printColors.text,
-                        font: { weight: 'bold', size: 7.5 },
-                        anchor: 'end',
-                        align: 'top',
-                        offset: 1,
-                        formatter: (val) => val || null
+                    ...typeReportOpts.plugins,
+                    legend: {
+                        ...typeReportOpts.plugins.legend,
+                        labels: {
+                            ...typeReportOpts.plugins.legend.labels,
+                            padding: 15
+                        }
                     }
-                },
-                scales: {
-                    x: { ticks: { color: printColors.mutedText, font: { size: 7.5, weight: 'bold' } }, grid: { display: false } },
-                    y: { beginAtZero: true, ticks: { color: printColors.mutedText, font: { size: 7.5 }, precision: 0 }, grid: { color: printColors.border } }
                 }
             }
         });
