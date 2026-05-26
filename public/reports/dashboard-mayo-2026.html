@@ -460,38 +460,38 @@
                 <div class="kpi-card">
                     <div class="kpi-icon">📋</div>
                     <div class="kpi-label">Total OTs</div>
-                    <div class="kpi-value" style="color: var(--accent-blue)">72</div>
-                    <div class="kpi-sub">Registradas en período</div>
+                    <div class="kpi-value" style="color: var(--accent-blue)" id="mainKpiTotal">72</div>
+                    <div class="kpi-sub" id="mainKpiTotalSub">Registradas en período</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-icon">✅</div>
                     <div class="kpi-label">Finalizadas</div>
-                    <div class="kpi-value" style="color: var(--accent-green)" id="kpiFinalizadas">33</div>
-                    <div class="kpi-sub">45.8% del total</div>
+                    <div class="kpi-value" style="color: var(--accent-green)" id="mainKpiFinalizadas">33</div>
+                    <div class="kpi-sub" id="mainKpiFinalizadasSub">45.8% del total</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-icon">⏳</div>
                     <div class="kpi-label">Pendientes</div>
-                    <div class="kpi-value" style="color: var(--accent-amber)" id="kpiPendientes">25</div>
-                    <div class="kpi-sub">RQ / Sin asignar</div>
+                    <div class="kpi-value" style="color: var(--accent-amber)" id="mainKpiPendientes">25</div>
+                    <div class="kpi-sub" id="mainKpiPendientesSub">RQ / Sin asignar</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-icon">🔴</div>
                     <div class="kpi-label">Alta Prioridad Pendiente</div>
-                    <div class="kpi-value" style="color: var(--accent-red)">13</div>
-                    <div class="kpi-sub">Requieren atención urgente</div>
+                    <div class="kpi-value" style="color: var(--accent-red)" id="mainKpiAltaPrioridad">13</div>
+                    <div class="kpi-sub" id="mainKpiAltaPrioridadSub">Requieren atención urgente</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-icon">⭐</div>
                     <div class="kpi-label">Calificación Prom.</div>
-                    <div class="kpi-value" style="color: var(--accent-amber)">3.4</div>
-                    <div class="kpi-sub">De 15 evaluaciones</div>
+                    <div class="kpi-value" style="color: var(--accent-amber)" id="mainKpiRating">3.4</div>
+                    <div class="kpi-sub" id="mainKpiRatingSub">De 15 evaluaciones</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-icon">👷</div>
                     <div class="kpi-label">Técnicos Activos</div>
-                    <div class="kpi-value" style="color: var(--accent-purple)">12</div>
-                    <div class="kpi-sub">Incluyendo contratistas</div>
+                    <div class="kpi-value" style="color: var(--accent-purple)" id="mainKpiTechs">12</div>
+                    <div class="kpi-sub" id="mainKpiTechsSub">Incluyendo contratistas</div>
                 </div>
             </div>
 
@@ -1056,6 +1056,32 @@ new Chart(document.getElementById('chartTiempoTecnico'), {
         scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } }
     }
 });
+
+// ========================== DYNAMIC MAIN KPIs ==========================
+(function() {
+    const totalOTs = otData.length;
+    const finalizadasCount = otData.filter(o => o.estado === 'Finalizado').length;
+    const pendientesCount = otData.filter(o => o.estado === 'Pendiente').length;
+    const altaPrioridadCount = otData.filter(o => o.estado === 'Pendiente' && priorityClass(o.prioridad) === 'alto').length;
+
+    // Calificación
+    const ratedOTs = otData.filter(o => o.calificacion > 0);
+    const avgRating = ratedOTs.length > 0 ? (ratedOTs.reduce((sum, o) => sum + o.calificacion, 0) / ratedOTs.length).toFixed(1) : '0.0';
+
+    // Técnicos activos (unique techPrincipal names)
+    const activeTechs = new Set(otData.map(o => o.tecPrincipal).filter(Boolean)).size;
+
+    // Update HTML
+    document.getElementById('mainKpiTotal').textContent = totalOTs;
+    document.getElementById('mainKpiFinalizadas').textContent = finalizadasCount;
+    document.getElementById('mainKpiFinalizadasSub').textContent = `${((finalizadasCount * 100) / totalOTs).toFixed(1)}% del total`;
+    document.getElementById('mainKpiPendientes').textContent = pendientesCount;
+    document.getElementById('mainKpiPendientesSub').textContent = `${((pendientesCount * 100) / totalOTs).toFixed(1)}% del total`;
+    document.getElementById('mainKpiAltaPrioridad').textContent = altaPrioridadCount;
+    document.getElementById('mainKpiRating').textContent = avgRating;
+    document.getElementById('mainKpiRatingSub').textContent = `De ${ratedOTs.length} evaluaciones`;
+    document.getElementById('mainKpiTechs').textContent = activeTechs;
+})();
 
 // ========================== PENDING TABLE ==========================
 const pendingOTs = otData.filter(o => o.estado === 'Pendiente')
