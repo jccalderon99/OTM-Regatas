@@ -310,4 +310,46 @@ export interface RoutineRecord {
   created_at: string;
 }
 
+export interface OTIRequest {
+  id: string;
+  oti_code: string; // OTI-ELEC-XXXX
+  supervisor_id: string;
+  supervisor_name: string;
+  location: string;
+  exact_location: string | null;
+  description: string;
+  specialty: string;
+  scheduled_date: string; // Fecha y hora
+  estimated_time: number | null; // Tiempo estimado en horas/minutos
+  status: 'scheduled' | 'in_progress' | 'completed';
+  technician_ids: string[]; // Asignación múltiple
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const OTI_SPECIALTIES = [
+  'Electricidad',
+  'Carpintería',
+  'Gasfitería',
+  'Albañilería',
+  'Pintura',
+  'Jardinería',
+  'Piscina',
+  'Calderista',
+  'Otros'
+];
+
+export const OTI_SPECIALTY_ABBREVIATIONS: Record<string, string> = {
+  'Electricidad': 'ELEC',
+  'Carpintería': 'CARP',
+  'Gasfitería': 'GASF',
+  'Albañilería': 'ALBA',
+  'Pintura': 'PINT',
+  'Jardinería': 'JARD',
+  'Piscina': 'PISC',
+  'Calderista': 'CALD',
+  'Otros': 'OTRO'
+};
+
 

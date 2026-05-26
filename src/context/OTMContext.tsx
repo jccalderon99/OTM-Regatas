@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason } from '../types';
+import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode } from '../lib/demoData';
 import { useAuth } from './AuthContext';
 import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
@@ -63,6 +63,12 @@ interface OTMContextType {
   deleteArea: (name: string) => void;
   deleteSpecialty: (name: string) => void;
   deleteLocation: (name: string) => void;
+  
+  // OTI state and methods
+  otis: OTIRequest[];
+  getOTIsForCurrentUser: () => OTIRequest[];
+  createOTI: (otiData: Partial<OTIRequest>) => Promise<OTIRequest>;
+  updateOTIStatus: (otiId: string, newStatus: OTIRequest['status']) => void;
 }
 
 const OTMContext = createContext<OTMContextType | null>(null);
@@ -101,6 +107,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('demo_locations');
     return saved ? JSON.parse(saved) : [...INITIAL_LOCATIONS];
   });
+  const [otis, setOTIs] = useState<OTIRequest[]>(() => {
+    const saved = localStorage.getItem('demo_otis');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // ── Demo persistence effects ──
   useEffect(() => {
@@ -126,6 +136,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLive) localStorage.setItem('demo_locations', JSON.stringify(locations));
   }, [locations, isLive]);
+
+  useEffect(() => {
+    localStorage.setItem('demo_otis', JSON.stringify(otis));
+  }, [otis]);
 
   // ── Supabase: Load initial data ──
   const fetchAll = useCallback(async () => {
@@ -548,6 +562,52 @@ export function OTMProvider({ children }: { children: ReactNode }) {
 
   const refreshOTMs = useCallback(() => { fetchAll(); }, [fetchAll]);
 
+  const getOTIsForCurrentUser = useCallback(() => {
+    if (!user) return [];
+    if (user.role === 'technician') {
+      return otis.filter(o => o.technician_ids && o.technician_ids.includes(user.id));
+    }
+    return otis;
+  }, [otis, user]);
+
+  const createOTI = useCallback(async (otiData: Partial<OTIRequest>): Promise<OTIRequest> => {
+    const specialty = otiData.specialty || 'Otros';
+    const abbr = OTI_SPECIALTY_ABBREVIATIONS[specialty] || 'OTRO';
+    const specialtyOtis = otis.filter(o => o.specialty === specialty);
+    const sequence = specialtyOtis.length + 1;
+    const nn = String(sequence).padStart(4, '0');
+    const otiCode = `OTI-${abbr}-${nn}`;
+
+    const newOTI: OTIRequest = {
+      id: `oti-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      oti_code: otiCode,
+      supervisor_id: user!.id,
+      supervisor_name: user!.full_name,
+      location: otiData.location || '',
+      exact_location: otiData.exact_location || null,
+      description: otiData.description || '',
+      specialty: specialty,
+      scheduled_date: otiData.scheduled_date || new Date().toISOString(),
+      estimated_time: otiData.estimated_time !== undefined ? otiData.estimated_time : null,
+      status: 'scheduled',
+      technician_ids: otiData.technician_ids || [],
+      image_url: otiData.image_url || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setOTIs(prev => [newOTI, ...prev]);
+    return newOTI;
+  }, [user, otis]);
+
+  const updateOTIStatus = useCallback((otiId: string, newStatus: OTIRequest['status']) => {
+    setOTIs(prev => prev.map(o => o.id !== otiId ? o : {
+      ...o,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    }));
+  }, []);
+
   return (
     <OTMContext.Provider value={{
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
@@ -558,7 +618,8 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       areas, addArea, updateArea,
       specialties, addSpecialty, updateSpecialty,
       locations, addLocation, updateLocation,
-      deleteUser, deleteArea, deleteSpecialty, deleteLocation
+      deleteUser, deleteArea, deleteSpecialty, deleteLocation,
+      otis, getOTIsForCurrentUser, createOTI, updateOTIStatus
     }}>
       {children}
     </OTMContext.Provider>

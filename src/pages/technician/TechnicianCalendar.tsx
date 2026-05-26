@@ -12,10 +12,11 @@ import {
 } from '../../lib/calendarUtils';
 
 export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
-  const { getOTMsForCurrentUser } = useOTM();
+  const { getOTMsForCurrentUser, getOTIsForCurrentUser } = useOTM();
   const { getRecordsForCalendar } = useRoutineActivity();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
+  const [selectedOTI, setSelectedOTI] = useState<any>(null);
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineRecord | null>(null);
 
   const getWeekStart = (date: Date) => {
@@ -34,6 +35,16 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
     return getRecordsForCalendar({ start: weekStart, end: weekEnd });
   }, [getRecordsForCalendar, weekStart]);
   const otms = useMemo(() => filterOtmsForCalendar(getOTMsForCurrentUser()), [getOTMsForCurrentUser]);
+  const otis = useMemo(() => getOTIsForCurrentUser(), [getOTIsForCurrentUser]);
+
+  const otiMatchesCalendarCell = (oti: any, day: Date, hour: number) => {
+    if (!oti.scheduled_date) return false;
+    const oDate = new Date(oti.scheduled_date);
+    return oDate.getFullYear() === day.getFullYear() &&
+           oDate.getMonth() === day.getMonth() &&
+           oDate.getDate() === day.getDate() &&
+           oDate.getHours() === hour;
+  };
   const weekDays = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + i);
@@ -160,6 +171,7 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                   
                   // Find OTMs that fall in this hour
                   const cellOTMs = otms.filter(o => otmMatchesCalendarCell(o, d, hour));
+                  const cellOTIs = otis.filter(o => otiMatchesCalendarCell(o, d, hour));
 
                   const cellRoutines = routineRecords.filter(r => {
                     const rDate = new Date(r.record_date + 'T12:00:00');
@@ -245,6 +257,39 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
                             </div>
                           );
                         })}
+                        {cellOTIs.map(oti => {
+                          const isDone = oti.status === 'completed';
+                          const specialColor = '#8b5cf6';
+                          const bgSpecialColor = 'rgba(139, 92, 246, 0.1)';
+                          
+                          return (
+                            <div key={oti.id} 
+                              onClick={() => setSelectedOTI(oti)}
+                              style={{
+                                background: isDone ? 'rgba(0,0,0,0.05)' : bgSpecialColor,
+                                borderLeft: `4px solid ${isDone ? '#94a3b8' : specialColor}`,
+                                padding: '6px 8px',
+                                borderRadius: 6,
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                boxShadow: isDone ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2
+                              }}>
+                              <div style={{ fontWeight: 800, color: isDone ? '#475569' : specialColor, display: 'flex', justifyContent: 'space-between' }}>
+                                <span>{oti.oti_code}</span>
+                                <span style={{ fontSize: '0.65rem' }}>{new Date(oti.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: isDone ? '#64748b' : 'var(--text-secondary)' }}>
+                                OTI: {oti.specialty}
+                              </div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 500, opacity: 0.8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {oti.description}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -307,6 +352,88 @@ export default function TechnicianCalendar({ onNavigate }: { onNavigate?: (view:
               style={{ background: 'var(--accent-blue)', color: 'white', fontSize: '1rem', padding: 12 }}
               onClick={() => {
                 setSelectedOTM(null);
+                if (onNavigate) {
+                  onNavigate('my-tasks');
+                } else {
+                  alert("Redirigiendo a Ejecución de Tarea (Simulado)");
+                }
+              }}
+            >
+              Ir a la Tarea
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalles OTI Técnico */}
+      {selectedOTI && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          backdropFilter: 'blur(2px)'
+        }} onClick={() => setSelectedOTI(null)}>
+          <div className="glass-card slide-up" style={{ width: '100%', maxWidth: 500, padding: 32, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button 
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}
+              onClick={() => setSelectedOTI(null)}
+            >
+              ✕
+            </button>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>
+              {selectedOTI.oti_code}
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>Estado:</span>
+              <span style={{
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '12px',
+                background: selectedOTI.status === 'scheduled' ? 'rgba(14, 165, 233, 0.1)' : selectedOTI.status === 'in_progress' ? 'rgba(249, 115, 22, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                color: selectedOTI.status === 'scheduled' ? '#0ea5e9' : selectedOTI.status === 'in_progress' ? '#f97316' : '#10b981',
+                border: '1px solid rgba(0,0,0,0.05)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {selectedOTI.status === 'scheduled' ? 'Programado' : selectedOTI.status === 'in_progress' ? 'En Proceso' : 'Completado'}
+              </span>
+            </div>
+            
+            <div style={{ display: 'grid', gap: 16, marginBottom: 24, fontSize: '0.9rem' }}>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Fecha y Hora Programada</strong>
+                <div style={{ fontWeight: 600 }}>
+                  {new Date(selectedOTI.scheduled_date).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}
+                </div>
+              </div>
+              {selectedOTI.estimated_time !== null && (
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Tiempo Estimado</strong>
+                  <div style={{ fontWeight: 600 }}>{selectedOTI.estimated_time} {selectedOTI.estimated_time === 1 ? 'hora' : 'horas'}</div>
+                </div>
+              )}
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Descripción de la Actividad</strong>
+                <div style={{ padding: 12, background: 'rgba(0,0,0,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  {selectedOTI.description}
+                </div>
+              </div>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Ubicación</strong>
+                <div style={{ fontWeight: 600 }}>📍 {selectedOTI.location} — {selectedOTI.exact_location || 'Sin ubicación exacta'}</div>
+              </div>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Supervisor</strong>
+                <div style={{ fontWeight: 600 }}>{selectedOTI.supervisor_name}</div>
+              </div>
+            </div>
+
+            <button 
+              className="btn w-full"
+              style={{ background: '#8b5cf6', color: 'white', fontSize: '1rem', padding: 12 }}
+              onClick={() => {
+                setSelectedOTI(null);
                 if (onNavigate) {
                   onNavigate('my-tasks');
                 } else {

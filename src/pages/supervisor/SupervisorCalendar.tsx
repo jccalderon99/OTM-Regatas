@@ -24,12 +24,13 @@ const SPECS_COLORS: Record<string, string> = {
 };
 
 export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
-  const { otms, users } = useOTM();
+  const { otms, users, otis } = useOTM();
   const { getRecordsForCalendar } = useRoutineActivity();
   const [selectedTechFilter, setSelectedTechFilter] = useState('');
   const [selectedSpecFilter, setSelectedSpecFilter] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedOTM, setSelectedOTM] = useState<any>(null);
+  const [selectedOTI, setSelectedOTI] = useState<any>(null);
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineRecord | null>(null);
 
   const mapRoutineSpecToOTMSpec = (routineSpec: string): string => {
@@ -39,6 +40,27 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
     if (routineSpec === 'Jardinería') return '05. Jardinero';
     if (routineSpec === 'Gasfitería') return '06. Gasfitero';
     return routineSpec;
+  };
+
+  const mapOTISpecToOTMSpec = (otiSpec: string): string => {
+    if (otiSpec === 'Electricidad') return '03. Electricista';
+    if (otiSpec === 'Carpintería') return '04. Carpintero';
+    if (otiSpec === 'Gasfitería') return '06. Gasfitero';
+    if (otiSpec === 'Albañilería') return '07. Albañil';
+    if (otiSpec === 'Pintura') return '08. Pintor';
+    if (otiSpec === 'Jardinería') return '05. Jardinero';
+    if (otiSpec === 'Piscina') return '02. Piscinero';
+    if (otiSpec === 'Calderista') return '01. Operador de Calderos';
+    return '09. Otros';
+  };
+
+  const otiMatchesCalendarCell = (oti: any, day: Date, hour: number) => {
+    if (!oti.scheduled_date) return false;
+    const oDate = new Date(oti.scheduled_date);
+    return oDate.getFullYear() === day.getFullYear() &&
+           oDate.getMonth() === day.getMonth() &&
+           oDate.getDate() === day.getDate() &&
+           oDate.getHours() === hour;
   };
 
   const technicians = useMemo(() => users.filter(u => u.role === 'technician'), [users]);
@@ -68,6 +90,18 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
       return matchTech && matchSpec;
     });
   }, [calendarOTMs, selectedTechFilter, selectedSpecFilter]);
+
+  const filteredOTIs = useMemo(() => {
+    return (otis || []).filter(o => {
+      const matchTech = !selectedTechFilter || (o.technician_ids && o.technician_ids.includes(selectedTechFilter));
+      let matchSpec = true;
+      if (selectedSpecFilter) {
+        const mappedSpec = mapOTISpecToOTMSpec(o.specialty);
+        matchSpec = mappedSpec === selectedSpecFilter;
+      }
+      return matchTech && matchSpec;
+    });
+  }, [otis, selectedTechFilter, selectedSpecFilter]);
 
   const filteredRoutines = useMemo(() => {
     return routineRecords.filter(r => {
@@ -270,6 +304,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                   
                   // Find OTMs that fall in this hour
                   const cellOTMs = filteredOTMs.filter(o => otmMatchesCalendarCell(o, d, hour));
+                  const cellOTIs = filteredOTIs.filter(o => otiMatchesCalendarCell(o, d, hour));
 
                   const cellRoutines = filteredRoutines.filter(r => {
                     const rDate = new Date(r.record_date + 'T12:00:00');
@@ -359,6 +394,44 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                             </div>
                           );
                         })}
+                        {cellOTIs.map(oti => {
+                          const isDone = oti.status === 'completed';
+                          const mappedOTMSpec = mapOTISpecToOTMSpec(oti.specialty);
+                          const baseColor = SPECS_COLORS[mappedOTMSpec] || SPECS_COLORS['09. Otros'];
+                          const techNames = oti.technician_ids.map(id => {
+                            const u = users.find(x => x.id === id);
+                            return u ? formatName(u.full_name) : 'Técnico';
+                          }).join(', ');
+                          
+                          return (
+                            <div key={oti.id} 
+                              onClick={() => setSelectedOTI(oti)}
+                              style={{
+                                background: isDone ? `${baseColor}99` : baseColor,
+                                color: 'white',
+                                padding: '6px 8px',
+                                borderRadius: 6,
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                boxShadow: isDone ? 'none' : '0 2px 4px rgba(0,0,0,0.2)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2,
+                                borderLeft: `4px solid ${isDone ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)'}`
+                              }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <span style={{ fontWeight: 800 }}>{oti.oti_code}</span>
+                                <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.2)', padding: '2px 4px', borderRadius: 4, maxWidth: '50%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {techNames}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '0.65rem', opacity: 0.9 }}>
+                                {new Date(oti.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {oti.location}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -427,6 +500,95 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
               className="btn btn-secondary w-full"
               style={{ fontSize: '1rem', padding: 12 }}
               onClick={() => setSelectedOTM(null)}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalles OTI */}
+      {selectedOTI && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          backdropFilter: 'blur(2px)'
+        }} onClick={() => setSelectedOTI(null)}>
+          <div className="glass-card slide-up" style={{ width: '100%', maxWidth: 500, padding: 32, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button 
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}
+              onClick={() => setSelectedOTI(null)}
+            >
+              ✕
+            </button>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>
+              {selectedOTI.oti_code}
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>Estado:</span>
+              <span style={{
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '12px',
+                background: selectedOTI.status === 'scheduled' ? 'rgba(14, 165, 233, 0.1)' : selectedOTI.status === 'in_progress' ? 'rgba(249, 115, 22, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                color: selectedOTI.status === 'scheduled' ? '#0ea5e9' : selectedOTI.status === 'in_progress' ? '#f97316' : '#10b981',
+                border: '1px solid rgba(0,0,0,0.05)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {selectedOTI.status === 'scheduled' ? 'Programado' : selectedOTI.status === 'in_progress' ? 'En Proceso' : 'Completado'}
+              </span>
+            </div>
+            
+            <div style={{ display: 'grid', gap: 16, marginBottom: 24, fontSize: '0.9rem' }}>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Ubicación</strong>
+                <div style={{ fontWeight: 600 }}>📍 {selectedOTI.location} — {selectedOTI.exact_location || 'Sin ubicación exacta'}</div>
+              </div>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Especialidad</strong>
+                <div style={{ fontWeight: 600 }}>{selectedOTI.specialty}</div>
+              </div>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Técnicos Asignados</strong>
+                <div style={{ fontWeight: 600 }}>
+                  {selectedOTI.technician_ids.map(id => users.find(u => u.id === id)?.full_name || 'Técnico').join(', ')}
+                </div>
+              </div>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Fecha Programada</strong>
+                <div style={{ fontWeight: 600 }}>
+                  {new Date(selectedOTI.scheduled_date).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}
+                </div>
+              </div>
+              {selectedOTI.estimated_time !== null && (
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Tiempo Estimado</strong>
+                  <div style={{ fontWeight: 600 }}>{selectedOTI.estimated_time} {selectedOTI.estimated_time === 1 ? 'hora' : 'horas'}</div>
+                </div>
+              )}
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Descripción de la Actividad</strong>
+                <div style={{ padding: 12, background: 'rgba(0,0,0,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  {selectedOTI.description}
+                </div>
+              </div>
+              {selectedOTI.image_url && (
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Imagen Adjunta</strong>
+                  <a href={selectedOTI.image_url} target="_blank" rel="noopener noreferrer">
+                    <img src={selectedOTI.image_url} alt="OTI" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: 8, marginTop: 4, objectFit: 'cover' }} />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <button 
+              className="btn btn-secondary w-full"
+              style={{ fontSize: '1rem', padding: 12 }}
+              onClick={() => setSelectedOTI(null)}
             >
               Cerrar
             </button>

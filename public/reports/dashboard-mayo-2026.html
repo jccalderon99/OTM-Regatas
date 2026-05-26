@@ -10,6 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -552,6 +554,326 @@
             box-shadow: 0 4px 12px rgba(99,102,241,0.35);
             transform: translateY(-1px);
         }
+
+        /* Premium Report Modal Overlay */
+        .report-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 14, 26, 0.93);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
+            padding: 20px 0;
+            backdrop-filter: blur(12px);
+            font-family: 'Inter', sans-serif;
+            color: #1e293b;
+        }
+        .report-modal-overlay.active {
+            display: flex;
+        }
+        .report-control-bar {
+            display: flex;
+            width: 100%;
+            max-width: 900px;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a1f35;
+            padding: 16px 28px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-accent);
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+        }
+        .report-control-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .report-control-info .tag {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--accent-cyan);
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .report-control-info .title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+        
+        /* Checkbox selectors in header */
+        .report-selectors {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin: 0 20px;
+        }
+        .report-select-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .report-select-label:hover {
+            color: var(--text-primary);
+        }
+        .report-select-checkbox {
+            position: relative;
+            width: 16px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--text-muted);
+            border-radius: 4px;
+            appearance: none;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .report-select-checkbox:checked {
+            background: var(--gradient-1);
+            border-color: transparent;
+        }
+        .report-select-checkbox:checked::after {
+            content: '✓';
+            color: white;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .report-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .report-btn-secondary {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .report-btn-secondary:hover {
+            background: rgba(255,255,255,0.12);
+        }
+        .report-btn-primary {
+            background: var(--gradient-2);
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(34,211,238,0.25);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Inter', sans-serif;
+        }
+        .report-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(34,211,238,0.4);
+        }
+
+        /* Portrait Print Page Stack */
+        #printArea {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .print-page {
+            width: 794px;
+            height: 1123px;
+            background: white !important;
+            color: #1e293b !important;
+            padding: 50px 60px;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            font-family: 'Inter', sans-serif;
+            page-break-after: always;
+            break-after: page;
+        }
+        
+        /* Report element styling inside white pages */
+        .report-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            font-size: 11px;
+            color: #334155;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        .report-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+            box-sizing: border-box;
+        }
+        .report-kpi-card {
+            padding: 12px 8px;
+            border-radius: 6px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .report-kpi-val {
+            font-size: 20px;
+            font-weight: 900;
+            margin: 4px 0;
+            display: block;
+        }
+        .report-chart-box {
+            border: 1px solid #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            height: 150px;
+            margin-top: 16px;
+            box-sizing: border-box;
+        }
+        .report-bar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        .report-progress-container {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .report-progress-bar {
+            height: 100%;
+            border-radius: 4px;
+        }
+        .report-table-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            color: #334155;
+        }
+        .report-table th {
+            background: #f8fafc;
+            padding: 8px 12px;
+            font-weight: 700;
+            color: #475569;
+            border-bottom: 1px solid #e2e8f0;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        .report-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .report-feedback-alert {
+            border: 1px solid #fecdd3;
+            background: #fff5f5;
+            padding: 12px 16px;
+            border-radius: 6px;
+            border-left: 4px solid #e11d48;
+            font-size: 11px;
+            color: #334155;
+            box-sizing: border-box;
+        }
+
+        /* Responsive print support */
+        @media print {
+            body * {
+                visibility: hidden !important;
+                background: white !important;
+            }
+            #pdfReportModal, #printArea, #printArea * {
+                visibility: visible !important;
+            }
+            #pdfReportModal {
+                position: absolute !important;
+                inset: 0 !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            #printArea {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0 !important;
+                background: white !important;
+            }
+            .print-page {
+                width: 210mm !important;
+                height: 297mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                margin: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 20mm 15mm !important;
+                background: white !important;
+                box-sizing: border-box !important;
+                position: relative !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -568,6 +890,9 @@
             </div>
             <div class="header-right">
                 <a href="/" class="back-btn">👈 Volver a la Plataforma</a>
+                <button id="btnDownloadPDF" class="back-btn" style="background: var(--gradient-2); border: none; box-shadow: 0 4px 12px rgba(34,211,238,0.25); color: white;">
+                    <span>📄</span> Descargar Reporte
+                </button>
                 <div class="date-badge">📅 Mayo 2026 (4 - 25 mayo)</div>
             </div>
         </div>
@@ -946,6 +1271,54 @@
     </main>
 </div>
 
+<!-- Modal de Selección de PDF Premium -->
+<div id="pdfReportModal" class="report-modal-overlay">
+    <!-- Header Control Bar -->
+    <div class="report-control-bar no-print">
+        <div class="report-control-info">
+            <span class="tag">Generador de Informes Mensuales</span>
+            <span id="reportModalTitle" class="title">Cargando reporte...</span>
+        </div>
+        
+        <!-- Selection checkboxes in header -->
+        <div class="report-selectors">
+            <label class="report-select-label">
+                <input type="checkbox" id="chkReportOverview" class="report-select-checkbox" checked>
+                📊 Resumen General
+            </label>
+            <label class="report-select-label">
+                <input type="checkbox" id="chkReportAreas" class="report-select-checkbox" checked>
+                🏢 Demanda y Eficiencia
+            </label>
+            <label class="report-select-label">
+                <input type="checkbox" id="chkReportTechs" class="report-select-checkbox" checked>
+                👷 Desempeño de Técnicos
+            </label>
+            <label class="report-select-label">
+                <input type="checkbox" id="chkReportQuality" class="report-select-checkbox" checked>
+                🔴 Análisis de Pendientes
+            </label>
+        </div>
+        
+        <div class="report-buttons">
+            <button id="btnReportClose" class="report-btn-secondary">Cancelar</button>
+            <button id="btnReportPrint" class="report-btn-primary">
+                <span>🖨️</span> Descargar PDF / Imprimir
+            </button>
+        </div>
+    </div>
+    
+    <!-- Printable preview pages container -->
+    <div id="printArea">
+        <!-- Preview pages will be injected here dynamically -->
+    </div>
+    
+    <!-- Tip / Warning box at the bottom of preview -->
+    <div class="no-print" style="margin-top: 10px; margin-bottom: 40px; padding: 12px 20px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 8px; font-size: 11px; color: var(--text-secondary); width: 100%; max-width: 900px; text-align: center; box-sizing: border-box;">
+        💡 <strong>Consejo para Descargar como PDF:</strong> En la ventana que se abrirá, asegúrate de seleccionar <strong>"Guardar como PDF"</strong> como <em>Destino</em> (o impresora) y marcar la casilla <strong>"Gráficos de fondo"</strong> en <em>Más opciones</em> para mantener la fidelidad de los colores y barras de progreso del informe.
+    </div>
+</div>
+
 <script>
 // ========================== DATA ==========================
 const staticOtData = [
@@ -1185,13 +1558,17 @@ const centerTextPlugin = {
             let sum = 0;
             chart.data.datasets[0].data.forEach(v => { sum += Number(v) || 0; });
             
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = chart.options.plugins?.centerTextColor || '#ffffff';
             ctx.font = 'bold 16px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // Draw in center
-            ctx.fillText(`Total: ${sum}`, width / 2, height / 2);
+            // Draw in exact arc center to avoid legend shifting offsets
+            const meta = chart.getDatasetMeta(0);
+            const x = meta.data && meta.data[0] ? meta.data[0].x : width / 2;
+            const y = meta.data && meta.data[0] ? meta.data[0].y : height / 2;
+            
+            ctx.fillText(`Total: ${sum}`, x, y);
             ctx.restore();
         }
     }
@@ -1314,9 +1691,14 @@ function updateDashboard() {
 function renderOverviewTab(data) {
     const totalOTs = data.length;
     const finalizadasCount = data.filter(o => o.estado === 'Finalizado').length;
+    const cierreCount = data.filter(o => o.estado !== 'Finalizado' && (o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre')).length;
+    const programadasCount = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus === 'Programado').length;
+    const pendientesCount = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
     
-    const pendientesCount = data.filter(o => o.estado !== 'Finalizado').length;
-    const altaPrioridadCount = data.filter(o => o.estado !== 'Finalizado' && priorityClass(o.prioridad) === 'alto').length;
+    // Total active unfinished OTs for the general "Pendientes" card
+    const activePendingTotal = programadasCount + pendientesCount;
+    
+    const altaPrioridadCount = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && priorityClass(o.prioridad) === 'alto').length;
     
     const ratedOTs = data.filter(o => o.calificacion > 0);
     const avgRating = ratedOTs.length > 0 ? (ratedOTs.reduce((sum, o) => sum + o.calificacion, 0) / ratedOTs.length).toFixed(1) : '0.0';
@@ -1326,8 +1708,8 @@ function renderOverviewTab(data) {
     document.getElementById('mainKpiTotal').textContent = totalOTs;
     document.getElementById('mainKpiFinalizadas').textContent = finalizadasCount;
     document.getElementById('mainKpiFinalizadasSub').textContent = totalOTs > 0 ? `${((finalizadasCount * 100) / totalOTs).toFixed(1)}% del total` : '0% del total';
-    document.getElementById('mainKpiPendientes').textContent = pendientesCount;
-    document.getElementById('mainKpiPendientesSub').textContent = totalOTs > 0 ? `${((pendientesCount * 100) / totalOTs).toFixed(1)}% del total` : '0% del total';
+    document.getElementById('mainKpiPendientes').textContent = activePendingTotal;
+    document.getElementById('mainKpiPendientesSub').textContent = totalOTs > 0 ? `${((activePendingTotal * 100) / totalOTs).toFixed(1)}% del total` : '0% del total';
     document.getElementById('mainKpiAltaPrioridad').textContent = altaPrioridadCount;
     document.getElementById('mainKpiRating').textContent = avgRating;
     document.getElementById('mainKpiRatingSub').textContent = `De ${ratedOTs.length} evaluaciones`;
@@ -1441,14 +1823,14 @@ function renderOverviewTab(data) {
         }
     });
 
-    // 1. Estado de OTs
+    // 1. Estado de OTs (4 Estados)
     safeCreateChart('chartEstado', {
         type: 'doughnut',
         data: {
-            labels: ['Finalizadas', 'Pendientes'],
+            labels: ['Finalizadas', 'Programadas', 'Cierre (Canceladas)', 'Pendientes'],
             datasets: [{
-                data: [finalizadasCount, pendientesCount],
-                backgroundColor: [colors.green, colors.amber],
+                data: [finalizadasCount, programadasCount, cierreCount, pendientesCount],
+                backgroundColor: [colors.green, colors.blue, '#64748b', colors.amber],
                 borderWidth: 0, hoverOffset: 8
             }]
         },
@@ -1493,6 +1875,7 @@ function renderOverviewTab(data) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'OTM', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1572,6 +1955,7 @@ function renderOverviewTab(data) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'OTM', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1595,6 +1979,7 @@ function renderOverviewTab(data) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'OTM', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1673,6 +2058,7 @@ function renderTechniciansTab(globalFilteredData) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'OTM', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1694,6 +2080,7 @@ function renderTechniciansTab(globalFilteredData) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'Horas Hombre', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1719,6 +2106,7 @@ function renderTechniciansTab(globalFilteredData) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'OTM', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1740,6 +2128,7 @@ function renderTechniciansTab(globalFilteredData) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'Horas Hombre', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' }
                 },
@@ -1803,7 +2192,7 @@ function renderTechniciansTab(globalFilteredData) {
 
 // RENDER TAB: OTs Pendientes
 function renderPendingTab(data) {
-    const pendingOTs = data.filter(o => o.estado !== 'Finalizado')
+    const pendingOTs = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado')
         .sort((a, b) => {
             const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
             const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
@@ -1814,11 +2203,10 @@ function renderPendingTab(data) {
 
     window.pendingOTsRef = pendingOTs;
 
-    // Hardcoded overrides for presentation as requested by the user
-    const totalPending = 136;
-    const programadasPending = 44;
-    const rqPending = 15;
-    const otrasPending = 77;
+    // Dynamic calculations
+    const totalPending = pendingOTs.length;
+    const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))).length;
+    const sinRqPending = totalPending - rqPending;
     
     const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
     const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
@@ -1834,14 +2222,14 @@ function renderPendingTab(data) {
     const highPriorityPending = pendingOTs.filter(o => priorityClass(o.prioridad) === 'alto').length;
     document.getElementById('alertAltaCount').textContent = highPriorityPending + ' OTs de prioridad ALTA';
 
-    // 1. Pending Reason chart (Doughnut)
+    // 1. Pending Reason chart (Doughnut) - 2 segments
     safeCreateChart('chartPendingReason', {
         type: 'doughnut',
         data: {
-            labels: ['Programadas', 'Con RQ', 'Otras / Sin asignar'],
+            labels: ['Con RQ', 'Sin RQ'],
             datasets: [{
-                data: [programadasPending, rqPending, otrasPending],
-                backgroundColor: [colors.blue, colors.purple, colors.amber],
+                data: [rqPending, sinRqPending],
+                backgroundColor: [colors.purple, colors.amber],
                 borderWidth: 0, hoverOffset: 8
             }]
         },
@@ -1850,44 +2238,73 @@ function renderPendingTab(data) {
             layout: {
                 padding: {
                     top: 25,
-                    bottom: 25,
+                    bottom: 40,
                     left: 15,
                     right: 15
                 }
             },
-            rotation: -45,
+            rotation: 45,
             plugins: {
-                legend: { position: 'bottom', labels: { padding: 25, usePointStyle: true, pointStyleWidth: 10 } },
+                legend: { position: 'bottom', labels: { padding: 35, usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
             },
             cutout: '65%'
         }
     });
 
-    // 2. Pending by Specialty chart (Bar)
-    const pendEspCount = countBy(pendingOTs, 'especialidad');
-    const pendEspLabels = Object.keys(pendEspCount).sort((a,b) => pendEspCount[b] - pendEspCount[a]);
+    // 2. Pending by Specialty chart (Stacked Bar)
+    const pendEspLabels = ['Carpintería', 'Electricidad', 'Gasfitería', 'Albañilería', 'Pintura', 'Otros'];
+    const totals = {};
+    pendEspLabels.forEach(esp => {
+        totals[esp] = pendingOTs.filter(o => o.especialidad === esp).length;
+    });
+    const sortedLabels = pendEspLabels.sort((a, b) => totals[b] - totals[a]);
+    
+    const rqData = sortedLabels.map(esp => pendingOTs.filter(o => o.especialidad === esp && (o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro')))).length);
+    const sinRqData = sortedLabels.map(esp => pendingOTs.filter(o => o.especialidad === esp && !(o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro')))).length);
+
     safeCreateChart('chartPendingSpecialty', {
         type: 'bar',
         data: {
-            labels: pendEspLabels,
-            datasets: [{
-                data: pendEspLabels.map(l => pendEspCount[l]),
-                backgroundColor: pendEspLabels.map((l,i) => techColors[i % techColors.length]),
-                borderRadius: 6
-            }]
+            labels: sortedLabels,
+            datasets: [
+                {
+                    label: 'Con RQ',
+                    data: rqData,
+                    backgroundColor: 'rgba(147, 51, 234, 0.75)', // Purple
+                    borderRadius: 4
+                },
+                {
+                    label: 'Sin RQ',
+                    data: sinRqData,
+                    backgroundColor: 'rgba(245, 158, 11, 0.75)', // Amber
+                    borderRadius: 4
+                }
+            ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, datalabels: barDatalabels },
+            plugins: { 
+                legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
+                datalabels: {
+                    color: '#ffffff',
+                    font: { weight: 'bold', size: 9 },
+                    formatter: (val) => val || null
+                }
+            },
             scales: {
                 y: {
+                    stacked: true,
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'OTM', font: { weight: 'bold' } },
                     grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: { precision: 0 }
                 },
-                x: { grid: { display: false } }
+                x: { 
+                    stacked: true,
+                    grid: { display: false } 
+                }
             }
         }
     });
@@ -1903,7 +2320,7 @@ function renderPendingTable(filter) {
     if (!tbody) return;
 
     const filtered = filter === 'all' ? pendingOTs : pendingOTs.filter(o => priorityClass(o.prioridad) === filter);
-    document.getElementById('pendingCount').textContent = (filter === 'all' ? 136 : filtered.length) + ' pendientes';
+    document.getElementById('pendingCount').textContent = (filter === 'all' ? pendingOTs.length : filtered.length) + ' pendientes';
     
     tbody.innerHTML = filtered.map((o, i) => `<tr>
         <td>${i+1}</td>
@@ -2052,6 +2469,1050 @@ async function initDashboard() {
 }
 
 initDashboard();
+
+// ========================== PDF PREMIUM REPORT SYSTEM ==========================
+const pdfReportModal = document.getElementById('pdfReportModal');
+const btnDownloadPDF = document.getElementById('btnDownloadPDF');
+const btnReportClose = document.getElementById('btnReportClose');
+const btnReportPrint = document.getElementById('btnReportPrint');
+const reportModalTitle = document.getElementById('reportModalTitle');
+const printArea = document.getElementById('printArea');
+
+const chkReportOverview = document.getElementById('chkReportOverview');
+const chkReportAreas = document.getElementById('chkReportAreas');
+const chkReportQuality = document.getElementById('chkReportQuality');
+const chkReportTechs = document.getElementById('chkReportTechs');
+
+// Show Premium Report modal
+btnDownloadPDF.addEventListener('click', () => {
+    pdfReportModal.classList.add('active');
+    updateReportPreview();
+});
+
+// Close Premium Report modal
+const closeReportModal = () => {
+    pdfReportModal.classList.remove('active');
+};
+btnReportClose.addEventListener('click', closeReportModal);
+pdfReportModal.addEventListener('click', (e) => {
+    if (e.target === pdfReportModal) closeReportModal();
+});
+
+// Checkbox listeners to reactively refresh preview
+[chkReportOverview, chkReportAreas, chkReportQuality, chkReportTechs].forEach(chk => {
+    chk.addEventListener('change', updateReportPreview);
+});
+
+// Print trigger
+btnReportPrint.addEventListener('click', () => {
+    window.print();
+});
+
+// ========================== REPORT CHART MANAGER & PRINT THEME ==========================
+let reportChartInstances = {};
+
+function destroyReportCharts() {
+    Object.keys(reportChartInstances).forEach(id => {
+        if (reportChartInstances[id]) {
+            reportChartInstances[id].destroy();
+        }
+    });
+    reportChartInstances = {};
+}
+
+const printColors = {
+    blue: '#0284c7',
+    green: '#16a34a',
+    amber: '#d97706',
+    red: '#dc2626',
+    purple: '#7c3aed',
+    cyan: '#0891b2',
+    text: '#1e293b',
+    mutedText: '#64748b',
+    border: 'rgba(0, 0, 0, 0.08)'
+};
+
+function getPrintBarOptions(horizontal = false, showLegend = false) {
+    return {
+        indexAxis: horizontal ? 'y' : 'x',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: showLegend, labels: { color: printColors.text, font: { weight: 'bold', size: 9 } } },
+            datalabels: {
+                color: printColors.text,
+                font: { weight: 'bold', size: 9 },
+                anchor: 'end',
+                align: horizontal ? 'right' : 'top',
+                offset: 2,
+                formatter: (val) => val || null
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: printColors.mutedText, font: { size: 8, weight: '600' } },
+                grid: { display: false }
+            },
+            y: {
+                beginAtZero: true,
+                grace: horizontal ? 0 : '15%',
+                ticks: { color: printColors.mutedText, font: { size: 8, weight: '600' }, precision: 0 },
+                grid: { color: printColors.border }
+            }
+        }
+    };
+}
+
+function getPrintDoughnutOptions(totalSum) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 10, bottom: 20, left: 10, right: 10 } },
+        plugins: {
+            centerTextColor: printColors.text,
+            legend: {
+                position: 'bottom',
+                labels: {
+                    color: printColors.text,
+                    padding: 10,
+                    usePointStyle: true,
+                    pointStyleWidth: 8,
+                    font: { size: 9, weight: 'bold' }
+                }
+            },
+            datalabels: {
+                color: printColors.text,
+                font: { weight: 'bold', size: 9 },
+                formatter: (value, ctx) => {
+                    if (!value || value === 0) return null;
+                    const pct = ((value * 100) / (totalSum || 1)).toFixed(0) + '%';
+                    return `${value} (${pct})`;
+                }
+            }
+        },
+        cutout: '60%'
+    };
+}
+
+// Core logic to process filtered data and compile pages
+function updateReportPreview() {
+    // 1. Get dynamically filtered OTs
+    const filteredData = applyDateFilter(otData);
+    
+    // 2. Determine which sections are active
+    const activeSections = [];
+    if (chkReportOverview.checked) activeSections.push({ key: 'overview', name: 'Resumen General' });
+    if (chkReportAreas.checked) activeSections.push({ key: 'areas', name: 'Demanda y Eficiencia' });
+    if (chkReportTechs.checked) activeSections.push({ key: 'techs', name: 'Desempeño de Técnicos' });
+    if (chkReportQuality.checked) activeSections.push({ key: 'quality', name: 'Análisis de Pendientes' });
+
+    // Update Header Modal Title with total pages
+    const totalPages = activeSections.length;
+    reportModalTitle.textContent = totalPages > 0 ? `Reporte Detallado (${totalPages} ${totalPages === 1 ? 'Página' : 'Páginas'})` : 'Sin páginas seleccionadas';
+
+    // Clear previous charts
+    destroyReportCharts();
+
+    if (totalPages === 0) {
+        printArea.innerHTML = `
+            <div style="background: white; border: 1px solid #cbd5e1; border-radius: var(--radius); padding: 40px; text-align: center; color: #64748b; width: 794px; box-sizing: border-box; box-shadow: var(--shadow-lg);">
+                <span style="font-size: 40px; display: block; margin-bottom: 12px;">📭</span>
+                <strong>Por favor, selecciona al menos una sección en la cabecera para previsualizar el reporte.</strong>
+            </div>
+        `;
+        return;
+    }
+
+    // 3. Compute all metrics on filtered data
+    // Date limits
+    let startDateStr = "01/05/2026";
+    let endDateStr = "26/05/2026";
+    if (filteredData.length > 0) {
+        const parsedDates = filteredData.map(o => {
+            const d = parseDateStr(o.fecha);
+            return d ? { str: o.fecha, obj: d } : null;
+        }).filter(Boolean).sort((a,b) => a.obj - b.obj);
+        if (parsedDates.length > 0) {
+            startDateStr = parsedDates[0].str;
+            endDateStr = parsedDates[parsedDates.length - 1].str;
+        }
+    }
+
+    // KPI values
+    const totalOTs = filteredData.length;
+    const routineCompliance = 100; // Maestros CRL
+    const ratedOTMs = filteredData.filter(o => o.calificacion > 0);
+    const avgCSAT = ratedOTMs.length > 0 ? (ratedOTMs.reduce((sum, o) => sum + o.calificacion, 0) / ratedOTMs.length).toFixed(1) : '3.4';
+    
+    const timeOTs = filteredData.filter(o => o.tiempoMin > 0);
+    const avgExecTime = timeOTs.length > 0 ? (timeOTs.reduce((sum, o) => sum + o.tiempoMin, 0) / timeOTs.length / 60).toFixed(1) : '2.5';
+
+    // Status metrics
+    const finalizadasCount = filteredData.filter(o => o.estado === 'Finalizado').length;
+    const cierreCount = filteredData.filter(o => o.estado !== 'Finalizado' && (o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre')).length;
+    const programadasCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus === 'Programado').length;
+    const pendientesCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
+    const activePendingTotal = programadasCount + pendientesCount;
+    const activeTechs = new Set(filteredData.map(o => o.tecPrincipal).filter(Boolean)).size;
+
+    // Workforce split (Propio vs Contratista)
+    let ownCount = 0;
+    let contCount = 0;
+    filteredData.forEach(o => {
+        if (o.tecPrincipal && isContractor(o.tecPrincipal)) {
+            contCount++;
+        } else {
+            ownCount++;
+        }
+    });
+    const totalWork = ownCount + contCount;
+    const ownPercent = totalWork > 0 ? Math.round((ownCount / totalWork) * 100) : 50;
+    const contPercent = totalWork > 0 ? Math.round((contCount / totalWork) * 100) : 50;
+
+    // Sum Total Man-Hours
+    let totalMinutes = 0;
+    filteredData.forEach(o => {
+        totalMinutes += o.tiempoMin || 0;
+    });
+    const totalHours = totalMinutes / 60;
+
+    // Dynamic calculations for pending OTs
+    const pendingOTs = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre'));
+    const totalPending = pendingOTs.length;
+    const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))).length;
+    const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
+    const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
+    const albanileriaPending = pendingOTs.filter(o => o.especialidad === 'Albañilería').length;
+
+    // 4. Render Pages HTML
+    let compiledHtml = '';
+    let currentPageIndex = 1;
+
+    activeSections.forEach((section) => {
+        let pageContentHtml = '';
+
+        if (section.key === 'overview') {
+            // PAGE 1: RESUMEN GENERAL
+            pageContentHtml = `
+                <!-- Main Header -->
+                <div style="border-bottom: 2px solid #0284c7; padding-bottom: 12px; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="font-size: 11px; font-weight: 800; color: #475569; letter-spacing: 0.15em; margin: 0; font-family: 'Inter', sans-serif;">CLUB DE REGATAS LIMA</h4>
+                            <h5 style="font-size: 9px; font-weight: 700; color: #94a3b8; margin: 2px 0 0 0; font-family: 'Inter', sans-serif;">DEPARTAMENTO DE MANTENIMIENTO</h5>
+                        </div>
+                        <span style="font-size: 14px; font-weight: 900; color: #0284c7; font-family: 'Georgia', serif;">CRL 1875</span>
+                    </div>
+                </div>
+
+                <!-- Title Block -->
+                <div style="margin: 20px 0; text-align: center;">
+                    <span style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'Inter', sans-serif;">Reporte de Auditoría y Detalle Operativo</span>
+                    <h1 style="font-size: 22px; font-weight: 900; color: #1e293b; margin: 4px 0 6px 0; letter-spacing: -0.02em; text-transform: uppercase; font-family: 'Inter', sans-serif;">Informe de Mantenimiento</h1>
+                    <div style="width: 30px; height: 3px; background: #fbbf24; margin: 0 auto 8px auto; border-radius: 2px;"></div>
+                    <h3 style="font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; font-family: 'Inter', sans-serif;">MAYO 2026</h3>
+                </div>
+
+                <!-- Metadata Grid -->
+                <div class="report-meta-grid">
+                    <div>
+                        <div style="margin-bottom: 4px;"><span style="color: #64748b; font-weight: 600;">Periodo de Análisis:</span> <strong style="color: #334155;">${startDateStr} al ${endDateStr}</strong></div>
+                        <div><span style="color: #64748b; font-weight: 600;">Supervisor Responsable:</span> <strong style="color: #334155;">Jose Calderon</strong></div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="margin-bottom: 4px;"><span style="color: #64748b; font-weight: 600;">Fecha de Emisión:</span> <strong style="color: #334155;">26/05/2026</strong></div>
+                        <div><span style="color: #64748b; font-weight: 600;">Tipo de Reporte:</span> <strong style="color: #334155;">Detallado (Operativo)</strong></div>
+                    </div>
+                </div>
+
+                <!-- KPIs Grid -->
+                <div style="margin-top: 20px; box-sizing: border-box;">
+                    <h3 style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #1e293b; margin-bottom: 10px; font-family: 'Inter', sans-serif;">Indicadores Clave de Gestión (KPIs)</h3>
+                    <div class="report-kpi-grid">
+                        <div class="report-kpi-card" style="border: 1px solid rgba(2,132,199,0.15); background: rgba(2,132,199,0.02); padding: 12px 8px;">
+                            <span style="display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">OTMs Creadas</span>
+                            <strong class="report-kpi-val" style="color: #0284c7; font-size: 18px;">${totalOTs}</strong>
+                            <span style="display: block; font-size: 7px; color: #94a3b8;">En el mes</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(22,163,74,0.15); background: rgba(22,163,74,0.02); padding: 12px 8px;">
+                            <span style="display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">Finalizadas</span>
+                            <strong class="report-kpi-val" style="color: #16a34a; font-size: 18px;">${finalizadasCount}</strong>
+                            <span style="display: block; font-size: 7px; color: #94a3b8;">${totalOTs > 0 ? ((finalizadasCount * 100) / totalOTs).toFixed(0) : 0}% avance</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(217,119,6,0.15); background: rgba(217,119,6,0.02); padding: 12px 8px;">
+                            <span style="display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">Pendientes Activas</span>
+                            <strong class="report-kpi-val" style="color: #d97706; font-size: 18px;">${activePendingTotal}</strong>
+                            <span style="display: block; font-size: 7px; color: #94a3b8;">${totalOTs > 0 ? ((activePendingTotal * 100) / totalOTs).toFixed(0) : 0}% del total</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(234,88,12,0.15); background: rgba(234,88,12,0.02); padding: 12px 8px;">
+                            <span style="display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">Calidad (CSAT)</span>
+                            <strong class="report-kpi-val" style="color: #ea580c; font-size: 18px;">${avgCSAT} ⭐</strong>
+                            <span style="display: block; font-size: 7px; color: #94a3b8;">Aceptación de asociados</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 1 Charts Row -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-top: 25px; box-sizing: border-box;">
+                    <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 10px; font-weight: 800; color: #1e293b; margin: 0 0 10px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Balance Diario: Creadas vs Finalizadas</h4>
+                        <div style="height: 140px; position: relative;">
+                            <canvas id="chartReportBalance"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 10px; font-weight: 800; color: #1e293b; margin: 0 0 10px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Estado de OTs (4 Estados)</h4>
+                        <div style="height: 140px; position: relative;">
+                            <canvas id="chartReportEstado"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (section.key === 'areas') {
+            // PAGE 2: DEMANDA Y EFICIENCIA (ÁREAS, ESPECIALIDAD, PRIORIDAD, UBICACIÓN, SUPERVISOR)
+            pageContentHtml = `
+                <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
+                        <span>INFORME DE MANTENIMIENTO — MAYO 2026</span>
+                        <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
+                    </div>
+                </div>
+
+                <div style="margin: 15px 0 10px 0;">
+                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa II</span>
+                    <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Distribución de la Demanda y Criterios Operativos</h2>
+                    <p style="font-size: 10px; color: #64748b; margin: 0;">Análisis del volumen por especialidades técnicas, distribución de prioridades de servicio, focos de demanda en infraestructura y ubicaciones críticas.</p>
+                </div>
+
+                <!-- Page 2 Charts Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 15px; box-sizing: border-box;">
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">OTs por Especialidad</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportEspecialidad"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Distribución por Prioridad</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportPrioridad"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">OTs por Área Solicitante</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportArea"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Top 10 Ubicaciones</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportUbicacion"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; margin-top: 14px; background: white;">
+                    <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Asignación de OTs por Supervisor</h4>
+                    <div style="height: 110px; position: relative;">
+                        <canvas id="chartReportSupervisor"></canvas>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (section.key === 'techs') {
+            // PAGE 3: DESEMPEÑO Y TRABAJO DE TÉCNICOS (INTERNAL & CONTRACTORS)
+            const allStats = {};
+            filteredData.forEach(o => {
+                const name = o.tecPrincipal;
+                if (!name) return;
+                if (!allStats[name]) allStats[name] = { count: 0, completed: 0, ratings: [], times: [] };
+                allStats[name].count++;
+                if (o.estado === 'Finalizado') {
+                    allStats[name].completed++;
+                    if (o.calificacion > 0) allStats[name].ratings.push(o.calificacion);
+                    allStats[name].times.push(o.tiempoMin || 0);
+                }
+            });
+
+            const sortedTechNamesReport = Object.keys(allStats).sort((a,b) => allStats[b].count - allStats[a].count).slice(0, 6);
+
+            const techReportRows = sortedTechNamesReport.map(name => {
+                const stat = allStats[name];
+                const pct = stat.count > 0 ? ((stat.completed * 100) / stat.count).toFixed(0) + '%' : '0%';
+                const avgRating = stat.ratings.length > 0 ? (stat.ratings.reduce((sum, r) => sum + r, 0) / stat.ratings.length).toFixed(1) : '—';
+                const avgMin = stat.times.length > 0 ? stat.times.reduce((sum, t) => sum + t, 0) / stat.times.length : 0;
+                const avgTimeStr = avgMin > 0 ? (avgMin >= 60 ? `${Math.floor(avgMin/60)}h ${Math.round(avgMin%60)}m` : `${Math.round(avgMin)}m`) : '—';
+                
+                let ratingText = 'Bajo';
+                let barColor = '#f87171'; // red
+                const ratio = stat.completed / (stat.count || 1);
+                if (ratio >= 0.8) { ratingText = 'Excelente'; barColor = printColors.green; }
+                else if (ratio >= 0.5) { ratingText = 'Medio'; barColor = printColors.amber; }
+
+                return `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 5px 8px; font-weight: 700; color: #334155;">${name}</td>
+                        <td style="padding: 5px 8px; text-align: center; font-weight: 700;">${stat.count}</td>
+                        <td style="padding: 5px 8px; text-align: center; font-weight: 700; color: ${printColors.blue};">${pct}</td>
+                        <td style="padding: 5px 8px; text-align: center; font-weight: 700; color: ${printColors.amber};">${avgRating} ⭐</td>
+                        <td style="padding: 5px 8px; text-align: center; color: #64748b;">${avgTimeStr}</td>
+                        <td style="padding: 5px 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 50px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                    <div style="width: ${pct}; height: 100%; background: ${barColor};"></div>
+                                </div>
+                                <span style="font-size: 9px; font-weight: 700; color: #475569;">${ratingText}</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            pageContentHtml = `
+                <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
+                        <span>INFORME DE MANTENIMIENTO — MAYO 2026</span>
+                        <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
+                    </div>
+                </div>
+
+                <div style="margin: 15px 0 10px 0;">
+                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa III</span>
+                    <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Avance Técnico, Carga de Trabajo y Desempeño</h2>
+                    <p style="font-size: 10px; color: #64748b; margin: 0;">Análisis del rendimiento acumulado, horas de ejecución real y desglose del personal propio y contratistas externos en planta.</p>
+                </div>
+
+                <div style="margin-bottom: 12px; box-sizing: border-box;">
+                    <div style="border: 1px solid #cbd5e1; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #06b6d4; border-radius: 6px; background: #fafafa;">
+                        <div>
+                            <div style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Total de Horas Hombre Ejecutadas</div>
+                            <div style="color: #0891b2; font-size: 26px; font-weight: 900;">${totalHours.toFixed(1)} hrs</div>
+                            <div style="font-size: 8px; color: #94a3b8;">Suma del tiempo total de trabajo registrado en el período</div>
+                        </div>
+                        <div style="font-size: 32px;">⏱️</div>
+                    </div>
+                </div>
+
+                <!-- Page 3 Charts Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; box-sizing: border-box;">
+                    <!-- Personal Interno -->
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #0284c7; margin: 0 0 6px 0; text-transform: uppercase;">Internos: Cantidad OTs</h4>
+                        <div style="height: 110px; position: relative;">
+                            <canvas id="chartReportTechCantidad"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #0284c7; margin: 0 0 6px 0; text-transform: uppercase;">Internos: Horas Hombre</h4>
+                        <div style="height: 110px; position: relative;">
+                            <canvas id="chartReportTechHoras"></canvas>
+                        </div>
+                    </div>
+                    <!-- Contratistas -->
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #9333ea; margin: 0 0 6px 0; text-transform: uppercase;">Contratistas: OTs</h4>
+                        <div style="height: 110px; position: relative;">
+                            <canvas id="chartReportContrCantidad"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #9333ea; margin: 0 0 6px 0; text-transform: uppercase;">Contratistas: Horas</h4>
+                        <div style="height: 110px; position: relative;">
+                            <canvas id="chartReportContrHoras"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed table -->
+                <div style="margin-top: 15px; box-sizing: border-box;">
+                    <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Carga de Trabajo y Desempeño de Técnicos (Top 6)</h4>
+                    <div class="report-table-box">
+                        <table class="report-table">
+                            <thead>
+                                <tr style="background: #f8fafc; text-align: left; color: #475569; border-bottom: 1px solid #e2e8f0;">
+                                    <th style="padding: 5px 8px;">Técnico</th>
+                                    <th style="padding: 5px 8px; text-align: center;">Total OTs</th>
+                                    <th style="padding: 5px 8px; text-align: center;">% Fin.</th>
+                                    <th style="padding: 5px 8px; text-align: center;">Satisfacción</th>
+                                    <th style="padding: 5px 8px; text-align: center;">Tiempo Prom.</th>
+                                    <th style="padding: 5px 8px;">Desempeño</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${techReportRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (section.key === 'quality') {
+            // PAGE 4: ANÁLISIS DE PENDIENTES, MOTIVOS, TABLA DE PENDIENTES Y FIRMAS
+            const pendingOTsList = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre'))
+                .sort((a, b) => {
+                    const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
+                    const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
+                    const bP = Object.keys(prio).find(k => b.prioridad.includes(k)) || 'Bajo';
+                    if (prio[aP] !== prio[bP]) return prio[aP] - prio[bP];
+                    return (b.riesgo ? 1 : 0) - (a.riesgo ? 1 : 0);
+                }).slice(0, 5);
+
+            const pendingReportRows = pendingOTsList.map(o => {
+                const isHigh = priorityClass(o.prioridad) === 'alto';
+                const statusText = o.tecPrincipal ? 'Asignada' : 'Sin asignar';
+                const statusColor = o.tecPrincipal ? printColors.blue : printColors.red;
+                const shortDesc = o.desc.length > 45 ? o.desc.slice(0, 45) + '...' : o.desc;
+                return `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 5px 8px; font-weight: 700; color: #1e293b;">${o.id}</td>
+                        <td style="padding: 5px 8px;">
+                            <span style="color: ${isHigh ? printColors.red : printColors.amber}; font-weight: 700;">
+                                ${isHigh ? '🔴 ' : '🟡 '}${o.prioridad}
+                            </span>
+                        </td>
+                        <td style="padding: 5px 8px; color: #475569; font-size: 9px;">${shortDesc}</td>
+                        <td style="padding: 5px 8px; color: #64748b;">${o.ubicacion}</td>
+                        <td style="padding: 5px 8px; font-weight: 600; color: #475569;">${o.especialidad}</td>
+                        <td style="padding: 5px 8px;">
+                            <span style="font-weight: 700; color: ${statusColor}; font-size: 9px;">${statusText}</span>
+                            ${o.riesgo ? `<div style="font-size: 7px; color: ${printColors.purple};">${o.riesgo.replace('⚠️ ', '')}</div>` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            pageContentHtml = `
+                <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
+                        <span>INFORME DE MANTENIMIENTO — MAYO 2026</span>
+                        <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
+                    </div>
+                </div>
+
+                <div style="margin: 15px 0 10px 0;">
+                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa IV</span>
+                    <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Priorización y Cuellos de Botella: OTs Pendientes</h2>
+                    <p style="font-size: 10px; color: #64748b; margin: 0;">Diagnóstico detallado de las tareas pendientes de resolver, análisis de requerimientos logísticos (RQ) y distribución por especialidades.</p>
+                </div>
+
+                <!-- KPIs Grid -->
+                <div style="margin-top: 10px; box-sizing: border-box;">
+                    <div class="report-kpi-grid" style="grid-template-columns: repeat(5, 1fr); gap: 8px;">
+                        <div class="report-kpi-card" style="border: 1px solid rgba(148,163,184,0.3); background: #f8fafc; padding: 8px 4px;">
+                            <span style="display: block; font-size: 7px; font-weight: 800; color: #64748b; text-transform: uppercase;">Total Pendientes</span>
+                            <strong style="color: #1e293b; font-size: 15px; display: block; margin: 2px 0;">${totalPending}</strong>
+                            <span style="display: block; font-size: 6px; color: #94a3b8;">En plataforma</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(147,51,234,0.15); background: rgba(147,51,234,0.02); padding: 8px 4px;">
+                            <span style="display: block; font-size: 7px; font-weight: 800; color: #64748b; text-transform: uppercase;">Con RQ (Stock)</span>
+                            <strong style="color: #9333ea; font-size: 15px; display: block; margin: 2px 0;">${rqPending}</strong>
+                            <span style="display: block; font-size: 6px; color: #94a3b8;">Falta materiales</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(217,119,6,0.15); background: rgba(217,119,6,0.02); padding: 8px 4px;">
+                            <span style="display: block; font-size: 7px; font-weight: 800; color: #64748b; text-transform: uppercase;">En Carpintería</span>
+                            <strong style="color: #d97706; font-size: 15px; display: block; margin: 2px 0;">${carpinteriaPending}</strong>
+                            <span style="display: block; font-size: 6px; color: #94a3b8;">Por operario</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(8,145,178,0.15); background: rgba(8,145,178,0.02); padding: 8px 4px;">
+                            <span style="display: block; font-size: 7px; font-weight: 800; color: #64748b; text-transform: uppercase;">En Pintura</span>
+                            <strong style="color: #0891b2; font-size: 15px; display: block; margin: 2px 0;">${pinturaPending}</strong>
+                            <span style="display: block; font-size: 6px; color: #94a3b8;">Por operario</span>
+                        </div>
+                        <div class="report-kpi-card" style="border: 1px solid rgba(220,38,38,0.15); background: rgba(220,38,38,0.02); padding: 8px 4px;">
+                            <span style="display: block; font-size: 7px; font-weight: 800; color: #64748b; text-transform: uppercase;">En Albañilería</span>
+                            <strong style="color: #dc2626; font-size: 15px; display: block; margin: 2px 0;">${albanileriaPending}</strong>
+                            <span style="display: block; font-size: 6px; color: #94a3b8;">Por operario</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 4 Charts Grid -->
+                <div style="display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 16px; margin-top: 15px; box-sizing: border-box;">
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Motivos de OTs Pendientes</h4>
+                        <div style="height: 125px; position: relative;">
+                            <canvas id="chartReportPendingReason"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Pendientes por Especialidad</h4>
+                        <div style="height: 125px; position: relative;">
+                            <canvas id="chartReportPendingSpecialty"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending OTs Table -->
+                <div style="margin-top: 15px; box-sizing: border-box;">
+                    <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Órdenes de Trabajo Pendientes Críticas (Top 5 Prioritarias)</h4>
+                    <div class="report-table-box">
+                        <table class="report-table">
+                            <thead>
+                                <tr style="background: #f8fafc; text-align: left; color: #475569; border-bottom: 1px solid #e2e8f0;">
+                                    <th style="padding: 5px 8px;">ID</th>
+                                    <th style="padding: 5px 8px;">Prioridad</th>
+                                    <th style="padding: 5px 8px;">Descripción</th>
+                                    <th style="padding: 5px 8px;">Ubicación</th>
+                                    <th style="padding: 5px 8px;">Especialidad</th>
+                                    <th style="padding: 5px 8px;">Estado/Riesgo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pendingReportRows.length > 0 ? pendingReportRows : '<tr><td colspan="6" style="padding:15px; text-align:center; color:#94a3b8;">No hay órdenes pendientes en este período</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Shared signatures for final page
+        const isFinalPageOfReport = (currentPageIndex === totalPages);
+        let signaturesHtml = '';
+        if (isFinalPageOfReport) {
+            signaturesHtml = `
+                <!-- Signature Block -->
+                <div style="display: flex; justify-content: space-around; margin-top: 25px; margin-bottom: 5px; width: 100%; box-sizing: border-box;">
+                    <div style="text-align: center; font-size: 9px; width: 160px; border-top: 1px solid #cbd5e1; padding-top: 5px; color: #64748b; font-family: 'Inter', sans-serif; font-weight: 700;">
+                        Firma Supervisor CRL
+                        <div style="font-size: 8px; font-weight: 400; color: #94a3b8; margin-top: 2px;">Mantenimiento y Servicios</div>
+                    </div>
+                    <div style="text-align: center; font-size: 9px; width: 160px; border-top: 1px solid #cbd5e1; padding-top: 5px; color: #64748b; font-family: 'Inter', sans-serif; font-weight: 700;">
+                        Jefatura de Servicios CRL
+                        <div style="font-size: 8px; font-weight: 400; color: #94a3b8; margin-top: 2px;">Dirección de Infraestructura</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Footer details
+        const footerHtml = `
+            <!-- Footer -->
+            <div style="border-top: 1px solid #f1f5f9; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8px; color: #94a3b8; font-family: 'Inter', sans-serif; box-sizing: border-box; width: 100%;">
+                <span>Informe Mensual de Mantenimiento CRL</span>
+                <span style="font-weight: 700;">Página ${currentPageIndex} de ${totalPages}</span>
+            </div>
+        `;
+
+        compiledHtml += `
+            <div class="print-page print-shadow">
+                ${pageContentHtml}
+                ${signaturesHtml}
+                ${footerHtml}
+            </div>
+        `;
+
+        currentPageIndex++;
+    });
+
+    printArea.innerHTML = compiledHtml;
+
+    // 5. Asynchronously render all the 13 Chart.js graphs inside the generated printArea
+    setTimeout(() => {
+        renderReportCharts(filteredData, activeSections);
+    }, 100);
+}
+
+// Instantiate Chart.js graphs in the report pages with white-background/print-mode configurations
+function renderReportCharts(filteredData, activeSections) {
+    const activeKeys = activeSections.map(s => s.key);
+
+    if (activeKeys.includes('overview')) {
+        // --- 1. chartReportBalance (Line) ---
+        const datesMap = {};
+        filteredData.forEach(o => {
+            const d = parseDateStr(o.fecha);
+            if (!d) return;
+            const time = d.getTime();
+            if (!datesMap[time]) {
+                datesMap[time] = { dateStr: o.fecha, created: 0, resolved: 0 };
+            }
+            datesMap[time].created += 1;
+            if (o.estado === 'Finalizado') {
+                datesMap[time].resolved += 1;
+            }
+        });
+        const sortedTimes = Object.keys(datesMap).map(Number).sort((a, b) => a - b);
+        const dailyLabels = sortedTimes.map(t => datesMap[t].dateStr);
+        const dailyCreated = sortedTimes.map(t => datesMap[t].created);
+        const dailyResolved = sortedTimes.map(t => datesMap[t].resolved);
+
+        safeCreateReportChart('chartReportBalance', {
+            type: 'line',
+            data: {
+                labels: dailyLabels,
+                datasets: [
+                    {
+                        label: 'Creadas',
+                        data: dailyCreated,
+                        borderColor: printColors.blue,
+                        backgroundColor: 'rgba(2,132,199,0.06)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointBackgroundColor: printColors.blue,
+                        pointRadius: 2.5
+                    },
+                    {
+                        label: 'Finalizadas',
+                        data: dailyResolved,
+                        borderColor: printColors.green,
+                        backgroundColor: 'rgba(22,163,74,0.06)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointBackgroundColor: printColors.green,
+                        pointRadius: 2.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { boxWidth: 12, boxHeight: 6, color: printColors.text, font: { family: "'Inter'", size: 8, weight: 'bold' } }
+                    },
+                    datalabels: { display: false }
+                },
+                scales: {
+                    x: { ticks: { color: printColors.mutedText, font: { size: 7, weight: 'bold' } }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: printColors.mutedText, font: { size: 7 }, precision: 0 }, grid: { color: printColors.border } }
+                }
+            }
+        });
+
+        // --- 2. chartReportEstado (Doughnut - 4 states) ---
+        const finalizadasCount = filteredData.filter(o => o.estado === 'Finalizado').length;
+        const cierreCount = filteredData.filter(o => o.estado !== 'Finalizado' && (o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre')).length;
+        const programadasCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus === 'Programado').length;
+        const pendientesCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
+
+        safeCreateReportChart('chartReportEstado', {
+            type: 'doughnut',
+            data: {
+                labels: ['Finalizadas', 'Programadas', 'Cierre (Canceladas)', 'Pendientes'],
+                datasets: [{
+                    data: [finalizadasCount, programadasCount, cierreCount, pendientesCount],
+                    backgroundColor: [printColors.green, printColors.blue, '#64748b', printColors.amber],
+                    borderWidth: 1,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: getPrintDoughnutOptions(finalizadasCount + programadasCount + cierreCount + pendientesCount)
+        });
+    }
+
+    if (activeKeys.includes('areas')) {
+        // --- 3. chartReportEspecialidad (Bar - Total vs Finalizadas) ---
+        const espLabels = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura','Otros'];
+        const espCount = espLabels.map(e => filteredData.filter(o => o.especialidad === e).length);
+        const espFinished = espLabels.map(e => filteredData.filter(o => o.especialidad === e && o.estado === 'Finalizado').length);
+
+        safeCreateReportChart('chartReportEspecialidad', {
+            type: 'bar',
+            data: {
+                labels: espLabels,
+                datasets: [
+                    { label: 'Planificadas', data: espCount, backgroundColor: 'rgba(2,132,199,0.3)', borderColor: printColors.blue, borderWidth: 1, borderRadius: 3 },
+                    { label: 'Finalizadas', data: espFinished, backgroundColor: 'rgba(22,163,74,0.6)', borderColor: printColors.green, borderWidth: 1, borderRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 10, boxHeight: 6, color: printColors.text, font: { size: 7, weight: 'bold' } } },
+                    datalabels: {
+                        color: printColors.text,
+                        font: { weight: 'bold', size: 7.5 },
+                        anchor: 'end',
+                        align: 'top',
+                        offset: 1,
+                        formatter: (val) => val || null
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: printColors.mutedText, font: { size: 7.5, weight: 'bold' } }, grid: { display: false } },
+                    y: { beginAtZero: true, grace: '15%', ticks: { color: printColors.mutedText, font: { size: 7.5 }, precision: 0 }, grid: { color: printColors.border } }
+                }
+            }
+        });
+
+        // --- 4. chartReportPrioridad (Doughnut) ---
+        const prioLabels = ['Alto','Medio','Bajo','Emergencia'];
+        const prioColors = [printColors.red, printColors.amber, printColors.green, '#ff0040'];
+        const prioCount = prioLabels.map(p => filteredData.filter(o => o.prioridad.includes(p) || (p === 'Emergencia' && o.prioridad === 'Emergencia')).length);
+        const activePrioLabels = prioLabels.filter((_, i) => prioCount[i] > 0);
+        const activePrioCount = prioCount.filter(c => c > 0);
+        const activePrioColors = prioColors.filter((_, i) => prioCount[i] > 0);
+
+        safeCreateReportChart('chartReportPrioridad', {
+            type: 'doughnut',
+            data: {
+                labels: activePrioLabels,
+                datasets: [{
+                    data: activePrioCount,
+                    backgroundColor: activePrioColors,
+                    borderWidth: 1,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: getPrintDoughnutOptions(filteredData.length)
+        });
+
+        // --- 5. chartReportArea (Horizontal Bar) ---
+        const areaCount = countBy(filteredData, 'area');
+        const areaLabels = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]).slice(0, 5);
+        const areaData = areaLabels.map(a => areaCount[a]);
+        const areaShortLabels = areaLabels.map(a => a.replace(/^\d+\.\s*/, '').slice(0, 16));
+
+        safeCreateReportChart('chartReportArea', {
+            type: 'bar',
+            data: {
+                labels: areaShortLabels,
+                datasets: [{
+                    data: areaData,
+                    backgroundColor: 'rgba(8,145,178,0.5)',
+                    borderColor: printColors.cyan,
+                    borderWidth: 1,
+                    borderRadius: 3
+                }]
+            },
+            options: getPrintBarOptions(true, false)
+        });
+
+        // --- 6. chartReportUbicacion (Bar) ---
+        const ubiCount = countBy(filteredData, 'ubicacion');
+        const ubiLabels = Object.keys(ubiCount).sort((a, b) => ubiCount[b] - ubiCount[a]).slice(0, 5);
+        const ubiData = ubiLabels.map(u => ubiCount[u]);
+
+        safeCreateReportChart('chartReportUbicacion', {
+            type: 'bar',
+            data: {
+                labels: ubiLabels.map(l => l.slice(0, 12)),
+                datasets: [{
+                    data: ubiData,
+                    backgroundColor: 'rgba(124,58,237,0.5)',
+                    borderColor: printColors.purple,
+                    borderWidth: 1,
+                    borderRadius: 3
+                }]
+            },
+            options: getPrintBarOptions(false, false)
+        });
+
+        // --- 7. chartReportSupervisor (Bar) ---
+        const supCount = countBy(filteredData, 'supervisor');
+        const supLabels = Object.keys(supCount).filter(Boolean).sort((a, b) => supCount[b] - supCount[a]).slice(0, 6);
+        const supData = supLabels.map(s => supCount[s]);
+
+        safeCreateReportChart('chartReportSupervisor', {
+            type: 'bar',
+            data: {
+                labels: supLabels,
+                datasets: [{
+                    data: supData,
+                    backgroundColor: 'rgba(217,119,6,0.5)',
+                    borderColor: printColors.amber,
+                    borderWidth: 1,
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: printColors.text,
+                        font: { weight: 'bold', size: 7.5 },
+                        anchor: 'end',
+                        align: 'top',
+                        offset: 1,
+                        formatter: (val) => val || null
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: printColors.mutedText, font: { size: 7.5, weight: 'bold' } }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: printColors.mutedText, font: { size: 7.5 }, precision: 0 }, grid: { color: printColors.border } }
+                }
+            }
+        });
+    }
+
+    if (activeKeys.includes('techs')) {
+        // --- Process Technical Workforces Statistics ---
+        const internalStats = {};
+        const contractorStats = {};
+        
+        filteredData.forEach(o => {
+            const name = o.tecPrincipal;
+            if (!name) return;
+            const hours = (o.tiempoMin || 0) / 60;
+            if (isContractor(name)) {
+                if (!contractorStats[name]) contractorStats[name] = { count: 0, hours: 0 };
+                contractorStats[name].count++;
+                contractorStats[name].hours += hours;
+            } else {
+                if (!internalStats[name]) internalStats[name] = { count: 0, hours: 0 };
+                internalStats[name].count++;
+                internalStats[name].hours += hours;
+            }
+        });
+
+        const intNames = Object.keys(internalStats).sort((a, b) => internalStats[b].count - internalStats[a].count).slice(0, 4);
+        const intCounts = intNames.map(n => internalStats[n].count);
+        const intNamesByHours = Object.keys(internalStats).sort((a, b) => internalStats[b].hours - internalStats[a].hours).slice(0, 4);
+        const intHours = intNamesByHours.map(n => parseFloat(internalStats[n].hours.toFixed(1)));
+
+        const contNames = Object.keys(contractorStats).sort((a, b) => contractorStats[b].count - contractorStats[a].count).slice(0, 4);
+        const contCounts = contNames.map(n => contractorStats[n].count);
+        const contNamesByHours = Object.keys(contractorStats).sort((a, b) => contractorStats[b].hours - contractorStats[a].hours).slice(0, 4);
+        const contHours = contNamesByHours.map(n => parseFloat(contractorStats[n].hours.toFixed(1)));
+
+        // --- 8. chartReportTechCantidad ---
+        safeCreateReportChart('chartReportTechCantidad', {
+            type: 'bar',
+            data: {
+                labels: intNames.map(n => n.split(' ').slice(0, 2).join(' ')),
+                datasets: [{ data: intCounts, backgroundColor: 'rgba(2,132,199,0.5)', borderColor: printColors.blue, borderWidth: 1, borderRadius: 3 }]
+            },
+            options: getPrintBarOptions(false, false)
+        });
+
+        // --- 9. chartReportTechHoras ---
+        safeCreateReportChart('chartReportTechHoras', {
+            type: 'bar',
+            data: {
+                labels: intNamesByHours.map(n => n.split(' ').slice(0, 2).join(' ')),
+                datasets: [{ data: intHours, backgroundColor: 'rgba(8,145,178,0.5)', borderColor: printColors.cyan, borderWidth: 1, borderRadius: 3 }]
+            },
+            options: getPrintBarOptions(false, false)
+        });
+
+        // --- 10. chartReportContrCantidad ---
+        safeCreateReportChart('chartReportContrCantidad', {
+            type: 'bar',
+            data: {
+                labels: contNames.map(n => n.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ')),
+                datasets: [{ data: contCounts, backgroundColor: 'rgba(124,58,237,0.5)', borderColor: printColors.purple, borderWidth: 1, borderRadius: 3 }]
+            },
+            options: getPrintBarOptions(false, false)
+        });
+
+        // --- 11. chartReportContrHoras ---
+        safeCreateReportChart('chartReportContrHoras', {
+            type: 'bar',
+            data: {
+                labels: contNamesByHours.map(n => n.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ')),
+                datasets: [{ data: contHours, backgroundColor: 'rgba(124,58,237,0.5)', borderColor: printColors.purple, borderWidth: 1, borderRadius: 3 }]
+            },
+            options: getPrintBarOptions(false, false)
+        });
+    }
+
+    if (activeKeys.includes('quality')) {
+        // --- 12. chartReportPendingReason (Doughnut - 2 segments) ---
+        const pendingOTs = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado');
+        const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))).length;
+        const sinRqPending = pendingOTs.length - rqPending;
+
+        const doughnutOpts = getPrintDoughnutOptions(rqPending + sinRqPending);
+        safeCreateReportChart('chartReportPendingReason', {
+            type: 'doughnut',
+            data: {
+                labels: ['Con RQ', 'Sin RQ'],
+                datasets: [{
+                    data: [rqPending, sinRqPending],
+                    backgroundColor: [printColors.purple, printColors.amber],
+                    borderWidth: 1,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                ...doughnutOpts,
+                rotation: 45,
+                layout: { padding: { top: 10, bottom: 35, left: 10, right: 10 } },
+                plugins: {
+                    ...doughnutOpts.plugins,
+                    legend: {
+                        ...doughnutOpts.plugins.legend,
+                        labels: {
+                            ...doughnutOpts.plugins.legend.labels,
+                            padding: 25
+                        }
+                    }
+                }
+            }
+        });
+
+        // --- 13. chartReportPendingSpecialty (Stacked Bar - RQ vs Sin RQ) ---
+        const pendEspLabels = ['Carpintería', 'Electricidad', 'Gasfitería', 'Albañilería', 'Pintura', 'Otros'];
+        const totals = {};
+        pendEspLabels.forEach(esp => {
+            totals[esp] = pendingOTs.filter(o => o.especialidad === esp).length;
+        });
+        const sortedLabels = pendEspLabels.sort((a, b) => totals[b] - totals[a]).slice(0, 5);
+        
+        const rqData = sortedLabels.map(esp => pendingOTs.filter(o => o.especialidad === esp && (o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro')))).length);
+        const sinRqData = sortedLabels.map(esp => pendingOTs.filter(o => o.especialidad === esp && !(o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro')))).length);
+
+        safeCreateReportChart('chartReportPendingSpecialty', {
+            type: 'bar',
+            data: {
+                labels: sortedLabels,
+                datasets: [
+                    {
+                        label: 'Con RQ',
+                        data: rqData,
+                        backgroundColor: 'rgba(147, 51, 234, 0.75)', // Purple
+                        borderColor: printColors.purple,
+                        borderWidth: 1,
+                        borderRadius: 3
+                    },
+                    {
+                        label: 'Sin RQ',
+                        data: sinRqData,
+                        backgroundColor: 'rgba(245, 158, 11, 0.75)', // Amber
+                        borderColor: printColors.amber,
+                        borderWidth: 1,
+                        borderRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 10, boxHeight: 6, color: printColors.text, font: { size: 7, weight: 'bold' } } },
+                    datalabels: {
+                        color: printColors.text,
+                        font: { weight: 'bold', size: 7.5 },
+                        formatter: (val) => val || null
+                    }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { color: printColors.mutedText, font: { size: 7.5, weight: 'bold' } }, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, grace: '15%', ticks: { color: printColors.mutedText, font: { size: 7.5 }, precision: 0 }, grid: { color: printColors.border } }
+                }
+            }
+        });
+    }
+}
+
+function safeCreateReportChart(id, config) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    if (reportChartInstances[id]) {
+        reportChartInstances[id].destroy();
+    }
+    reportChartInstances[id] = new Chart(canvas, config);
+    return reportChartInstances[id];
+}
 </script>
 </body>
 </html>

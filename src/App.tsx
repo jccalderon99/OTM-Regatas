@@ -17,6 +17,7 @@ import { RoutineActivityProvider } from './context/RoutineActivityContext';
 import { useRealtimeOTM } from './hooks/useRealtimeOTM';
 import WelcomePortal from './pages/WelcomePortal';
 import Reports from './pages/Reports';
+import NewOTI from './pages/supervisor/NewOTI';
 
 function AppContent() {
   useRealtimeOTM();
@@ -44,6 +45,7 @@ function AppContent() {
     switch (currentView) {
       case 'dashboard': return defaultView();
       case 'new-otm': return <NewOTM onCreated={() => setCurrentView('dashboard')} />;
+      case 'new-oti': return <NewOTI onCreated={() => setCurrentView('dashboard')} />;
       case 'management': return <OTMManagement />;
       case 'my-tasks': return <MyTasks />;
       case 'users': return <UserManagement />;
