@@ -684,7 +684,7 @@
                 </div>
                 <div class="chart-card">
                     <h3><span>⚡</span> Distribución por Prioridad</h3>
-                    <div class="chart-wrapper pie-chart">
+                    <div class="chart-wrapper pie-chart" style="height:320px;">
                         <canvas id="chartPrioridad"></canvas>
                     </div>
                 </div>
@@ -1464,7 +1464,7 @@ function renderOverviewTab(data) {
             },
             rotation: -45,
             plugins: {
-                legend: { position: 'bottom', labels: { padding: 25, usePointStyle: true, pointStyleWidth: 10 } },
+                legend: { position: 'bottom', labels: { padding: 40, usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
             },
             cutout: '65%'
@@ -1519,15 +1519,15 @@ function renderOverviewTab(data) {
             responsive: true, maintainAspectRatio: false,
             layout: {
                 padding: {
-                    top: 45,
-                    bottom: 55,
-                    left: 30,
-                    right: 30
+                    top: 25,
+                    bottom: 25,
+                    left: 15,
+                    right: 15
                 }
             },
             rotation: -45,
             plugins: {
-                legend: { position: 'bottom', labels: { padding: 25, usePointStyle: true, pointStyleWidth: 10 } },
+                legend: { position: 'bottom', labels: { padding: 40, usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
             },
             cutout: '65%'
