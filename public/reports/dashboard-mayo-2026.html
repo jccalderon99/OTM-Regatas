@@ -1314,9 +1314,9 @@ function updateDashboard() {
 function renderOverviewTab(data) {
     const totalOTs = data.length;
     const finalizadasCount = data.filter(o => o.estado === 'Finalizado').length;
-    const programadasCount = data.filter(o => o.estado === 'Programada').length;
-    const pendientesCount = data.filter(o => o.estado === 'Pendiente').length;
-    const altaPrioridadCount = data.filter(o => o.estado === 'Pendiente' && priorityClass(o.prioridad) === 'alto').length;
+    
+    const pendientesCount = data.filter(o => o.estado !== 'Finalizado').length;
+    const altaPrioridadCount = data.filter(o => o.estado !== 'Finalizado' && priorityClass(o.prioridad) === 'alto').length;
     
     const ratedOTs = data.filter(o => o.calificacion > 0);
     const avgRating = ratedOTs.length > 0 ? (ratedOTs.reduce((sum, o) => sum + o.calificacion, 0) / ratedOTs.length).toFixed(1) : '0.0';
@@ -1445,10 +1445,10 @@ function renderOverviewTab(data) {
     safeCreateChart('chartEstado', {
         type: 'doughnut',
         data: {
-            labels: ['Finalizadas', 'Programadas', 'Pendientes'],
+            labels: ['Finalizadas', 'Pendientes'],
             datasets: [{
-                data: [finalizadasCount, programadasCount, pendientesCount],
-                backgroundColor: [colors.green, colors.blue, colors.amber],
+                data: [finalizadasCount, pendientesCount],
+                backgroundColor: [colors.green, colors.amber],
                 borderWidth: 0, hoverOffset: 8
             }]
         },
@@ -1803,7 +1803,7 @@ function renderTechniciansTab(globalFilteredData) {
 
 // RENDER TAB: OTs Pendientes
 function renderPendingTab(data) {
-    const pendingOTs = data.filter(o => o.estado === 'Pendiente')
+    const pendingOTs = data.filter(o => o.estado !== 'Finalizado')
         .sort((a, b) => {
             const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
             const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
@@ -1815,7 +1815,10 @@ function renderPendingTab(data) {
     window.pendingOTsRef = pendingOTs;
 
     const totalPending = pendingOTs.length;
+    const programadasPending = pendingOTs.filter(o => o.programadoStatus === 'Programado').length;
     const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ').length;
+    const otrasPending = totalPending - programadasPending - rqPending;
+    
     const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
     const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
     const albanileriaPending = pendingOTs.filter(o => o.especialidad === 'Albañilería').length;
@@ -1834,10 +1837,10 @@ function renderPendingTab(data) {
     safeCreateChart('chartPendingReason', {
         type: 'doughnut',
         data: {
-            labels: ['Con RQ', 'Sin RQ'],
+            labels: ['Programadas', 'Con RQ', 'Otras / Sin asignar'],
             datasets: [{
-                data: [rqPending, totalPending - rqPending],
-                backgroundColor: [colors.purple, colors.amber],
+                data: [programadasPending, rqPending, otrasPending],
+                backgroundColor: [colors.blue, colors.purple, colors.amber],
                 borderWidth: 0, hoverOffset: 8
             }]
         },
@@ -1929,8 +1932,8 @@ function renderDetailTable(filter) {
 
     let filtered = data;
     if (filter === 'finalizado') filtered = data.filter(o => o.estado === 'Finalizado');
-    else if (filter === 'programado') filtered = data.filter(o => o.estado === 'Pendiente' && o.tipo !== 'RQ' && o.tipo !== '');
-    else if (filter === 'pendiente') filtered = data.filter(o => o.estado === 'Pendiente' && (o.tipo === 'RQ' || o.tipo === ''));
+    else if (filter === 'programado') filtered = data.filter(o => o.estado !== 'Finalizado' && o.programadoStatus === 'Programado');
+    else if (filter === 'pendiente') filtered = data.filter(o => o.estado !== 'Finalizado');
     else if (filter === 'electricidad') filtered = data.filter(o => o.especialidad === 'Electricidad');
     else if (filter === 'carpinteria') filtered = data.filter(o => o.especialidad === 'Carpintería');
     else if (filter === 'gasfiteria') filtered = data.filter(o => o.especialidad === 'Gasfitería');
@@ -1946,7 +1949,7 @@ function renderDetailTable(filter) {
         <td><span class="badge ${o.especialidad === 'Electricidad' ? 'badge-amber' : o.especialidad === 'Carpintería' ? 'badge-purple' : o.especialidad === 'Gasfitería' ? 'badge-cyan' : o.especialidad === 'Albañilería' ? 'badge-red' : o.especialidad === 'Pintura' ? 'badge-green' : 'badge-blue'}">${o.especialidad}</span></td>
         <td><div style="display:flex;align-items:center"><span class="priority-dot ${priorityClass(o.prioridad)}"></span>${o.prioridad.split(' ')[0]}</div></td>
         <td style="font-size:12px">${o.tecPrincipal || '<span style="color:var(--text-muted)">—</span>'}</td>
-        <td>${o.estado === 'Finalizado' ? '<span class="badge badge-green">Finalizado</span>' : (o.tipo !== 'RQ' && o.tipo !== '' ? '<span class="badge badge-blue">Programado</span>' : '<span class="badge badge-amber">Pendiente</span>')}</td>
+        <td>${o.estado === 'Finalizado' ? '<span class="badge badge-green">Finalizado</span>' : (o.programadoStatus === 'Programado' ? '<span class="badge badge-blue">Programado</span>' : (o.programadoStatus === 'RQ' ? '<span class="badge badge-purple">Con RQ</span>' : '<span class="badge badge-amber">Pendiente</span>'))}</td>
         <td>${renderStars(o.calificacion)}</td>
         <td style="font-size:12px">${o.tiempo || '<span style="color:var(--text-muted)">—</span>'}</td>
     </tr>`).join('');
