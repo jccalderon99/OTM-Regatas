@@ -1814,10 +1814,11 @@ function renderPendingTab(data) {
 
     window.pendingOTsRef = pendingOTs;
 
-    const totalPending = pendingOTs.length;
-    const programadasPending = pendingOTs.filter(o => o.programadoStatus === 'Programado').length;
-    const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ').length;
-    const otrasPending = totalPending - programadasPending - rqPending;
+    // Hardcoded overrides for presentation as requested by the user
+    const totalPending = 136;
+    const programadasPending = 44;
+    const rqPending = 15;
+    const otrasPending = 77;
     
     const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
     const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
@@ -1902,7 +1903,7 @@ function renderPendingTable(filter) {
     if (!tbody) return;
 
     const filtered = filter === 'all' ? pendingOTs : pendingOTs.filter(o => priorityClass(o.prioridad) === filter);
-    document.getElementById('pendingCount').textContent = filtered.length + ' pendientes';
+    document.getElementById('pendingCount').textContent = (filter === 'all' ? 136 : filtered.length) + ' pendientes';
     
     tbody.innerHTML = filtered.map((o, i) => `<tr>
         <td>${i+1}</td>
