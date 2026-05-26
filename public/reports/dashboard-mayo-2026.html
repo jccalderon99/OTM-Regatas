@@ -1353,7 +1353,15 @@ function renderOverviewTab(data) {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            layout: { padding: 30 },
+            layout: {
+                padding: {
+                    top: 45,
+                    bottom: 30,
+                    left: 30,
+                    right: 30
+                }
+            },
+            rotation: -45,
             plugins: {
                 legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
@@ -1408,7 +1416,15 @@ function renderOverviewTab(data) {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            layout: { padding: 30 },
+            layout: {
+                padding: {
+                    top: 45,
+                    bottom: 30,
+                    left: 30,
+                    right: 30
+                }
+            },
+            rotation: -45,
             plugins: {
                 legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
@@ -1726,7 +1742,15 @@ function renderPendingTab(data) {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            layout: { padding: 25 },
+            layout: {
+                padding: {
+                    top: 45,
+                    bottom: 30,
+                    left: 30,
+                    right: 30
+                }
+            },
+            rotation: -45,
             plugins: {
                 legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
