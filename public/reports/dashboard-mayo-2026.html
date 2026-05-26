@@ -2041,7 +2041,23 @@ document.querySelectorAll('#detailFilters .filter-btn').forEach(btn => {
 });
 
 // ========================== INITIALIZATION ==========================
-updateDashboard();
+async function initDashboard() {
+    try {
+        const response = await fetch('otData.json');
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+                otData = data;
+                console.log("Loaded " + otData.length + " OTs from otData.json successfully.");
+            }
+        }
+    } catch (e) {
+        console.log("otData.json not found or failed to load, falling back to localStorage/static data:", e);
+    }
+    updateDashboard();
+}
+
+initDashboard();
 </script>
 </body>
 </html>
