@@ -818,6 +818,36 @@
             box-sizing: border-box;
         }
 
+        /* Global Supervisor Filter Styles */
+        .supervisor-filter-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #globalSupervisorSelect {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        #globalSupervisorSelect:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
+        }
+        #globalSupervisorSelect:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+        }
+
         /* Responsive print support */
         @media print {
             body * {
@@ -906,6 +936,18 @@
             <div class="nav-tab" data-tab="technicians">👷 Técnicos</div>
             <div class="nav-tab" data-tab="pending">🔴 OTs Pendientes</div>
             <div class="nav-tab" data-tab="details">📋 Detalle Completo</div>
+        </div>
+
+        <!-- Global Supervisor Filter -->
+        <div class="supervisor-filter-container no-print">
+            <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Supervisor:</span>
+            <select id="globalSupervisorSelect">
+                <option value="all" style="background:#0f172a; color:#ffffff;">Todos</option>
+                <option value="Diana Altamirano" style="background:#0f172a; color:#ffffff;">Diana Altamirano</option>
+                <option value="Leomar Huaraca" style="background:#0f172a; color:#ffffff;">Leomar Huaraca</option>
+                <option value="Marlon Rivera" style="background:#0f172a; color:#ffffff;">Marlon Rivera</option>
+                <option value="Wiliam Anticona" style="background:#0f172a; color:#ffffff;">Wiliam Anticona</option>
+            </select>
         </div>
 
         <!-- Global Date Filter (Binance-style direct buttons) -->
@@ -1533,6 +1575,7 @@ let currentGlobalDateRange = 'all';
 let customDateFromVal = '';
 let customDateToVal = '';
 let currentTechSpecialty = 'all';
+let currentGlobalSupervisor = 'all';
 
 // Chart references
 const chartInstances = {};
@@ -1663,9 +1706,18 @@ function applyDateFilter(data) {
     });
 }
 
+// Helper to filter by both global date range and global supervisor selection
+function applyGlobalFilters(data) {
+    let filtered = applyDateFilter(data);
+    if (currentGlobalSupervisor && currentGlobalSupervisor !== 'all') {
+        filtered = filtered.filter(o => o.supervisor === currentGlobalSupervisor);
+    }
+    return filtered;
+}
+
 // Master reactive update function
 function updateDashboard() {
-    const filteredData = applyDateFilter(otData);
+    const filteredData = applyGlobalFilters(otData);
     
     // Update Header Date Description dynamically
     let badgeText = `📅 Mayo 2026 (4 - 25 mayo)`;
@@ -2491,6 +2543,12 @@ document.getElementById('customDateTo').addEventListener('change', (e) => {
     updateDashboard();
 });
 
+// Global Supervisor Filter
+document.getElementById('globalSupervisorSelect').addEventListener('change', (e) => {
+    currentGlobalSupervisor = e.target.value;
+    updateDashboard();
+});
+
 // Specialty filter inside Technicians tab
 document.querySelectorAll('#techSpecialtyFilters .filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2665,7 +2723,7 @@ function getPrintDoughnutOptions(totalSum) {
 // Core logic to process filtered data and compile pages
 function updateReportPreview() {
     // 1. Get dynamically filtered OTs
-    const filteredData = applyDateFilter(otData);
+    const filteredData = applyGlobalFilters(otData);
     
     // 2. Determine which sections are active
     const activeSections = [];
