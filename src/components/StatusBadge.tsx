@@ -1,4 +1,3 @@
-import React from 'react';
 import { OTMStatus, STATUS_LABELS } from '../types';
 
 export default function StatusBadge({ status }: { status: OTMStatus }) {

@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useState } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import { OTI_SPECIALTIES } from '../../types';
 
 export default function NewOTI({ onCreated }: { onCreated?: () => void }) {
-  const { user } = useAuth();
   const { createOTI, users, locations } = useOTM();
   const [loading, setLoading] = useState(false);
   

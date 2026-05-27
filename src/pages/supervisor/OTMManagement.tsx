@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
 import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS } from '../../types';
-import { useAuth } from '../../context/AuthContext';
 import ConformityActa from '../../components/ConformityActa';
 
 type ManageAction = 'none' | 'assign' | 'rq' | 'cancel';
@@ -10,7 +9,6 @@ type AssignSubAction = 'none' | 'own' | 'contractor';
 type RQSubAction = 'none' | 'supply' | 'service';
 
 export default function OTMManagement() {
-  const { user } = useAuth();
   const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs } = useOTM();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | ''>('');

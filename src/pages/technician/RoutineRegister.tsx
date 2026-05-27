@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRoutineActivity } from '../../context/RoutineActivityContext';
 import { useAuth } from '../../context/AuthContext';
-import { getSubSpecialties, getActivitiesForSub, ROUTINE_SPECIALTIES } from '../../lib/routineActivities';
+import { getSubSpecialties, ROUTINE_SPECIALTIES } from '../../lib/routineActivities';
 import { uploadToCloudinary, isCloudinaryConfigured } from '../../lib/cloudinary';
 
 // Map profile position cargo to the routine specialty

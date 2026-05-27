@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import { useRoutineActivity } from '../../context/RoutineActivityContext';
 import { STATUS_LABELS } from '../../types';

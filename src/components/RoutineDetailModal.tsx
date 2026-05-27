@@ -1,4 +1,3 @@
-import React from 'react';
 import { RoutineRecord } from '../types/routine';
 import { routineEventTitle, ROUTINE_EVENT_COLOR } from '../types/routine';
 

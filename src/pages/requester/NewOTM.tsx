@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useOTM } from '../../context/OTMContext';
 import { Urgency, URGENCY_LABELS } from '../../types';
@@ -17,7 +17,7 @@ const INITIAL: FormData = { area_sector: '', location: '', failure_type: '', des
 
 export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   const { user } = useAuth();
-  const { createOTM, areas, specialties, locations } = useOTM();
+  const { createOTM, specialties, locations } = useOTM();
   const [images, setImages] = useState<File[]>([]);
   const [form, setForm] = useState<FormData>({ ...INITIAL, area_sector: user?.area_sector || '' });
   const [step, setStep] = useState(0);

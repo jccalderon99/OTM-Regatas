@@ -1,4 +1,4 @@
-import { Profile, OTMRequest, OTMAttachment, OTMStatusLog, OTMStatus, Urgency, AssignmentType, RQType, RQMagnitude } from '../types';
+import { Profile, OTMRequest, OTMAttachment, OTMStatusLog, OTMStatus, Urgency } from '../types';
 
 const rawTechData = [
   { nm: 'Diaz Sifuentes Ciro', sp: '01. Operador de Calderos' },
@@ -184,14 +184,6 @@ export const generateOTMCode = (area?: string, specialty?: string, sequence: num
   return `OTM${aa}${ee}-${nn}`;
 };
 
-// Helper for dates
-const getDateShift = (days: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d;
-};
-
-const statuses: OTMStatus[] = ['pending', 'scheduled', 'in_progress', 'rq', 'awaiting_supervisor', 'awaiting_conformity', 'closed', 'cancelled'];
 const urgencies: Urgency[] = ['high', 'medium', 'low'];
 const specialties = ['01. Operador de Calderos', '02. Piscinero', '03. Electricista', '04. Carpintero', '05. Jardinero', '06. Gasfitero', '07. Albañil', '08. Pintor', '09. Otros'];
 

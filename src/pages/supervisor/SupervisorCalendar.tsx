@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useOTM } from '../../context/OTMContext';
 import { useRoutineActivity } from '../../context/RoutineActivityContext';
 import { RoutineRecord, routineEventTitle, ROUTINE_EVENT_COLOR, parseRoutineHour } from '../../types/routine';
@@ -23,7 +23,7 @@ const SPECS_COLORS: Record<string, string> = {
   '09. Otros': '#64748b', // Slate
 };
 
-export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view: string) => void }) {
+export default function SupervisorCalendar({ onNavigate: _onNavigate }: { onNavigate?: (view: string) => void }) {
   const { otms, users, otis } = useOTM();
   const { getRecordsForCalendar } = useRoutineActivity();
   const [selectedTechFilter, setSelectedTechFilter] = useState('');
@@ -356,7 +356,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
                               }}
                             >
                               <div style={{ fontWeight: 800, fontSize: '0.65rem' }}>{routineEventTitle(r.specialty, r.sub_specialty)}</div>
-                              <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{r.start_time} · { (users.find(u => u.id === r.technician_id)?.full_name || 'Técnico').split(' ').slice(0, 2).join(' ') }</span>
+                              <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{r.start_time} · { techName.split(' ').slice(0, 2).join(' ') }</span>
                             </div>
                           );
                         })}
@@ -554,7 +554,7 @@ export default function SupervisorCalendar({ onNavigate }: { onNavigate?: (view:
               <div>
                 <strong style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Técnicos Asignados</strong>
                 <div style={{ fontWeight: 600 }}>
-                  {selectedOTI.technician_ids.map(id => users.find(u => u.id === id)?.full_name || 'Técnico').join(', ')}
+                  {selectedOTI.technician_ids.map((id: string) => users.find(u => u.id === id)?.full_name || 'Técnico').join(', ')}
                 </div>
               </div>
               <div>

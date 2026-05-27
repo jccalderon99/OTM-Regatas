@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { OTMRequest } from '../types';
 import { useOTM } from '../context/OTMContext';
 import SignaturePad from './SignaturePad';
