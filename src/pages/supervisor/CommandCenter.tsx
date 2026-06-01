@@ -10,11 +10,11 @@ type DateFilterType = 'today' | 'week' | 'month' | '3months' | 'year' | 'custom'
 
 export default function CommandCenter() {
   const { user } = useAuth();
-  const { otms, users, supervisors } = useOTM();
+  const { otms, users, supervisors, techRequests = [], updateTechRequestStatus } = useOTM();
   const { records } = useRoutineActivity();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'operations' | 'efficiency' | 'quality' | 'preventive'>('operations');
+  const [activeTab, setActiveTab] = useState<'operations' | 'efficiency' | 'quality' | 'preventive' | 'tech-requests'>('operations');
 
   // Interactive Drill-down State
   const [activeDrillDownFilter, setActiveDrillDownFilter] = useState<{ type: string; value: string; label: string } | null>(null);
@@ -34,6 +34,16 @@ export default function CommandCenter() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportType, setReportType] = useState<'basic' | 'executive' | 'detailed'>('executive');
   const [showReportDropdown, setShowReportDropdown] = useState(false);
+
+  // Tech Requests State
+  const [selectedRequestForResponse, setSelectedRequestForResponse] = useState<any | null>(null);
+  const [newRequestStatus, setNewRequestStatus] = useState<any>('pending');
+  const [supervisorResponseText, setSupervisorResponseText] = useState('');
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
+
+  const [techReqTypeFilter, setTechReqTypeFilter] = useState('');
+  const [techReqStatusFilter, setTechReqStatusFilter] = useState('');
+  const [techReqSearch, setTechReqSearch] = useState('');
 
   const technicians = useMemo(() => users.filter(u => u.role === 'technician'), [users]);
 
@@ -511,7 +521,7 @@ export default function CommandCenter() {
     <div>
 
       {/* Filters Banner */}
-      <div className="glass-card" style={{ position: 'relative', zIndex: 50, marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+      <div className="glass-card" style={{ position: 'relative', zIndex: 80, marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div className="form-group" style={{ minWidth: 200, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0, color: 'var(--text-muted)' }}>Elegir Supervisor:</label>
@@ -617,7 +627,8 @@ export default function CommandCenter() {
           { id: 'operations', label: 'Operaciones', icon: '📊', desc: 'Demanda y flujo general' },
           { id: 'efficiency', label: 'Eficiencia', icon: '⚡', desc: 'Desempeño y tiempos' },
           { id: 'quality', label: 'Calidad y CSAT', icon: '⭐', desc: 'Satisfacción y actas' },
-          { id: 'preventive', label: 'Preventivos', icon: '🛡️', desc: 'Planificados y contratas' }
+          { id: 'preventive', label: 'Preventivos', icon: '🛡️', desc: 'Planificados y contratas' },
+          { id: 'tech-requests', label: 'Solicitudes Técnicos', icon: '🔧', desc: 'Requerimientos de personal' }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -1201,6 +1212,188 @@ export default function CommandCenter() {
         </div>
       )}
 
+      {/* ================= TAB 5: SOLICITUDES DE TÉCNICOS ================= */}
+      {activeTab === 'tech-requests' && (() => {
+        const filteredRequests = techRequests.filter(r => {
+          if (techReqTypeFilter && r.request_type !== techReqTypeFilter) return false;
+          if (techReqStatusFilter && r.status !== techReqStatusFilter) return false;
+          if (techReqSearch) {
+            const term = techReqSearch.toLowerCase();
+            return (
+              r.technician_name.toLowerCase().includes(term) ||
+              r.description.toLowerCase().includes(term) ||
+              (r.otm_code || '').toLowerCase().includes(term)
+            );
+          }
+          return true;
+        });
+
+        const getStatusBadge = (status: string) => {
+          const configs: Record<string, { label: string; bg: string; color: string }> = {
+            pending: { label: 'Pendiente', bg: '#fef3c7', color: '#b45309' },
+            approved: { label: 'Aprobado', bg: '#e0f2fe', color: '#0369a1' },
+            rejected: { label: 'Rechazado', bg: '#fee2e2', color: '#b91c1c' },
+            attended: { label: 'Atendido', bg: '#d1fae5', color: '#047857' },
+          };
+          const c = configs[status] || { label: status, bg: '#f1f5f9', color: '#475569' };
+          return (
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: c.bg, color: c.color, border: `1.5px solid ${c.color}22`, textTransform: 'uppercase' }}>
+              {c.label}
+            </span>
+          );
+        };
+
+        const getTypeDetails = (type: string) => {
+          const configs: Record<string, { label: string; icon: string; color: string }> = {
+            material: { label: 'Materiales', icon: '📦', color: '#0ea5e9' },
+            tool: { label: 'Herramienta', icon: '🔧', color: '#a855f7' },
+            observation: { label: 'Obs. Máquina', icon: '⚙️', color: '#f59e0b' },
+            other: { label: 'Otro', icon: '📝', color: '#64748b' },
+          };
+          return configs[type] || { label: type, icon: '📝', color: '#64748b' };
+        };
+
+        return (
+          <div className="tab-fade">
+            <div className="glass-card" style={{ padding: '20px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  📋 Requerimientos y Alertas del Personal Técnico ({filteredRequests.length})
+                </h3>
+                
+                {/* Search & Filters */}
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Buscar por técnico, OTM o detalle..."
+                    value={techReqSearch}
+                    onChange={e => setTechReqSearch(e.target.value)}
+                    style={{ width: 240, padding: '6px 12px', fontSize: '0.85rem', marginBottom: 0 }}
+                  />
+                  <select
+                    className="form-select"
+                    value={techReqTypeFilter}
+                    onChange={e => setTechReqTypeFilter(e.target.value)}
+                    style={{ width: 150, padding: '6px 12px', fontSize: '0.85rem' }}
+                  >
+                    <option value="">Todos los tipos</option>
+                    <option value="material">📦 Materiales</option>
+                    <option value="tool">🔧 Herramientas</option>
+                    <option value="observation">⚙️ Obs. Máquina</option>
+                    <option value="other">📝 Otros</option>
+                  </select>
+                  <select
+                    className="form-select"
+                    value={techReqStatusFilter}
+                    onChange={e => setTechReqStatusFilter(e.target.value)}
+                    style={{ width: 150, padding: '6px 12px', fontSize: '0.85rem' }}
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="pending">🟨 Pendiente</option>
+                    <option value="approved">🟦 Aprobado</option>
+                    <option value="rejected">🟥 Rechazado</option>
+                    <option value="attended">🟩 Atendido</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {filteredRequests.length === 0 ? (
+              <div className="glass-card empty-state" style={{ padding: '48px 20px' }}>
+                <div className="empty-state-icon" style={{ fontSize: '2.5rem' }}>🔧</div>
+                <h4 className="empty-state-title" style={{ fontSize: '1rem', marginTop: 10 }}>Sin solicitudes encontradas</h4>
+                <p className="empty-state-text" style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 4 }}>
+                  No se encontraron solicitudes que coincidan con los filtros seleccionados.
+                </p>
+              </div>
+            ) : (
+              <div className="data-table-wrapper" style={{ borderRadius: '16px', border: '1px solid var(--border)', background: 'white', overflow: 'hidden' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Técnico / Especialidad</th>
+                      <th>Tipo</th>
+                      <th>Detalle de Requerimiento</th>
+                      <th>OTM Asociada</th>
+                      <th>Estado</th>
+                      <th>Comentarios de Supervisión</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRequests.map(req => {
+                      const typeConfig = getTypeDetails(req.request_type);
+                      return (
+                        <tr key={req.id}>
+                          <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            {new Date(req.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{req.technician_name}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{req.specialty.replace(/^\d+\.\s*/, '')}</div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: typeConfig.color }}>
+                              {typeConfig.icon} {typeConfig.label}
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: '280px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{req.description}</div>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {req.otm_code ? (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)', background: 'rgba(14,165,233,0.06)', padding: '3px 8px', borderRadius: 6 }}>
+                                {req.otm_code}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                            )}
+                          </td>
+                          <td>{getStatusBadge(req.status)}</td>
+                          <td style={{ maxWidth: '200px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {req.supervisor_response ? (
+                              <div style={{ fontStyle: 'italic', color: 'var(--accent-emerald)', borderLeft: '2px solid var(--accent-emerald)', paddingLeft: 6 }}>
+                                {req.supervisor_response}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#cbd5e1' }}>Sin responder</span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => {
+                                setSelectedRequestForResponse(req);
+                                setNewRequestStatus(req.status);
+                                setSupervisorResponseText(req.supervisor_response || '');
+                                setIsResponseModalOpen(true);
+                              }}
+                              style={{
+                                background: 'rgba(14, 165, 233, 0.08)',
+                                border: '1px solid rgba(14, 165, 233, 0.15)',
+                                color: 'var(--accent-blue)',
+                                borderRadius: 8,
+                                fontWeight: 700,
+                                padding: '6px 12px',
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              ✍️ Responder
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
 
       {/* ================= GLOBAL DRILL-DOWN PANEL ================= */}
       {activeDrillDownFilter && (
@@ -1208,7 +1401,7 @@ export default function CommandCenter() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
             <div>
               <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: vibrant.blue, letterSpacing: '0.05em' }}>
-                📍 Detalle Operativo en Tiempo Real
+                📍 Detalle Operativo de Actividades
               </span>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>
                 {activeDrillDownFilter.label}
@@ -1380,7 +1573,7 @@ export default function CommandCenter() {
                                   <strong style={{ fontSize: '0.85rem', color: vibrant.blue }}>{otm.estimated_time || '—'} horas</strong>
                                 </div>
                                 <div>
-                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Tiempo Real de Ejecución</span>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Tiempo de Ejecución Registrado</span>
                                   <strong style={{ fontSize: '0.85rem', color: otm.net_execution_time > otm.estimated_time ? vibrant.coral : vibrant.green }}>
                                     {otm.net_execution_time || '—'} horas
                                   </strong>
@@ -1478,6 +1671,83 @@ export default function CommandCenter() {
         supervisorName={currentSupervisorName}
         users={users}
       />
+
+      {/* Supervisor Response Modal */}
+      {isResponseModalOpen && selectedRequestForResponse && (
+        <div className="modal-overlay" onClick={() => setIsResponseModalOpen(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content slide-up" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent-purple)', letterSpacing: '0.05em' }}>
+                  ✍️ Responder a Técnico
+                </span>
+                <h3 className="modal-title" style={{ margin: '4px 0 0', fontSize: '1.2rem' }}>
+                  Solicitud de {selectedRequestForResponse.technician_name}
+                </h3>
+              </div>
+              <button onClick={() => setIsResponseModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
+            </div>
+
+            <div style={{ background: 'var(--bg-primary)', padding: 14, borderRadius: 10, marginBottom: 20, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              <strong style={{ display: 'block', marginBottom: 4, color: 'var(--text-primary)' }}>Detalle de Solicitud:</strong>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedRequestForResponse.description}</div>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              updateTechRequestStatus(selectedRequestForResponse.id, newRequestStatus, supervisorResponseText);
+              setIsResponseModalOpen(false);
+              setSelectedRequestForResponse(null);
+              alert('¡Respuesta guardada y notificada al técnico!');
+            }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              
+              <div className="form-group">
+                <label className="form-label">Asignar Estado</label>
+                <select 
+                  className="form-select"
+                  value={newRequestStatus}
+                  onChange={e => setNewRequestStatus(e.target.value as any)}
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  <option value="pending">🟨 Pendiente</option>
+                  <option value="approved">🟦 Aprobado</option>
+                  <option value="rejected">🟥 Rechazado</option>
+                  <option value="attended">🟩 Atendido</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Comentarios / Respuesta</label>
+                <textarea
+                  className="form-textarea"
+                  value={supervisorResponseText}
+                  onChange={e => setSupervisorResponseText(e.target.value)}
+                  placeholder="Escribe la respuesta del supervisor (ej: 'Aprobado, favor retirar de almacén', 'Revisar OTM primero', etc.)"
+                  style={{ minHeight: 90, fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsResponseModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--accent-purple) 0%, #7c3aed 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(124, 58, 237, 0.15)',
+                    color: 'white',
+                  }}
+                >
+                  Guardar Respuesta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Styled components */}
       <style>{`

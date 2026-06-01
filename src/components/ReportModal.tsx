@@ -264,6 +264,132 @@ export default function ReportModal({
     return { own, contractor, total: own + contractor };
   }, [otms]);
 
+  // Pendientes por especialidad
+  const pendingBySpecialty = useMemo(() => {
+    const map: Record<string, number> = {};
+    activeOTMs.forEach(o => {
+      const spec = o.failure_type || 'Otros';
+      map[spec] = (map[spec] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [activeOTMs]);
+
+  // Distribución de estados para la Dona de Estados de OTs
+  const statusData = useMemo(() => {
+    const map: Record<string, number> = {};
+    otms.forEach(o => {
+      const status = o.status || 'unknown';
+      map[status] = (map[status] || 0) + 1;
+    });
+    const total = Object.values(map).reduce((sum, val) => sum + val, 0);
+    
+    const statusLabels: Record<string, { label: string; color: string }> = {
+      pending: { label: 'Pendiente', color: '#ea580c' },
+      scheduled: { label: 'Programado', color: '#0284c7' },
+      in_progress: { label: 'En Proceso', color: '#9333ea' },
+      rq: { label: 'Requerimiento', color: '#e11d48' },
+      awaiting_supervisor: { label: 'Espera Sup.', color: '#475569' },
+      awaiting_conformity: { label: 'Espera Conf.', color: '#16a34a' },
+      closed: { label: 'Cerrado', color: '#16a34a' },
+      cancelled: { label: 'Cancelado', color: '#475569' }
+    };
+
+    const items = Object.entries(map).map(([key, count]) => {
+      const info = statusLabels[key] || { label: key, color: '#475569' };
+      return {
+        key,
+        label: info.label,
+        count,
+        color: info.color
+      };
+    }).filter(item => item.count > 0);
+
+    return { total, items };
+  }, [otms]);
+
+  const statusDoughnutItems = useMemo(() => {
+    const circumference = 251.2;
+    let accumulated = 0;
+    return statusData.items.map(item => {
+      const percent = statusData.total > 0 ? item.count / statusData.total : 0;
+      const strokeLength = percent * circumference;
+      const currentOffset = -accumulated;
+      accumulated += strokeLength;
+      return {
+        ...item,
+        percent: Math.round(percent * 100),
+        strokeDasharray: `${strokeLength} ${circumference}`,
+        strokeDashoffset: currentOffset
+      };
+    });
+  }, [statusData]);
+
+  // Distribución de tipo de mantenimiento
+  const maintenanceData = useMemo(() => {
+    const map: Record<string, number> = { corrective: 0, preventive: 0, emergency: 0, support: 0 };
+    otms.forEach(o => {
+      if (o.maintenance_type && o.maintenance_type in map) map[o.maintenance_type]++;
+    });
+    const total = Object.values(map).reduce((sum, val) => sum + val, 0);
+    const items = Object.entries(map).map(([type, count]) => {
+      const label = type === 'corrective' ? 'Correctivo' : type === 'preventive' ? 'Preventivo' : type === 'emergency' ? 'Emergencia' : 'Soporte';
+      const color = type === 'corrective' ? colors.rose : type === 'preventive' ? colors.blue : type === 'emergency' ? colors.orange : colors.purple;
+      return { type, label, count, color };
+    }).filter(item => item.count > 0);
+    return { total, items };
+  }, [otms, colors]);
+
+  const maintenanceDoughnutItems = useMemo(() => {
+    const circumference = 251.2;
+    let accumulated = 0;
+    return maintenanceData.items.map(item => {
+      const percent = maintenanceData.total > 0 ? item.count / maintenanceData.total : 0;
+      const strokeLength = percent * circumference;
+      const currentOffset = -accumulated;
+      accumulated += strokeLength;
+      return {
+        ...item,
+        percent: Math.round(percent * 100),
+        strokeDasharray: `${strokeLength} ${circumference}`,
+        strokeDashoffset: currentOffset
+      };
+    });
+  }, [maintenanceData]);
+
+  // Distribución por prioridad
+  const priorityData = useMemo(() => {
+    const map: Record<string, number> = { high: 0, medium: 0, low: 0 };
+    otms.forEach(o => {
+      if (o.urgency && o.urgency in map) map[o.urgency]++;
+    });
+    const total = Object.values(map).reduce((sum, val) => sum + val, 0);
+    const items = [
+      { key: 'high', label: 'Alta', count: map.high, color: colors.rose },
+      { key: 'medium', label: 'Media', count: map.medium, color: colors.orange },
+      { key: 'low', label: 'Baja', count: map.low, color: colors.green }
+    ].filter(item => item.count > 0);
+    return { total, items };
+  }, [otms, colors]);
+
+  const priorityDoughnutItems = useMemo(() => {
+    const circumference = 251.2;
+    let accumulated = 0;
+    return priorityData.items.map(item => {
+      const percent = priorityData.total > 0 ? item.count / priorityData.total : 0;
+      const strokeLength = percent * circumference;
+      const currentOffset = -accumulated;
+      accumulated += strokeLength;
+      return {
+        ...item,
+        percent: Math.round(percent * 100),
+        strokeDasharray: `${strokeLength} ${circumference}`,
+        strokeDashoffset: currentOffset
+      };
+    });
+  }, [priorityData]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -362,69 +488,52 @@ export default function ReportModal({
         {/* PAGE 1: COVER / GENERAL (All reports have Page 1) */}
         {/* ========================================================================= */}
         <div className="print-page print-shadow" style={{
-          width: '794px', height: '1123px', background: 'white', padding: '50px 60px',
+          width: '794px', height: '1123px', background: 'white', padding: '40px 50px',
           boxSizing: 'border-box', position: 'relative', display: 'flex', flexDirection: 'column',
           justifyContent: 'space-between', border: '1px solid #e2e8f0', pageBreakAfter: 'always', breakAfter: 'page'
         }}>
-          {/* Header */}
-          <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h4 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#475569', letterSpacing: '0.15em', margin: 0 }}>CLUB DE REGATAS LIMA</h4>
-                <h5 style={{ fontSize: '0.55rem', fontWeight: 700, color: '#94a3b8', margin: '2px 0 0 0' }}>DEPARTAMENTO DE MANTENIMIENTO</h5>
-              </div>
-              <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#0284c7', fontFamily: 'serif' }}>CRL 1875</span>
-            </div>
-          </div>
-
-          {/* Main Title Block */}
-          <div style={{ margin: '40px 0', textAlign: 'center' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {type === 'basic' ? 'RESUMEN OPERATIVO MENSUAL' : type === 'executive' ? 'INFORME EJECUTIVO MENSUAL' : 'REPORTE DE AUDITORÍA Y DETALLE OPERATIVO'}
-            </span>
-            <h1 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#1e293b', margin: '8px 0 12px 0', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
-              INFORME DE MANTENIMIENTO
-            </h1>
-            <div style={{ width: '40px', height: '4px', background: '#eab308', margin: '0 auto 16px auto', borderRadius: 2 }} />
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>{reportTitle}</h3>
-          </div>
-
-          {/* Metadata Block */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: '#f8fafc', padding: '16px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.75rem' }}>
-            <div>
-              <div style={{ marginBottom: 6 }}><span style={{ color: '#64748b', fontWeight: 600 }}>Periodo de Análisis:</span> <strong style={{ color: '#334155' }}>{formatDate(dateLimits.start)} al {formatDate(dateLimits.end)}</strong></div>
-              <div><span style={{ color: '#64748b', fontWeight: 600 }}>Supervisor Responsable:</span> <strong style={{ color: '#334155' }}>{supervisorName || 'Mantenimiento General'}</strong></div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ marginBottom: 6 }}><span style={{ color: '#64748b', fontWeight: 600 }}>Fecha de Emisión:</span> <strong style={{ color: '#334155' }}>{formatDate(new Date())}</strong></div>
-              <div><span style={{ color: '#64748b', fontWeight: 600 }}>Tipo de Reporte:</span> <strong style={{ color: '#334155' }}>{type === 'basic' ? 'Básico (Resumido)' : type === 'executive' ? 'Ejecutivo (Jefatura)' : 'Detallado (Operativo)'}</strong></div>
-            </div>
-          </div>
-
-          {/* Executive KPIs */}
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '12px' }}>Indicadores Clave de Gestión (KPIs)</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-              {[
-                { label: 'OTMs Procesadas', value: otms.length, desc: 'Solicitudes en el mes', color: colors.blue },
-                { label: 'Cumplimiento Rutinas', value: `${routineCompliance}%`, desc: 'Avance preventivos', color: colors.purple },
-                { label: 'Calidad (CSAT)', value: `${avgCSAT} ⭐`, desc: 'Aceptación del solicitante', color: colors.orange },
-                { label: 'Tiempo Neto Ejecución', value: `${avgExecTime}h`, desc: 'Promedio por tarea', color: colors.green }
-              ].map((kpi, idx) => (
-                <div key={idx} style={{ border: `1px solid ${kpi.color}22`, background: `${kpi.color}05`, padding: '12px 8px', borderRadius: '6px', textAlign: 'center' }}>
-                  <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', height: '14px', overflow: 'hidden' }}>{kpi.label}</span>
-                  <strong style={{ display: 'block', fontSize: '1.4rem', fontWeight: 900, color: kpi.color, margin: '4px 0' }}>{kpi.value}</strong>
-                  <span style={{ display: 'block', fontSize: '0.55rem', color: '#94a3b8' }}>{kpi.desc}</span>
+          {/* Grouped Top Section to avoid vertical stretching */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', boxSizing: 'border-box', width: '100%' }}>
+            {/* Header */}
+            <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#475569', letterSpacing: '0.15em', margin: 0 }}>CLUB DE REGATAS LIMA</h4>
+                  <h5 style={{ fontSize: '0.55rem', fontWeight: 700, color: '#94a3b8', margin: '2px 0 0 0' }}>DEPARTAMENTO DE MANTENIMIENTO</h5>
                 </div>
-              ))}
+                <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#0284c7', fontFamily: 'serif' }}>CRL 1875</span>
+              </div>
+            </div>
+
+            {/* Main Title Block */}
+            <div style={{ margin: '8px 0 4px 0', textAlign: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                {type === 'basic' ? 'RESUMEN OPERATIVO MENSUAL' : 'INFORME MENSUAL DE OPERACIONES'}
+              </span>
+              <h1 style={{ fontSize: '2.0rem', fontWeight: 900, color: '#1e293b', margin: '6px 0 8px 0', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
+                INFORME DE MANTENIMIENTO
+              </h1>
+              <div style={{ width: '40px', height: '4px', background: '#eab308', margin: '0 auto 8px auto', borderRadius: 2 }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>{reportTitle}</h3>
+            </div>
+
+            {/* Metadata Block */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px 18px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.7rem', marginTop: '4px' }}>
+              <div>
+                <div style={{ marginBottom: 4 }}><span style={{ color: '#64748b', fontWeight: 600 }}>Periodo de Análisis:</span> <strong style={{ color: '#334155' }}>{formatDate(dateLimits.start)} al {formatDate(dateLimits.end)}</strong></div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ marginBottom: 4 }}><span style={{ color: '#64748b', fontWeight: 600 }}>Fecha de Emisión:</span> <strong style={{ color: '#334155' }}>{formatDate(new Date())}</strong></div>
+                <div><span style={{ color: '#64748b', fontWeight: 600 }}>Tipo de Reporte:</span> <strong style={{ color: '#334155' }}>{type === 'basic' ? 'Básico (Resumido)' : type === 'executive' ? 'Ejecutivo (Jefatura)' : 'Detallado (Operativo)'}</strong></div>
+              </div>
             </div>
           </div>
 
-          {/* Daily balance line chart (Always Page 1) */}
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '12px' }}>Balance Diario (Creadas vs Resueltas)</h3>
-            <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', height: '150px' }}>
-              <div style={{ display: 'flex', gap: 16, marginBottom: 8, fontSize: '0.65rem', fontWeight: 700 }}>
+          {/* Daily balance line chart (Full width, half height) */}
+          <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '240px', marginTop: '8px', boxSizing: 'border-box', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', margin: 0 }}>Balance Diario (Creadas vs Resueltas)</h4>
+              <div style={{ display: 'flex', gap: 12, fontSize: '0.65rem', fontWeight: 700 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#334155' }}>
                   <span style={{ width: 10, height: 3, background: colors.blue, display: 'inline-block' }} /> OTMs Creadas
                 </span>
@@ -432,18 +541,97 @@ export default function ReportModal({
                   <span style={{ width: 10, height: 3, background: colors.green, display: 'inline-block' }} /> OTMs Cerradas
                 </span>
               </div>
-              <div style={{ height: '110px' }}>{drawLineChart()}</div>
+            </div>
+            <div style={{ height: '180px', position: 'relative', width: '100%' }}>
+              {drawLineChart()}
             </div>
           </div>
 
-          {/* Basic summary text field (Only in Basic report) */}
+          {/* Fila inferior: Dona de Estados y OTs Pendientes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '8px', width: '100%', boxSizing: 'border-box' }}>
+            {/* Dona de Estados de OTs */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '240px', boxSizing: 'border-box' }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '10px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                Estados de OTs
+              </h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '10px', flex: 1 }}>
+                <div style={{ position: 'relative', width: '120px', height: '120px', flexShrink: 0 }}>
+                  <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                    {statusDoughnutItems.map(item => item.count > 0 && (
+                      <circle
+                        key={item.key}
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke={item.color}
+                        strokeWidth="12"
+                        strokeDasharray={item.strokeDasharray}
+                        strokeDashoffset={item.strokeDashoffset}
+                        strokeLinecap="round"
+                      />
+                    ))}
+                  </svg>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#1e293b', lineHeight: 1 }}>{statusData.total}</span>
+                    <span style={{ fontSize: '0.55rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>OTMs</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, paddingLeft: 8 }}>
+                  {statusDoughnutItems.slice(0, 5).map(item => (
+                    <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, display: 'inline-block', flexShrink: 0 }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.65rem' }}>
+                        <span style={{ fontWeight: 600, color: '#475569' }}>{item.label}</span>
+                        <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* OTs Pendientes Breakdown */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '240px', boxSizing: 'border-box' }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '10px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                OTs Pendientes (Carga Activa)
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: '2.2rem', fontWeight: 900, color: colors.rose, lineHeight: 1 }}>{activeOTMs.length}</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Solicitudes Pendientes Totales</span>
+                </div>
+                
+                {/* Breakdown cards for pending statuses */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    { label: 'En Cola', count: otms.filter(o => o.status === 'pending').length, color: '#ea580c' },
+                    { label: 'Programadas', count: otms.filter(o => o.status === 'scheduled').length, color: '#0284c7' },
+                    { label: 'En Proceso', count: otms.filter(o => o.status === 'in_progress').length, color: '#9333ea' },
+                    { label: 'Requerimientos (RQ)', count: otms.filter(o => o.status === 'rq').length, color: '#e11d48' },
+                  ].map((p, idx) => (
+                    <div key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
+                        {p.label}
+                      </span>
+                      <strong style={{ fontSize: '0.8rem', color: '#1e293b' }}>{p.count}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Basic summary text field and signatures (Only in Basic report) */}
           {type === 'basic' && (
-            <div style={{ marginTop: '20px' }}>
+            <div style={{ marginTop: '12px' }}>
               <h3 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '8px' }}>Observaciones y Firmas del Supervisor</h3>
-              <div style={{ border: '1px solid #cbd5e1', padding: '16px', borderRadius: '8px', minHeight: '80px', fontSize: '0.7rem', color: '#64748b' }}>
+              <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', minHeight: '60px', fontSize: '0.7rem', color: '#64748b' }}>
                 Utilice esta sección para anotar comentarios generales, imprevistos o eventos extraordinarios del mantenimiento en el mes.
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '30px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '20px' }}>
                 <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '150px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
                   Firma Supervisor CRL
                 </div>
@@ -455,23 +643,23 @@ export default function ReportModal({
           )}
 
           {/* Footer */}
-          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
+          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
             <span>Informe Mensual Mantenimiento CRL</span>
-            <span>Página 1 de {type === 'basic' ? 1 : type === 'executive' ? 3 : 4}</span>
+            <span>Página 1 de {type === 'basic' ? 1 : 3}</span>
           </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* EXECUTIVE REPORT (PAGE 2) OR DETAILED (PAGE 2) */}
+        {/* PAGE 2: PENDIENTES POR ESPECIALIDAD, DEMANDA Y CRITERIOS (Executive/Detailed) */}
         {/* ========================================================================= */}
         {type !== 'basic' && (
           <div className="print-page print-shadow" style={{
-            width: '794px', height: '1123px', background: 'white', padding: '50px 60px',
+            width: '794px', height: '1123px', background: 'white', padding: '40px 50px',
             boxSizing: 'border-box', position: 'relative', display: 'flex', flexDirection: 'column',
             justifyContent: 'space-between', border: '1px solid #e2e8f0', pageBreakAfter: 'always', breakAfter: 'page'
           }}>
             {/* Header */}
-            <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '12px' }}>
+            <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', color: '#64748b' }}>
                 <span>INFORME DE MANTENIMIENTO — {reportTitle}</span>
                 <span style={{ fontWeight: 800 }}>CLUB DE REGATAS LIMA</span>
@@ -479,29 +667,152 @@ export default function ReportModal({
             </div>
 
             {/* Title Section */}
-            <div style={{ margin: '20px 0 10px 0' }}>
+            <div style={{ margin: '6px 0 4px 0' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sección Operativa II</span>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', margin: '4px 0 8px 0', textTransform: 'uppercase' }}>
-                Distribución por Áreas del Club y Eficiencia
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', margin: '4px 0', textTransform: 'uppercase' }}>
+                Pendientes por Especialidad e Infraestructura
               </h2>
-              <p style={{ fontSize: '0.7rem', color: '#64748b', margin: 0 }}>Análisis de focos de demanda edilicia e infraestructura, y desviaciones sobre tiempos de trabajo.</p>
             </div>
 
-            {/* Areas Distribution Horizontal Bar Chart */}
-            <div style={{ marginTop: '16px' }}>
-              <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '10px' }}>Top Áreas / Sectores del Club con Mayor Demanda</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#f8fafc', padding: '16px 20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                {areaData.map(([area, count], i) => {
-                  const areaColors = [colors.blue, colors.rose, colors.orange, colors.purple, colors.green];
+            {/* Pendientes por Especialidad (Full width, same size as Balance Diario) */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '240px', boxSizing: 'border-box', width: '100%' }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '10px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                Solicitudes Pendientes por Especialidad
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, justifyContent: 'center' }}>
+                {pendingBySpecialty.slice(0, 5).map((spec, i) => {
+                  const specColors = [colors.blue, colors.rose, colors.orange, colors.purple, colors.green];
+                  const color = specColors[i % specColors.length];
+                  const maxPending = Math.max(...pendingBySpecialty.map(s => s.count), 1);
+                  return (
+                    <div key={spec.name}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', marginBottom: 2, fontWeight: 700, color: '#334155' }}>
+                        <span>🛡️ {(spec.name || '').replace(/^\d+\.\s*/, '')}</span>
+                        <span>{spec.count} pendientes</span>
+                      </div>
+                      <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${(spec.count / maxPending) * 100}%`, height: '100%', background: color, borderRadius: '4px' }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {pendingBySpecialty.length === 0 && (
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', padding: '20px 0' }}>No hay solicitudes pendientes en el periodo</div>
+                )}
+              </div>
+            </div>
+
+            {/* Subtítulo: Distribución de la demanda y criterios operativos */}
+            <div style={{ borderBottom: '1.5px solid #cbd5e1', paddingBottom: '4px', marginTop: '10px', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                Distribución de la demanda y Criterios Operativos
+              </h3>
+            </div>
+
+            {/* Fila con 2 donas grandes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
+              {/* Dona de Tipo de Mantenimiento */}
+              <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '200px', boxSizing: 'border-box' }}>
+                <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '4px' }}>
+                  Tipo de Mantenimiento
+                </h4>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '10px', flex: 1 }}>
+                  <div style={{ position: 'relative', width: '100px', height: '100px', flexShrink: 0 }}>
+                    <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                      {maintenanceDoughnutItems.map(item => item.count > 0 && (
+                        <circle
+                          key={item.type}
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke={item.color}
+                          strokeWidth="12"
+                          strokeDasharray={item.strokeDasharray}
+                          strokeDashoffset={item.strokeDashoffset}
+                          strokeLinecap="round"
+                        />
+                      ))}
+                    </svg>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#1e293b', lineHeight: 1 }}>{maintenanceData.total}</span>
+                      <span style={{ fontSize: '0.5rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 1 }}>OTs</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, paddingLeft: 6 }}>
+                    {maintenanceDoughnutItems.map(item => (
+                      <div key={item.type} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.color, display: 'inline-block', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.6rem' }}>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>{item.label}</span>
+                          <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Distribución por Prioridad */}
+              <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '200px', boxSizing: 'border-box' }}>
+                <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e293b', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '4px' }}>
+                  Distribución por Prioridad
+                </h4>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '10px', flex: 1 }}>
+                  <div style={{ position: 'relative', width: '100px', height: '100px', flexShrink: 0 }}>
+                    <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                      {priorityDoughnutItems.map(item => item.count > 0 && (
+                        <circle
+                          key={item.key}
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke={item.color}
+                          strokeWidth="12"
+                          strokeDasharray={item.strokeDasharray}
+                          strokeDashoffset={item.strokeDashoffset}
+                          strokeLinecap="round"
+                        />
+                      ))}
+                    </svg>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#1e293b', lineHeight: 1 }}>{priorityData.total}</span>
+                      <span style={{ fontSize: '0.5rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 1 }}>OTs</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, paddingLeft: 6 }}>
+                    {priorityDoughnutItems.map(item => (
+                      <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.color, display: 'inline-block', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.6rem' }}>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>{item.label}</span>
+                          <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Demás gráficos (Top Áreas) — Ancho y Grande */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '10px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '170px', boxSizing: 'border-box', marginTop: '10px' }}>
+              <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#1e293b', marginBottom: '8px' }}>Top Áreas / Sectores del Club con Mayor Demanda</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, justifyContent: 'center' }}>
+                {areaData.slice(0, 4).map(([area, count], i) => {
+                  const areaColors = [colors.blue, colors.rose, colors.orange, colors.purple];
                   const color = areaColors[i % areaColors.length];
                   return (
                     <div key={area}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: 4, fontWeight: 700, color: '#334155' }}>
-                        <span>{(area || '').replace(/^\d+\.\s*/, '')}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', marginBottom: 1, fontWeight: 700, color: '#334155' }}>
+                        <span>🛡️ {(area || '').replace(/^\d+\.\s*/, '')}</span>
                         <span>{count} solicitudes</span>
                       </div>
-                      <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${(count / maxArea) * 100}%`, height: '100%', background: color, borderRadius: '4px' }}></div>
+                      <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${(count / maxArea) * 100}%`, height: '100%', background: color, borderRadius: '3px' }}></div>
                       </div>
                     </div>
                   );
@@ -509,245 +820,60 @@ export default function ReportModal({
               </div>
             </div>
 
-            {/* Estimated vs Real Specialty times chart */}
-            <div style={{ marginTop: '24px' }}>
-              <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '10px' }}>Eficiencia Temporal: Tiempo Estimado vs Real por Especialidad</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #e2e8f0', padding: '16px 20px', borderRadius: '8px' }}>
-                {specialtyTimeData.length > 0 ? specialtyTimeData.map(spec => (
+            {/* Demás gráficos (Eficiencia Temporal) — Ancho y Grande */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '10px 16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', height: '190px', boxSizing: 'border-box', marginTop: '10px' }}>
+              <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#1e293b', marginBottom: '6px' }}>Eficiencia Temporal: Tiempo Estimado vs Real por Especialidad</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, justifyContent: 'center' }}>
+                {specialtyTimeData.slice(0, 3).map(spec => (
                   <div key={spec.name} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 700, color: '#334155' }}>
-                      <span>{(spec.name || '').replace(/^\d+\.\s*/, '')}</span>
-                      <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 400 }}>({spec.count} OTMs con registro de tiempo)</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontWeight: 700, color: '#334155' }}>
+                      <span>🛡️ {(spec.name || '').replace(/^\d+\.\s*/, '')}</span>
+                      <span style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 400 }}>({spec.count} OTMs)</span>
                     </div>
-                    {/* Est vs Real Bars */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 60, fontSize: '0.6rem', color: '#64748b', textAlign: 'right' }}>Estimado:</span>
-                        <div style={{ flex: 1, height: '5px', background: '#f1f5f9', borderRadius: '2.5px', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 50, fontSize: '0.55rem', color: '#64748b', textAlign: 'right' }}>Estimado:</span>
+                        <div style={{ flex: 1, height: '4px', background: '#f1f5f9', borderRadius: '2px', overflow: 'hidden' }}>
                           <div style={{ width: `${(spec.estimated / Math.max(...specialtyTimeData.map(s => Math.max(s.estimated, s.real)), 1)) * 100}%`, height: '100%', background: colors.blue }}></div>
                         </div>
-                        <span style={{ width: 40, fontSize: '0.65rem', fontWeight: 700, color: '#475569' }}>{spec.estimated}h</span>
+                        <span style={{ width: 35, fontSize: '0.6rem', fontWeight: 700, color: '#475569' }}>{spec.estimated}h</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 60, fontSize: '0.6rem', color: '#64748b', textAlign: 'right' }}>Real:</span>
-                        <div style={{ flex: 1, height: '5px', background: '#f1f5f9', borderRadius: '2.5px', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 50, fontSize: '0.55rem', color: '#64748b', textAlign: 'right' }}>Real:</span>
+                        <div style={{ flex: 1, height: '4px', background: '#f1f5f9', borderRadius: '2px', overflow: 'hidden' }}>
                           <div style={{
                             width: `${(spec.real / Math.max(...specialtyTimeData.map(s => Math.max(s.estimated, s.real)), 1)) * 100}%`,
                             height: '100%',
                             background: spec.real > spec.estimated ? colors.rose : colors.green
                           }}></div>
                         </div>
-                        <span style={{ width: 40, fontSize: '0.65rem', fontWeight: 800, color: spec.real > spec.estimated ? colors.rose : colors.green }}>{spec.real}h</span>
+                        <span style={{ width: 35, fontSize: '0.6rem', fontWeight: 800, color: spec.real > spec.estimated ? colors.rose : colors.green }}>{spec.real}h</span>
                       </div>
                     </div>
                   </div>
-                )) : (
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', padding: '15px 0' }}>No hay registros de tiempo válidos en el periodo</div>
-                )}
+                ))}
               </div>
             </div>
 
-            {/* Additional Info Box on Page 2 for Executive report */}
-            {type === 'executive' && (
-              <div style={{ marginTop: '24px', background: '#f8fafc', borderLeft: `3px solid ${colors.blue}`, padding: '12px 16px', borderRadius: '0 6px 6px 0', fontSize: '0.7rem', color: '#475569', lineHeight: 1.4 }}>
-                <strong>💡 Análisis de Operaciones CRL:</strong> Las áreas recreativas y deportivas (como Deportes o Seguridad) han representado la mayor carga del periodo. En eficiencia temporal, la especialidad de calderas reportó un desvío debido a reparaciones imprevistas, mientras que las demás especialidades se mantuvieron por debajo del tiempo de estimación planificado.
-              </div>
-            )}
-
             {/* Footer */}
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
               <span>Informe Mensual Mantenimiento CRL</span>
-              <span>Página 2 de {type === 'executive' ? 3 : 4}</span>
+              <span>Página 2 de 3</span>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* EXECUTIVE REPORT (PAGE 3) OR DETAILED (PAGE 3) */}
+        {/* PAGE 3: DESEMPEÑO OPERATIVO Y TRABAJO TÉCNICO (Executive/Detailed) */}
         {/* ========================================================================= */}
         {type !== 'basic' && (
           <div className="print-page print-shadow" style={{
-            width: '794px', height: '1123px', background: 'white', padding: '50px 60px',
-            boxSizing: 'border-box', position: 'relative', display: 'flex', flexDirection: 'column',
-            justifyContent: 'space-between', border: '1px solid #e2e8f0', pageBreakAfter: type === 'executive' ? 'never' : 'always', breakAfter: type === 'executive' ? 'auto' : 'page'
-          }}>
-            {/* Header */}
-            <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', color: '#64748b' }}>
-                <span>INFORME DE MANTENIMIENTO — {reportTitle}</span>
-                <span style={{ fontWeight: 800 }}>CLUB DE REGATAS LIMA</span>
-              </div>
-            </div>
-
-            {/* Title Section */}
-            <div style={{ margin: '20px 0 10px 0' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {type === 'executive' ? 'Sección Operativa III' : 'Sección Operativa III'}
-              </span>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', margin: '4px 0 8px 0', textTransform: 'uppercase' }}>
-                {type === 'executive' ? 'Mantenimiento Preventivo y Control de Calidad' : 'Análisis de Calidad y Alertas de Feedback'}
-              </h2>
-              <p style={{ fontSize: '0.7rem', color: '#64748b', margin: 0 }}>
-                {type === 'executive' ? 'Tasa de avance de rutinas del plan anual de mantenimiento y feedback (CSAT) del socio.' : 'Auditoría detallada de satisfacción del usuario (CSAT), ranking de áreas y comentarios críticos.'}
-              </p>
-            </div>
-
-            {/* IF EXECUTIVE: Show Routine Compliance and Quality Ranking */}
-            {type === 'executive' ? (
-              <>
-                {/* Routine progress list */}
-                <div style={{ marginTop: '16px' }}>
-                  <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '10px' }}>Cumplimiento Preventivo por Especialidad (Checklists Maestro)</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #e2e8f0', padding: '16px 20px', borderRadius: '8px' }}>
-                    {routineProgressData.length > 0 ? routineProgressData.map(item => (
-                      <div key={item.specialty}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: 4, fontWeight: 700, color: '#475569' }}>
-                          <span>🛡️ {(item.specialty || '').replace(/^\d+\.\s*/, '')}</span>
-                          <span>{item.completed} / {item.total} rutinas completadas ({item.percent}%)</span>
-                        </div>
-                        <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                          <div style={{ width: `${item.percent}%`, height: '100%', background: colors.purple, borderRadius: '4px' }}></div>
-                        </div>
-                      </div>
-                    )) : (
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', padding: '15px 0' }}>No hay registros de rutinas planificadas en el mes</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* CSAT Area ranking */}
-                <div style={{ marginTop: '24px' }}>
-                  <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '10px' }}>Nivel de Satisfacción (CSAT) por Sectores del Club</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div style={{ border: '1px solid #e2e8f0', padding: '14px 16px', borderRadius: '8px' }}>
-                      <h4 style={{ fontSize: '0.7rem', fontWeight: 800, color: colors.green, marginBottom: '10px', textTransform: 'uppercase' }}>👍 Sectores con Mayor Satisfacción</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {areaSatisfaction.slice(0, 3).map(item => (
-                          <div key={item.area} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', borderBottom: '1px dashed #e2e8f0', paddingBottom: 4 }}>
-                            <span style={{ fontWeight: 600, color: '#475569' }}>{(item.area || '').replace(/^\d+\.\s*/, '')}</span>
-                            <span style={{ fontWeight: 700, color: colors.green }}>{item.rating} / 5.0 ⭐</span>
-                          </div>
-                        ))}
-                        {areaSatisfaction.length === 0 && <div style={{ fontSize: '0.65rem', color: '#94a3b8', textAlign: 'center' }}>Sin registros</div>}
-                      </div>
-                    </div>
-
-                    <div style={{ border: '1px solid #e2e8f0', padding: '14px 16px', borderRadius: '8px' }}>
-                      <h4 style={{ fontSize: '0.7rem', fontWeight: 800, color: colors.rose, marginBottom: '10px', textTransform: 'uppercase' }}>⚠️ Comentarios y Oportunidades de Mejora</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.6rem', color: '#64748b', fontStyle: 'italic', lineHeight: 1.3 }}>
-                        {lowFeedback.length > 0 ? lowFeedback.slice(0, 2).map(o => (
-                          <div key={o.id} style={{ borderBottom: '1px dashed #e2e8f0', paddingBottom: 4 }}>
-                            "{o.conformity_notes || 'Sin observaciones escritas'}" <strong style={{ color: '#475569' }}>({(o.area_sector || '').replace(/^\d+\.\s*/, '')})</strong>
-                          </div>
-                        )) : (
-                          <div>¡Excelente! No se registraron comentarios de insatisfacción en el mes.</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Final Signatures for Executive report */}
-                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '50px' }}>
-                  <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '150px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
-                    Firma Supervisor CRL
-                  </div>
-                  <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '150px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
-                    Jefatura de Servicios CRL
-                  </div>
-                </div>
-              </>
-            ) : (
-              /* IF DETAILED REPORT: Page 3 is focused on CSAT & Alerts */
-              <>
-                {/* CSAT Details list */}
-                <div style={{ marginTop: '16px' }}>
-                  <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '10px' }}>Ranking de Calidad (CSAT) por Áreas</h3>
-                  <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div>
-                      <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: colors.green, marginBottom: '8px' }}>Top Áreas Satisfechas</h4>
-                      <table style={{ width: '100%', fontSize: '0.65rem', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
-                            <th style={{ padding: '4px 0' }}>Área</th><th style={{ textAlign: 'right' }}>Satisfacción</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {areaSatisfaction.map((item, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px dashed #f1f5f9' }}>
-                              <td style={{ padding: '6px 0', fontWeight: 600 }}>{(item.area || '').replace(/^\d+\.\s*/, '')}</td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: colors.green }}>{item.rating} ⭐</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: '20px' }}>
-                      <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: colors.slate, marginBottom: '8px' }}>Resumen de Calificaciones</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: '0.7rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748b' }}>Actas Conformidad Totales:</span>
-                          <strong style={{ color: '#334155' }}>{totalConformidades} firmadas</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748b' }}>Tasa de Conformidad de Solicitudes:</span>
-                          <strong style={{ color: '#334155' }}>{feedbackRate}% recibidas</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#64748b' }}>Calificación Promedio General:</span>
-                          <strong style={{ color: colors.orange }}>{avgCSAT} / 5.0 Estrellas</strong>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Critical Feedback Alerts */}
-                <div style={{ marginTop: '24px' }}>
-                  <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: colors.rose, marginBottom: '10px' }}>⚠️ Alertas Críticas: Comentarios de Insatisfacción (≤ 3 estrellas)</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {lowFeedback.length > 0 ? lowFeedback.map(o => (
-                      <div key={o.id} style={{ border: '1px solid #fecdd3', background: '#fff5f5', padding: '12px 16px', borderRadius: '6px', borderLeft: `4px solid ${colors.rose}`, fontSize: '0.7rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 700 }}>
-                          <span style={{ color: colors.blue }}>{o.otm_code}</span>
-                          <span style={{ color: colors.rose }}>{'⭐'.repeat(o.conformity_rating)} ({o.conformity_rating} estrellas)</span>
-                        </div>
-                        <p style={{ color: '#475569', fontStyle: 'italic', margin: '4px 0' }}>"{o.conformity_notes || 'Sin observaciones escritas'}"</p>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.6rem', marginTop: '4px' }}>
-                          <span>Área: {(o.area_sector || '').replace(/^\d+\.\s*/, '')}</span>
-                          <span>Solicitante: {o.requester_name}</span>
-                        </div>
-                      </div>
-                    )) : (
-                      <div style={{ border: '1px solid #bbf7d0', background: '#f6fdf9', padding: '16px', borderRadius: '6px', color: colors.green, textAlign: 'center', fontWeight: 700, fontSize: '0.7rem' }}>
-                        ✨ ¡Gran mes! No se han recibido calificaciones de 3 estrellas o menores.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Footer */}
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
-              <span>Informe Mensual Mantenimiento CRL</span>
-              <span>Página 3 de {type === 'executive' ? 3 : 4}</span>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* DETAILED REPORT ONLY (PAGE 4) */}
-        {/* ========================================================================= */}
-        {type === 'detailed' && (
-          <div className="print-page print-shadow" style={{
-            width: '794px', height: '1123px', background: 'white', padding: '50px 60px',
+            width: '794px', height: '1123px', background: 'white', padding: '40px 50px',
             boxSizing: 'border-box', position: 'relative', display: 'flex', flexDirection: 'column',
             justifyContent: 'space-between', border: '1px solid #e2e8f0'
           }}>
             {/* Header */}
-            <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '12px' }}>
+            <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', color: '#64748b' }}>
                 <span>INFORME DE MANTENIMIENTO — {reportTitle}</span>
                 <span style={{ fontWeight: 800 }}>CLUB DE REGATAS LIMA</span>
@@ -755,103 +881,99 @@ export default function ReportModal({
             </div>
 
             {/* Title Section */}
-            <div style={{ margin: '20px 0 10px 0' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sección Operativa IV</span>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', margin: '4px 0 8px 0', textTransform: 'uppercase' }}>
-                Plan Preventivo y Control de Técnicos
+            <div style={{ margin: '6px 0 4px 0' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sección Operativa III</span>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', margin: '4px 0', textTransform: 'uppercase' }}>
+                Desempeño Operativo y Fuerza Laboral
               </h2>
-              <p style={{ fontSize: '0.7rem', color: '#64748b', margin: 0 }}>Desglose de avance de rutinas e índices técnicos y distribución de la fuerza laboral.</p>
             </div>
 
-            {/* Routine compliance progress bar list */}
-            <div style={{ marginTop: '12px' }}>
-              <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '8px' }}>Avance del Plan de Rutinas Preventivas por Especialidad</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #e2e8f0', padding: '14px 18px', borderRadius: '8px' }}>
-                {routineProgressData.length > 0 ? routineProgressData.map(item => (
-                  <div key={item.specialty}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: 4, fontWeight: 700, color: '#475569' }}>
-                      <span>🛡️ {(item.specialty || '').replace(/^\d+\.\s*/, '')}</span>
-                      <span>{item.completed} / {item.total} completadas ({item.percent}%)</span>
+            {/* Subtítulo: Desempeño operativo */}
+            <div style={{ borderBottom: '1.5px solid #cbd5e1', paddingBottom: '4px', marginTop: '5px', marginBottom: '10px' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                Desempeño Operativo
+              </h3>
+            </div>
+
+            {/* Fuerza Laboral (Personal Propio vs Contratistas) */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '14px 18px', borderRadius: '8px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 10, width: '100%', boxSizing: 'border-box' }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#1e293b', margin: 0 }}>
+                Distribución de Fuerza Laboral (Propio vs Contratistas)
+              </h4>
+              <div style={{ height: '18px', borderRadius: '9px', overflow: 'hidden', display: 'flex', border: '1px solid #e2e8f0', marginTop: 4 }}>
+                <div style={{
+                  width: `${workforceData.total > 0 ? (workforceData.own / workforceData.total) * 100 : 50}%`,
+                  background: colors.blue
+                }} />
+                <div style={{
+                  width: `${workforceData.total > 0 ? (workforceData.contractor / workforceData.total) * 100 : 50}%`,
+                  background: colors.purple
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '0.7rem', fontWeight: 700, marginTop: 4 }}>
+                <span style={{ color: colors.blue, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, background: colors.blue, borderRadius: '50%', display: 'inline-block' }} />
+                  Personal Propio: {workforceData.own} OTMs ({workforceData.total > 0 ? Math.round((workforceData.own / workforceData.total) * 100) : 50}%)
+                </span>
+                <span style={{ color: colors.purple, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 8, height: 8, background: colors.purple, borderRadius: '50%', display: 'inline-block' }} />
+                  Contratistas (Terceros): {workforceData.contractor} OTMs ({workforceData.total > 0 ? Math.round((workforceData.contractor / workforceData.total) * 100) : 50}%)
+                </span>
+              </div>
+            </div>
+
+            {/* Volumen de Trabajo por Técnico (Beautiful horizontal bar chart instead of a detailed table) */}
+            <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px', background: 'white', display: 'flex', flexDirection: 'column', flex: 1, marginTop: '16px', boxSizing: 'border-box' }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#1e293b', marginBottom: '12px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                Carga de Trabajo y Desempeño por Técnico
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, justifyContent: 'center' }}>
+                {techData.slice(0, 5).map((t, idx) => {
+                  const maxTechVal = Math.max(...techData.map(tech => tech.total), 1);
+                  return (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 700, color: '#334155' }}>
+                        <span>👤 {t.name}</span>
+                        <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                          Total: <strong style={{ color: '#1e293b' }}>{t.total}</strong> | Resueltas: <strong style={{ color: colors.green }}>{t.closed}</strong> | Activas: <strong style={{ color: colors.blue }}>{t.scheduled + t.inProgress}</strong>
+                        </span>
+                      </div>
+                      <div style={{ height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden', display: 'flex' }}>
+                        {/* Segmented bar for Closed, In Progress/Scheduled */}
+                        <div style={{
+                          width: `${(t.closed / maxTechVal) * 100}%`,
+                          background: colors.green,
+                          height: '100%'
+                        }} />
+                        <div style={{
+                          width: `${((t.scheduled + t.inProgress) / maxTechVal) * 100}%`,
+                          background: colors.blue,
+                          height: '100%'
+                        }} />
+                      </div>
                     </div>
-                    <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ width: `${item.percent}%`, height: '100%', background: colors.purple, borderRadius: '3px' }}></div>
-                    </div>
-                  </div>
-                )) : (
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', padding: '15px 0' }}>No hay registros de rutinas planificadas en el mes</div>
+                  );
+                })}
+                {techData.length === 0 && (
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', padding: '20px 0' }}>Sin datos de técnicos registrados</div>
                 )}
               </div>
             </div>
 
-            {/* Technicians Workload Table */}
-            <div style={{ marginTop: '20px' }}>
-              <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '8px' }}>Carga de Trabajo y Desempeño de Técnicos</h3>
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', fontSize: '0.65rem', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', textAlign: 'left', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '8px 12px' }}>Técnico</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Total Asignados</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Programados</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>En Proceso</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Resueltas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {techData.map((t, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 700, color: '#334155' }}>{t.name}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700 }}>{t.total}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center', color: colors.blue }}>{t.scheduled}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center', color: colors.green }}>{t.inProgress}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: colors.purple }}>{t.closed}</td>
-                      </tr>
-                    ))}
-                    {techData.length === 0 && (
-                      <tr>
-                        <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>Sin datos de técnicos registrados en el periodo</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Workforce Own vs Contractor Ratio */}
-            <div style={{ marginTop: '20px' }}>
-              <h3 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155', marginBottom: '8px' }}>Distribución de Fuerza Laboral (Propio vs Contratistas)</h3>
-              <div style={{ border: '1px solid #e2e8f0', padding: '12px 16px', borderRadius: '8px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ height: '16px', borderRadius: '8px', overflow: 'hidden', display: 'flex' }}>
-                  <div style={{
-                    width: `${workforceData.total > 0 ? (workforceData.own / workforceData.total) * 100 : 50}%`,
-                    background: colors.blue
-                  }} />
-                  <div style={{
-                    width: `${workforceData.total > 0 ? (workforceData.contractor / workforceData.total) * 100 : 50}%`,
-                    background: colors.purple
-                  }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '0.65rem', fontWeight: 700 }}>
-                  <span style={{ color: colors.blue }}>🔧 Personal Propio: {workforceData.own} OTMs ({workforceData.total > 0 ? Math.round((workforceData.own / workforceData.total) * 100) : 50}%)</span>
-                  <span style={{ color: colors.purple }}>🏗️ Contratistas de Terceros: {workforceData.contractor} OTMs ({workforceData.total > 0 ? Math.round((workforceData.contractor / workforceData.total) * 100) : 50}%)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Signature Block (Detailed page 4) */}
-            <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '40px' }}>
-              <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '150px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
+            {/* Signature Block */}
+            <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '30px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+              <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '180px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
                 Firma Supervisor CRL
               </div>
-              <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '150px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
+              <div style={{ textAlign: 'center', fontSize: '0.65rem', width: '180px', borderTop: '1px solid #cbd5e1', paddingTop: '6px', color: '#64748b' }}>
                 Jefatura de Servicios CRL
               </div>
             </div>
 
             {/* Footer */}
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#94a3b8', marginTop: 'auto' }}>
               <span>Informe Mensual Mantenimiento CRL</span>
-              <span>Página 4 de 4</span>
+              <span>Página 3 de 3</span>
             </div>
           </div>
         )}

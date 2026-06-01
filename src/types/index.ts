@@ -352,4 +352,24 @@ export const OTI_SPECIALTY_ABBREVIATIONS: Record<string, string> = {
   'Otros': 'OTRO'
 };
 
+// === SOLICITUDES Y OBSERVACIONES DE TÉCNICOS ===
+export type TechRequestType = 'material' | 'tool' | 'observation' | 'other';
+export type TechRequestStatus = 'pending' | 'approved' | 'rejected' | 'attended';
+
+export interface TechRequest {
+  id: string;
+  technician_id: string;
+  technician_name: string;
+  specialty: string;
+  request_type: TechRequestType;
+  otm_id?: string | null;
+  otm_code?: string | null;
+  description: string;
+  status: TechRequestStatus;
+  supervisor_response?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+
 

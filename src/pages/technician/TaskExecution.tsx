@@ -3,6 +3,7 @@ import { OTMRequest, URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import TechRequestModal from '../../components/TechRequestModal';
 
 export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack: () => void }) {
   const { startTechnicianWork, pauseTechnicianWork, resumeTechnicianWork, finishTechnicianWork } = useOTM();
@@ -10,6 +11,7 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
   const [photos, setPhotos] = useState<{ name: string; type: string; url: string; file?: File }[]>([]);
   const [completing, setCompleting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isPaused = !!(otm.pauses && otm.pauses.length > 0 && otm.pauses[otm.pauses.length - 1].resumed_at === null);
 
@@ -74,7 +76,12 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto' }}>
-      <button className="btn btn-ghost" onClick={onBack} style={{ marginBottom: 16 }}>← Volver</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <button className="btn btn-ghost" onClick={onBack} style={{ marginBottom: 0 }}>← Volver</button>
+        <button className="btn btn-secondary btn-sm" onClick={() => setIsModalOpen(true)} style={{ background: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.2)', color: '#d97706' }}>
+          ⚠️ Reportar Necesidad / Obs.
+        </button>
+      </div>
 
       <div className="glass-card" style={{ marginBottom: 20 }}>
         <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
@@ -163,6 +170,12 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
           </button>
         </div>
       )}
+      <TechRequestModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        otmId={otm.id}
+        otmCode={otm.otm_code}
+      />
     </div>
   );
 }

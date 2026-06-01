@@ -44,6 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
     roles: ['supervisor', 'admin', 'technician'],
     items: [
       { id: 'calendar', label: 'Agenda de actividades', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
+      { id: 'gantt', label: 'Diagrama Gantt', icon: '📊', roles: ['supervisor', 'admin'] },
     ]
   },
   {
@@ -56,10 +57,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'personnel',
-    title: 'Personal de Mantenimiento',
+    title: 'Configuración',
     roles: ['supervisor', 'admin'],
     items: [
-      { id: 'users', label: 'Configuración', icon: '⚙️', roles: ['admin'] },
+      { id: 'users', label: 'Configuración Maestra', icon: '⚙️', roles: ['admin'] },
     ]
   }
 ];
@@ -166,7 +167,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
               <span>
                 {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.icon} {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.label || 'Plataforma Mantenimiento'}
               </span>
-              {currentView === 'dashboard' && (user.role === 'admin' || user.role === 'supervisor') && (
+              {(user.role === 'admin' || user.role === 'supervisor') && (
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400, borderLeft: '1px solid var(--border)', paddingLeft: 10, display: 'inline-block' }}>
                   Centro de control - Mantenimiento
                 </span>

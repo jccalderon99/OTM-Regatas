@@ -1,0 +1,923 @@
+// =========================================================================
+// FORMULARIO DE EPPs - DEPARTAMENTO MANTENIMIENTO
+// Club de Regatas Lima - Sede Chorrillos
+// =========================================================================
+// Desarrollado con Estilo Premium Navy & Oro
+// =========================================================================
+
+// Reemplaza esto con el ID largo de tu Google Sheet (si no está enlazado directamente)
+// Ejemplo: "1A2B3C4D5E6F7G..." o déjalo vacío si instalas el script directamente en la Hoja (Herramientas -> Apps Script)
+const SHEET_ID = ""; 
+
+/**
+ * Función principal para renderizar la página web del formulario
+ */
+function doGet(e) {
+  var template = HtmlService.createTemplate(getHtml());
+  return template.evaluate()
+    .setTitle("Control de EPP - Regatas Lima")
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME)
+    .addMetaTag("viewport", "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no");
+}
+
+/**
+ * Guarda el registro de la inspección en la pestaña "Registro_EPPs"
+ * @param {Object} data - Datos del formulario enviados desde el cliente
+ */
+function guardarRespuesta(data) {
+  try {
+    var ss;
+    var sheetId = SHEET_ID;
+    
+    // Si SHEET_ID está vacío, intenta conectarse a la hoja de cálculo enlazada activa
+    if (!sheetId || sheetId === "YOUR_SHEET_ID_HERE" || sheetId.trim() === "") {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    } else {
+      ss = SpreadsheetApp.openById(sheetId);
+    }
+    
+    if (!ss) {
+      return { 
+        success: false, 
+        message: "No se pudo conectar a Google Sheets. Asegúrate de configurar correctamente el SHEET_ID en el archivo de Apps Script o de ejecutar el script enlazado a una hoja." 
+      };
+    }
+    
+    var sheetName = "Registro_EPPs";
+    var sheet = ss.getSheetByName(sheetName);
+    
+    // Crear la hoja de respuestas con formato si no existe
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      sheet.appendRow([
+        "Marca de Tiempo", 
+        "Nombre Completo", 
+        "Especialidad", 
+        "Resumen de Inspección", 
+        "EPPs que Requieren Cambio", 
+        "Otros EPPs / Observaciones"
+      ]);
+      
+      // Aplicar formato Navy & Oro a la cabecera
+      var headerRange = sheet.getRange("A1:F1");
+      headerRange.setBackground("#1A2B4A");
+      headerRange.setFontColor("#FFFFFF");
+      headerRange.setFontWeight("bold");
+      headerRange.setHorizontalAlignment("center");
+      headerRange.setFontSize(11);
+      
+      // Congelar la fila de cabecera
+      sheet.setFrozenRows(1);
+    }
+    
+    var fecha = new Date();
+    sheet.appendRow([
+      fecha,
+      data.nombre,
+      data.especialidad,
+      data.resumen,
+      data.cambios,
+      data.otros
+    ]);
+    
+    // Autoajustar columnas para legibilidad
+    try {
+      sheet.autoResizeColumns(1, 6);
+    } catch(e) {
+      // Ignorar si hay un error menor en el autoajuste de columnas
+    }
+    
+    return { success: true, message: "Registro guardado exitosamente." };
+  } catch (error) {
+    return { success: false, message: "Error en el servidor: " + error.toString() };
+  }
+}
+
+/**
+ * Devuelve la estructura HTML del formulario con su CSS premium y JS dinámico
+ */
+function getHtml() {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control de EPPs - Mantenimiento</title>
+  <!-- Google Fonts Outfit & Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-navy-dark: #0A1424;
+      --color-navy: #1A2B4A;
+      --color-navy-light: #2D4A6F;
+      --color-gold: #C9A84C;
+      --color-gold-hover: #B5933C;
+      --color-gold-light: #F7F3E3;
+      --color-bg: #F4F6F9;
+      --color-card-bg: #FFFFFF;
+      --color-text-primary: #1F2937;
+      --color-text-secondary: #4B5563;
+      --color-border: #E5E7EB;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-premium: 0 20px 25px -5px rgba(26, 43, 74, 0.15), 0 10px 10px -5px rgba(26, 43, 74, 0.1);
+      --border-radius: 12px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--color-navy-dark) 0%, var(--color-navy) 50%, var(--color-navy-light) 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px;
+      color: var(--color-text-primary);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      background: var(--color-card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-premium);
+      overflow: hidden;
+      border: 1px solid rgba(201, 168, 76, 0.2);
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--color-navy-dark) 0%, var(--color-navy) 100%);
+      color: #FFFFFF;
+      padding: 35px 24px;
+      text-align: center;
+      position: relative;
+      border-bottom: 4px solid var(--color-gold);
+    }
+
+    .header-logo {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      letter-spacing: 1.5px;
+      color: var(--color-gold);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      font-weight: 500;
+      color: #E2E8F0;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .header-badge {
+      display: inline-block;
+      margin-top: 12px;
+      background: rgba(201, 168, 76, 0.15);
+      border: 1px solid var(--color-gold);
+      color: var(--color-gold);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .form-content {
+      padding: 32px 24px;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-group label {
+      display: block;
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--color-navy);
+      margin-bottom: 8px;
+    }
+
+    .input-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--color-border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--color-text-primary);
+      background-color: #F9FAFB;
+      transition: var(--transition);
+    }
+
+    .input-control:focus {
+      outline: none;
+      border-color: var(--color-gold);
+      background-color: #FFFFFF;
+      box-shadow: 0 0 0 4px rgba(201, 168, 76, 0.15);
+    }
+
+    /* Sección dinámica de EPPs */
+    .epp-section {
+      display: none;
+      margin-top: 32px;
+      padding: 24px;
+      background: #F8FAFC;
+      border-left: 4px solid var(--color-gold);
+      border-radius: 8px;
+      animation: fadeIn 0.4s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .epp-section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .epp-section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-navy);
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--color-border);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .epp-item {
+      background: #FFFFFF;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .epp-item:hover {
+      border-color: rgba(201, 168, 76, 0.5);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .epp-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      padding-right: 12px;
+    }
+
+    .epp-options {
+      display: flex;
+      gap: 12px;
+    }
+
+    .radio-pill {
+      position: relative;
+      display: flex;
+    }
+
+    .radio-pill input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .radio-label {
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      background: #F1F5F9;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      border: 1px solid var(--color-border);
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .radio-pill input[type="radio"]:checked + .radio-label {
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Lo tiene -> Verde */
+    .radio-pill input[type="radio"][value="tiene"]:checked + .radio-label {
+      background-color: #DEF7EC;
+      color: #03543F;
+      border-color: #84E1BC;
+    }
+
+    /* No usa -> Gris */
+    .radio-pill input[type="radio"][value="no_usa"]:checked + .radio-label {
+      background-color: #E5E7EB;
+      color: #374151;
+      border-color: #D1D5DB;
+    }
+
+    /* Cambio -> Naranja / Alerta */
+    .radio-pill input[type="radio"][value="cambio"]:checked + .radio-label {
+      background-color: #FEF3C7;
+      color: #92400E;
+      border-color: #FCD34D;
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
+    .otros-section {
+      margin-top: 24px;
+      background: #FFFFFF;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    textarea.input-control {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .alert-card {
+      background: #FEF3C7;
+      border-left: 4px solid #D97706;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 28px 0;
+      color: #92400E;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .alert-card-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 24px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-light) 100%);
+      color: var(--color-gold);
+      border: 2px solid var(--color-gold);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--color-navy-dark) 0%, var(--color-navy) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(26, 43, 74, 0.3);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-reset {
+      background: #E5E7EB;
+      color: var(--color-text-secondary);
+    }
+
+    .btn-reset:hover {
+      background: #D1D5DB;
+    }
+
+    /* Modales de Estado */
+    .status-container {
+      display: none;
+      padding: 48px 24px;
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .status-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px auto;
+      font-size: 32px;
+    }
+
+    .status-icon.success {
+      background: #D1FAE5;
+      color: #059669;
+      border: 2px solid #34D399;
+    }
+
+    .status-icon.error {
+      background: #FEE2E2;
+      color: #DC2626;
+      border: 2px solid #F87171;
+    }
+
+    .status-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-navy);
+      margin-bottom: 12px;
+    }
+
+    .status-desc {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .footer {
+      background: #F9FAFB;
+      border-top: 1px solid var(--color-border);
+      padding: 16px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--color-text-secondary);
+      font-weight: 500;
+    }
+
+    /* Adaptabilidad Móvil */
+    @media (max-width: 600px) {
+      body {
+        padding: 8px;
+      }
+      .form-content {
+        padding: 20px 16px;
+      }
+      .epp-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .epp-name {
+        font-size: 13px;
+        padding-right: 0;
+      }
+      .epp-options {
+        justify-content: space-between;
+      }
+      .radio-pill {
+        flex: 1;
+      }
+      .radio-label {
+        width: 100%;
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 11px;
+      }
+      .btn-group {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- CABECERA -->
+    <div class="header">
+      <div class="header-logo">Club de Regatas Lima</div>
+      <div class="header-subtitle">Control de EPPs - Mantenimiento</div>
+      <div class="header-badge">Sede Chorrillos</div>
+    </div>
+
+    <!-- PANTALLA EXITO -->
+    <div id="successScreen" class="status-container">
+      <div class="status-icon success">✓</div>
+      <div class="status-title">¡Registro Completado!</div>
+      <div id="successDetail" class="status-desc"></div>
+      <button onclick="reiniciarFormulario()" class="btn-submit" style="max-width: 250px; margin: 0 auto; display: block;">Llenar Otro Registro</button>
+    </div>
+
+    <!-- PANTALLA ERROR -->
+    <div id="errorScreen" class="status-container">
+      <div class="status-icon error">⚠</div>
+      <div class="status-title">Error al Enviar</div>
+      <div id="errorDetail" class="status-desc"></div>
+      <button onclick="volverAlFormulario()" class="btn-reset" style="max-width: 200px; margin: 0 auto; display: block;">Reintentar</button>
+    </div>
+
+    <!-- FORMULARIO -->
+    <form id="eppForm" class="form-content" onsubmit="enviarFormulario(event)">
+      <!-- NOMBRE -->
+      <div class="form-group">
+        <label for="nombre">Nombre Completo del Personal *</label>
+        <input type="text" id="nombre" class="input-control" required placeholder="Escribe tu nombre y apellido">
+      </div>
+
+      <!-- ESPECIALIDAD -->
+      <div class="form-group">
+        <label for="especialidad">Especialidad *</label>
+        <select id="especialidad" class="input-control" required onchange="cambiarEspecialidad()">
+          <option value="">-- Selecciona tu especialidad --</option>
+          <option value="Pintura">Pintura</option>
+          <option value="Albañilería">Albañilería</option>
+          <option value="Electricista">Electricista</option>
+          <option value="Carpintería">Carpintería</option>
+          <option value="Piscina">Piscina</option>
+          <option value="Calderista">Calderista</option>
+          <option value="Jardinería">Jardinería</option>
+        </select>
+      </div>
+
+      <!-- SECCIONES DINÁMICAS DE EPPS (Se inyectan por JS) -->
+      <div id="eppsContainer"></div>
+
+      <!-- SECCIÓN OTROS (Solo se activa cuando hay especialidad seleccionada) -->
+      <div id="otrosSection" class="otros-section" style="display: none;">
+        <label for="otros">Otros EPPs Requeridos o Comentarios:</label>
+        <textarea id="otros" class="input-control" placeholder="Especifica si necesitas algún otro elemento de protección no listado, o deja una observación adicional..."></textarea>
+      </div>
+
+      <!-- ALERTA DE DEVOLUCION (Solo se activa al seleccionar especialidad) -->
+      <div id="alertDevolucion" class="alert-card" style="display: none;">
+        <div class="alert-card-title">
+          <span>⚠</span> NOTA IMPORTANTE DE SEGURIDAD
+        </div>
+        <div>
+          Si marcas algún EPP en estado de **"CAMBIO"**, recuerda que es de carácter obligatorio entregar el equipo deteriorado/dañado en el almacén de seguridad para poder recibir tu nuevo EPP.
+        </div>
+      </div>
+
+      <!-- BOTONES -->
+      <div class="btn-group">
+        <button type="button" onclick="reiniciarFormulario()" class="btn-reset">Limpiar</button>
+        <button type="submit" id="btnSubmit" class="btn-submit" disabled>Enviar Registro</button>
+      </div>
+    </form>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      Dpto. de Mantenimiento & Seguridad Ocupacional &copy; 2026
+    </div>
+  </div>
+
+  <script>
+    // Datos maestros de EPPs por especialidad
+    const EPP_DATA = {
+      "Pintura": [
+        "Casco de Seguridad",
+        "Lentes de Seguridad",
+        "Sobrelentes de Seguridad",
+        "Guantes de Nitrilo / Jebe",
+        "Respirador Media Cara con Filtros (Vapores Orgánicos)",
+        "Zapatos de Seguridad / Botas",
+        "Tapones Auditivos / Orejeras",
+        "Mameluco Descartable (Tyvek)"
+      ],
+      "Albañilería": [
+        "Casco de Seguridad",
+        "Lentes de Seguridad (Claros/Oscuros)",
+        "Sobrelentes de Seguridad",
+        "Guantes de Badana / Cuero",
+        "Respirador contra Polvo / Partículas (N95)",
+        "Zapatos de Seguridad (Punta de Acero)",
+        "Tapones Auditivos",
+        "Protector Auditivo Tipo Copa para Casco",
+        "Cortavientos para Casco"
+      ],
+      "Electricista": [
+        "Casco de Seguridad Dieléctrico (Clase E)",
+        "Lentes de Seguridad (Protección UV)",
+        "Sobrelentes de Seguridad",
+        "Guantes Dieléctricos + Protector de Cuero",
+        "Zapatos de Seguridad Dieléctricos",
+        "Tapones Auditivos",
+        "Chaleco Reflectivo / Ropa Ignífuga"
+      ],
+      "Carpintería": [
+        "Casco de Seguridad",
+        "Lentes de Seguridad",
+        "Sobrelentes de Seguridad",
+        "Guantes Anti-corte / Badana",
+        "Mascarilla contra Polvo de Madera (Filtros P100)",
+        "Zapatos de Seguridad (Punta de Acero)",
+        "Tapones Auditivos / Orejeras Copa",
+        "Mandil de Cuero para Corte"
+      ],
+      "Piscina": [
+        "Casco de Seguridad",
+        "Lentes de Seguridad",
+        "Sobrelentes de Seguridad",
+        "Guantes de Nitrilo Caña Larga (Químicos)",
+        "Botas de Jebe Caña Alta Antideslizantes",
+        "Zapatos de Seguridad Convencionales",
+        "Respirador + Filtros para Cloro / Gases Ácidos",
+        "Traje de Neopreno (Wetsuit)",
+        "Mandil de PVC Impermeable"
+      ],
+      "Calderista": [
+        "Casco de Seguridad",
+        "Lentes de Seguridad (Antiempañante)",
+        "Sobrelentes de Seguridad",
+        "Guantes de Cuero Cromo Térmico / Caña Larga",
+        "Zapatos de Seguridad (Punta de Acero)",
+        "Tapones Auditivos",
+        "Protector Auditivo Tipo Copa",
+        "Respirador + Filtros para Gases/Vapores",
+        "Protector Facial contra Calor/Salpicaduras"
+      ],
+      "Jardinería": [
+        "Casco de Seguridad con Barbiquejo",
+        "Lentes de Seguridad (Oscuros para Sol)",
+        "Sobrelentes de Seguridad",
+        "Guantes de Cuero / Badana",
+        "Zapatos / Botas de Seguridad Antideslizantes",
+        "Tapones de Oído / Orejeras",
+        "Respirador contra Polvo / Pesticidas",
+        "Protector Facial para Desbrozadora"
+      ]
+    };
+
+    /**
+     * Maneja el cambio de especialidad en el dropdown
+     */
+    function cambiarEspecialidad() {
+      const especialidad = document.getElementById("especialidad").value;
+      const container = document.getElementById("eppsContainer");
+      const otrosSection = document.getElementById("otrosSection");
+      const alertDevolucion = document.getElementById("alertDevolucion");
+      const btnSubmit = document.getElementById("btnSubmit");
+
+      // Limpiar contenedor
+      container.innerHTML = "";
+
+      if (!especialidad) {
+        otrosSection.style.display = "none";
+        alertDevolucion.style.display = "none";
+        btnSubmit.disabled = true;
+        return;
+      }
+
+      // Mostrar secciones accesorias
+      otrosSection.style.display = "block";
+      alertDevolucion.style.display = "block";
+      btnSubmit.disabled = false;
+
+      // Obtener EPPs de la especialidad
+      const epps = EPP_DATA[especialidad];
+
+      // Crear estructura de la sección
+      const sectionDiv = document.createElement("div");
+      sectionDiv.className = "epp-section active";
+      
+      const title = document.createElement("div");
+      title.className = "epp-section-title";
+      title.innerHTML = "<span>EPPs Requeridos - " + especialidad + "</span><span style='font-size: 11px; opacity: 0.8; font-weight: normal;'>Marque el estado de cada uno *</span>";
+      sectionDiv.appendChild(title);
+
+      // Inyectar items de EPP
+      epps.forEach((epp, index) => {
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "epp-item";
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "epp-name";
+        nameSpan.textContent = epp;
+        itemDiv.appendChild(nameSpan);
+
+        const optionsDiv = document.createElement("div");
+        optionsDiv.className = "epp-options";
+
+        // Opción: Lo tiene
+        optionsDiv.appendChild(crearRadioPill(index, "tiene", "Lo tiene"));
+        // Opción: No usa
+        optionsDiv.appendChild(crearRadioPill(index, "no_usa", "No usa"));
+        // Opción: Cambio
+        optionsDiv.appendChild(crearRadioPill(index, "cambio", "Cambio"));
+
+        itemDiv.appendChild(optionsDiv);
+        sectionDiv.appendChild(itemDiv);
+      });
+
+      container.appendChild(sectionDiv);
+    }
+
+    /**
+     * Generador de elementos de control de radio
+     */
+    function crearRadioPill(index, value, labelText) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "radio-pill";
+
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.id = "epp_" + index + "_" + value;
+      radio.name = "epp_" + index;
+      radio.value = value;
+      radio.required = true;
+
+      const label = document.createElement("label");
+      label.htmlFor = "epp_" + index + "_" + value;
+      label.className = "radio-label";
+      label.textContent = labelText;
+
+      wrapper.appendChild(radio);
+      wrapper.appendChild(label);
+      return wrapper;
+    }
+
+    /**
+     * Envia el formulario validando todo previamente
+     */
+    function enviarFormulario(event) {
+      event.preventDefault();
+
+      const btnSubmit = document.getElementById("btnSubmit");
+      const nombre = document.getElementById("nombre").value.trim();
+      const especialidad = document.getElementById("especialidad").value;
+      const otros = document.getElementById("otros").value.trim();
+
+      if (!nombre || !especialidad) {
+        alert("Por favor completa los campos obligatorios.");
+        return;
+      }
+
+      // Validar que todos los radios del EPP estén seleccionados
+      const epps = EPP_DATA[especialidad];
+      let resumenArray = [];
+      let cambiosArray = [];
+      let incompletos = false;
+
+      for (let i = 0; i < epps.length; i++) {
+        const radios = document.getElementsByName("epp_" + i);
+        let selectedValue = "";
+        for (let radio of radios) {
+          if (radio.checked) {
+            selectedValue = radio.value;
+            break;
+          }
+        }
+
+        if (!selectedValue) {
+          incompletos = true;
+          break;
+        }
+
+        // Traducir valor para el reporte en Sheets
+        let estadoLabel = "";
+        if (selectedValue === "tiene") estadoLabel = "Lo tiene";
+        else if (selectedValue === "no_usa") estadoLabel = "No usa";
+        else if (selectedValue === "cambio") {
+          estadoLabel = "Requiere cambio";
+          cambiosArray.push(epps[i]);
+        }
+
+        resumenArray.push("[" + epps[i] + ": " + estadoLabel + "]");
+      }
+
+      if (incompletos) {
+        alert("Por favor califica el estado de TODOS los EPPs listados para tu especialidad.");
+        return;
+      }
+
+      // Desactivar botón y cambiar a estado cargando
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = "Guardando Registro...";
+
+      const formData = {
+        nombre: nombre,
+        especialidad: especialidad,
+        resumen: resumenArray.join(" "),
+        cambios: cambiosArray.length > 0 ? cambiosArray.join(", ") : "Ninguno",
+        otros: otros ? otros : "Sin observaciones adicionales"
+      };
+
+      // Llamada directa al Apps Script en el servidor
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            document.getElementById("eppForm").style.display = "none";
+            const successDetail = document.getElementById("successDetail");
+            
+            let msg = "Estimado(a) <strong>" + formData.nombre + "</strong>, tu inspección de EPPs para la especialidad de <strong>" + formData.especialidad + "</strong> se guardó correctamente.";
+            
+            if (cambiosArray.length > 0) {
+              msg += "<br><br><strong style='color: #92400E;'>EPPs solicitados para cambio:</strong><br>• " + cambiosArray.join("<br>• ") + "<br><br><span style='font-size: 13px; font-weight: 600;'>⚠️ Por favor acércate a almacén de seguridad entregando los EPP deteriorados para el recambio.</span>";
+            } else {
+              msg += "<br><br>Todos tus EPPs están registrados en buen estado o marcados como no utilizados. ¡Sigue trabajando seguro!";
+            }
+            
+            successDetail.innerHTML = msg;
+            document.getElementById("successScreen").style.display = "block";
+          } else {
+            mostrarError(response.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          mostrarError(error.toString());
+        })
+        .guardarRespuesta(formData);
+    }
+
+    /**
+     * Muestra la pantalla de error
+     */
+    function mostrarError(detalle) {
+      document.getElementById("eppForm").style.display = "none";
+      document.getElementById("errorDetail").textContent = detalle;
+      document.getElementById("errorScreen").style.display = "block";
+    }
+
+    /**
+     * Permite volver a intentar en caso de fallo
+     */
+    function volverAlFormulario() {
+      document.getElementById("errorScreen").style.display = "none";
+      document.getElementById("eppForm").style.display = "block";
+      const btnSubmit = document.getElementById("btnSubmit");
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = "Enviar Registro";
+    }
+
+    /**
+     * Reinicia el formulario para un nuevo registro
+     */
+    function reiniciarFormulario() {
+      // Limpiar pantallas de estado
+      document.getElementById("successScreen").style.display = "none";
+      document.getElementById("errorScreen").style.display = "none";
+      
+      // Mostrar y reiniciar formulario
+      const form = document.getElementById("eppForm");
+      form.style.display = "block";
+      form.reset();
+
+      // Limpiar especialidades
+      cambiarEspecialidad();
+
+      const btnSubmit = document.getElementById("btnSubmit");
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = "Enviar Registro";
+    }
+  </script>
+</body>
+</html>`;
+}

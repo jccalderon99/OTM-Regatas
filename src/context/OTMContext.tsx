@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS } from '../types';
+import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS, TechRequest, TechRequestStatus } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode } from '../lib/demoData';
 import { useAuth } from './AuthContext';
 import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
@@ -69,6 +69,12 @@ interface OTMContextType {
   getOTIsForCurrentUser: () => OTIRequest[];
   createOTI: (otiData: Partial<OTIRequest>) => Promise<OTIRequest>;
   updateOTIStatus: (otiId: string, newStatus: OTIRequest['status']) => void;
+
+  // TechRequest state and methods
+  techRequests: TechRequest[];
+  getTechRequestsForCurrentUser: () => TechRequest[];
+  createTechRequest: (reqData: Partial<TechRequest>) => Promise<TechRequest>;
+  updateTechRequestStatus: (id: string, status: TechRequestStatus, response?: string) => void;
 }
 
 const OTMContext = createContext<OTMContextType | null>(null);
@@ -111,6 +117,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('demo_otis');
     return saved ? JSON.parse(saved) : [];
   });
+  const [techRequests, setTechRequests] = useState<TechRequest[]>(() => {
+    const saved = localStorage.getItem('demo_tech_requests');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // ── Demo persistence effects ──
   useEffect(() => {
@@ -140,6 +150,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('demo_otis', JSON.stringify(otis));
   }, [otis]);
+
+  useEffect(() => {
+    localStorage.setItem('demo_tech_requests', JSON.stringify(techRequests));
+  }, [techRequests]);
 
   // ── Supabase: Load initial data ──
   const fetchAll = useCallback(async () => {
@@ -608,6 +622,41 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const getTechRequestsForCurrentUser = useCallback(() => {
+    if (!user) return [];
+    if (user.role === 'admin' || user.role === 'supervisor') return techRequests;
+    return techRequests.filter(r => r.technician_id === user.id);
+  }, [techRequests, user]);
+
+  const createTechRequest = useCallback(async (reqData: Partial<TechRequest>) => {
+    if (!user) throw new Error('Not authenticated');
+    const newRequest: TechRequest = {
+      id: `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      technician_id: user.id,
+      technician_name: user.full_name,
+      specialty: user.position || 'General',
+      request_type: reqData.request_type || 'other',
+      otm_id: reqData.otm_id || null,
+      otm_code: reqData.otm_code || null,
+      description: reqData.description || '',
+      status: 'pending',
+      supervisor_response: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setTechRequests(prev => [newRequest, ...prev]);
+    return newRequest;
+  }, [user]);
+
+  const updateTechRequestStatus = useCallback((id: string, status: TechRequestStatus, response?: string) => {
+    setTechRequests(prev => prev.map(r => r.id !== id ? r : {
+      ...r,
+      status,
+      supervisor_response: response || null,
+      updated_at: new Date().toISOString()
+    }));
+  }, []);
+
   return (
     <OTMContext.Provider value={{
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
@@ -619,7 +668,8 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       specialties, addSpecialty, updateSpecialty,
       locations, addLocation, updateLocation,
       deleteUser, deleteArea, deleteSpecialty, deleteLocation,
-      otis, getOTIsForCurrentUser, createOTI, updateOTIStatus
+      otis, getOTIsForCurrentUser, createOTI, updateOTIStatus,
+      techRequests, getTechRequestsForCurrentUser, createTechRequest, updateTechRequestStatus
     }}>
       {children}
     </OTMContext.Provider>

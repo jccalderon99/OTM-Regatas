@@ -18,6 +18,7 @@ import { useRealtimeOTM } from './hooks/useRealtimeOTM';
 import WelcomePortal from './pages/WelcomePortal';
 import Reports from './pages/Reports';
 import NewOTI from './pages/supervisor/NewOTI';
+import GanttChart from './pages/supervisor/GanttChart';
 
 function AppContent() {
   useRealtimeOTM();
@@ -53,6 +54,7 @@ function AppContent() {
       case 'routine-admin': return <RoutineActivitiesAdmin />;
       case 'routine-register': return <RoutineRegister />;
       case 'reports': return <Reports />;
+      case 'gantt': return user.role === 'technician' ? defaultView() : <GanttChart />;
       default: return defaultView();
     }
   };

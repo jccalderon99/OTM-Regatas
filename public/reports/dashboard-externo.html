@@ -904,6 +904,207 @@
             size: A4 portrait;
             margin: 0;
         }
+        
+        /* Custom styles for Observations Explorer */
+        .obs-board-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+        }
+        .obs-board-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 16px;
+        }
+        .obs-board-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .obs-board-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .obs-search-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+        }
+        .obs-search-input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        .obs-search-input:focus {
+            outline: none;
+            border-color: var(--accent-green);
+            box-shadow: 0 0 10px rgba(52, 211, 153, 0.15);
+            background: rgba(15, 23, 42, 0.7);
+        }
+        .obs-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 14px;
+            pointer-events: none;
+        }
+        .obs-specialty-pills {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .obs-pill {
+            padding: 8px 14px;
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .obs-pill:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+        .obs-pill.active {
+            background: var(--gradient-3);
+            border-color: transparent;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(52, 211, 153, 0.2);
+        }
+        .obs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 16px;
+            margin-top: 10px;
+        }
+        .obs-card {
+            background: rgba(15, 23, 42, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left-width: 4px;
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 180px;
+        }
+        .obs-card:hover {
+            transform: translateY(-2px);
+            background: rgba(15, 23, 42, 0.55);
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        .obs-card.prio-alto { border-left-color: var(--accent-red); }
+        .obs-card.prio-emergencia { border-left-color: var(--accent-red); }
+        .obs-card.prio-medio { border-left-color: var(--accent-amber); }
+        .obs-card.prio-bajo { border-left-color: var(--accent-green); }
+        
+        .obs-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .obs-card-id {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 12px;
+            background: rgba(255,255,255,0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .obs-card-tags {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .obs-card-desc {
+            font-size: 12.5px;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 14px;
+            flex-grow: 1;
+        }
+        .obs-card-location {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .obs-card-bubble {
+            background: rgba(251, 191, 36, 0.08);
+            border-left: 3px solid var(--accent-amber);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #fef08a;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        .obs-card.prio-alto .obs-card-bubble {
+            background: rgba(248, 113, 113, 0.08);
+            border-left-color: var(--accent-red);
+            color: #fecaca;
+        }
+        .obs-card.prio-bajo .obs-card-bubble {
+            background: rgba(52, 211, 153, 0.08);
+            border-left-color: var(--accent-green);
+            color: #a7f3d0;
+        }
+        .obs-empty-state {
+            grid-column: 1 / -1;
+            padding: 40px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.2);
+            border: 1px dashed rgba(255,255,255,0.06);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .obs-empty-icon {
+            font-size: 28px;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -923,7 +1124,7 @@
                 <button id="btnDownloadPDF" class="back-btn" style="background: var(--gradient-2); border: none; box-shadow: 0 4px 12px rgba(34,211,238,0.25); color: white;">
                     <span>📄</span> Descargar Reporte
                 </button>
-                <div class="date-badge">📅 Mayo 2026 (4 - 25 mayo)</div>
+                <div class="date-badge">📅 Bitácora Importada</div>
             </div>
         </div>
     </header>
@@ -1004,12 +1205,7 @@
                     <div class="kpi-value" style="color: var(--accent-red)" id="mainKpiAltaPrioridad">13</div>
                     <div class="kpi-sub" id="mainKpiAltaPrioridadSub">Requieren atención urgente</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon">⭐</div>
-                    <div class="kpi-label">Calificación Prom.</div>
-                    <div class="kpi-value" style="color: var(--accent-amber)" id="mainKpiRating">3.4</div>
-                    <div class="kpi-sub" id="mainKpiRatingSub">De 15 evaluaciones</div>
-                </div>
+
                 <div class="kpi-card">
                     <div class="kpi-icon">👷</div>
                     <div class="kpi-label">Técnicos Activos</div>
@@ -1086,15 +1282,30 @@
         <div class="tab-content" id="tab-technicians">
             <div class="section-title"><span>👷</span> Análisis de Desempeño por Técnico</div>
 
-            <!-- Single large KPI card for Man-Hours -->
-            <div style="margin-bottom: 20px;">
-                <div class="kpi-card" style="padding: 24px 30px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--accent-cyan);">
-                    <div>
-                        <div class="kpi-label" style="font-size: 13px; margin-bottom: 6px;">Total de Horas Hombre Ejecutadas</div>
-                        <div class="kpi-value" id="kpiTotalHorasHombre" style="color: var(--accent-cyan); font-size: 42px; margin-bottom: 4px;">0.0 hrs</div>
-                        <div class="kpi-sub" id="kpiTotalHorasHombreSub" style="font-size: 13px;">Acumulado en el período filtrado</div>
-                    </div>
-                    <div style="font-size: 50px; opacity: 0.6; margin-right: 10px;">⏱️</div>
+            <!-- KPIs Grid: Total Man-Hours (Propio & Contratista) & Average Rating -->
+            <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                <!-- Propio Hours Card -->
+                <div class="kpi-card" style="padding: 20px 24px; border-left: 4px solid var(--accent-cyan); box-sizing: border-box; height: 100%;">
+                    <div class="kpi-icon" style="top:12px; right:16px; font-size:24px;">👷</div>
+                    <div class="kpi-label" style="font-size: 12px; margin-bottom: 4px;">Horas Hombre - Personal Propio</div>
+                    <div class="kpi-value" id="kpiHorasPropio" style="color: var(--accent-cyan); font-size: 34px; margin-bottom: 4px;">0.0 hrs</div>
+                    <div class="kpi-sub" id="kpiHorasPropioSub" style="font-size: 11px;">0 OTs ejecutadas</div>
+                </div>
+
+                <!-- Contratista Hours Card -->
+                <div class="kpi-card" style="padding: 20px 24px; border-left: 4px solid var(--accent-purple); box-sizing: border-box; height: 100%;">
+                    <div class="kpi-icon" style="top:12px; right:16px; font-size:24px;">🏢</div>
+                    <div class="kpi-label" style="font-size: 12px; margin-bottom: 4px;">Horas Hombre - Contratistas</div>
+                    <div class="kpi-value" id="kpiHorasContratista" style="color: var(--accent-purple); font-size: 34px; margin-bottom: 4px;">0.0 hrs</div>
+                    <div class="kpi-sub" id="kpiHorasContratistaSub" style="font-size: 11px;">0 OTs ejecutadas</div>
+                </div>
+
+                <!-- Rating Card (Moved from Resumen General) -->
+                <div class="kpi-card" style="padding: 20px 24px; border-left: 4px solid var(--accent-amber); box-sizing: border-box; height: 100%;">
+                    <div class="kpi-icon" style="top:12px; right:16px; font-size:24px;">⭐</div>
+                    <div class="kpi-label" style="font-size: 12px; margin-bottom: 4px;">Calificación Prom. (CSAT)</div>
+                    <div class="kpi-value" id="mainKpiRating" style="color: var(--accent-amber); font-size: 34px; margin-bottom: 4px;">0.0</div>
+                    <div class="kpi-sub" id="mainKpiRatingSub" style="font-size: 11px;">De 0 evaluaciones</div>
                 </div>
             </div>
 
@@ -1214,12 +1425,7 @@
                 </div>
             </div>
 
-            <div class="alert-banner">
-                <div class="alert-icon">⚠️</div>
-                <div>
-                    <strong>Atención:</strong> Hay <strong id="alertAltaCount">13 OTs de prioridad ALTA</strong> sin finalizar. Muchas se encuentran detenidas por falta de suministros (RQ).
-                </div>
-            </div>
+
 
             <div class="kpi-grid" style="margin-bottom: 24px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
                 <div class="kpi-card" style="padding: 16px;">
@@ -1232,26 +1438,17 @@
                     <div class="kpi-label" style="font-size:10px;">Falta Suministros (RQ)</div>
                     <div class="kpi-value" style="color: var(--accent-purple); font-size: 26px;" id="kpiPendingRQ">0</div>
                 </div>
-                <div class="kpi-card" style="padding: 16px;">
-                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🪚</div>
-                    <div class="kpi-label" style="font-size:10px;">En Carpintería</div>
-                    <div class="kpi-value" style="color: var(--accent-orange); font-size: 26px;" id="kpiPendingCarpinteria">0</div>
+                <div class="kpi-card" style="padding: 16px; border-color: rgba(52,211,153,0.5);">
+                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🔍</div>
+                    <div class="kpi-label" style="font-size:10px;">Por Revisar</div>
+                    <div class="kpi-value" style="color: var(--accent-green); font-size: 26px;" id="kpiPendingPorRevisar">0</div>
                 </div>
-                <div class="kpi-card" style="padding: 16px;">
-                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🎨</div>
-                    <div class="kpi-label" style="font-size:10px;">En Pintura</div>
-                    <div class="kpi-value" style="color: var(--accent-cyan); font-size: 26px;" id="kpiPendingPintura">0</div>
-                </div>
-                <div class="kpi-card" style="padding: 16px;">
-                    <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🧱</div>
-                    <div class="kpi-label" style="font-size:10px;">En Albañilería</div>
-                    <div class="kpi-value" style="color: var(--accent-red); font-size: 26px;" id="kpiPendingAlbanileria">0</div>
-                </div>
+
             </div>
 
             <div class="charts-grid" style="margin-bottom: 24px;">
                 <div class="chart-card">
-                    <h3><span>📦</span> Pendientes: Requerimientos (RQ) vs Resto</h3>
+                    <h3><span>📦</span> Pendientes: Con RQ vs Por revisar</h3>
                     <div class="chart-wrapper pie-chart" style="height: 320px;">
                         <canvas id="chartPendingReason"></canvas>
                     </div>
@@ -1271,29 +1468,25 @@
                 <button class="filter-btn" data-filter="bajo">🟢 Baja</button>
             </div>
 
-            <div class="table-card">
-                <div class="table-card-header">
-                    <h3>📋 OTs Pendientes ordenadas por prioridad</h3>
-                    <span class="badge badge-red" id="pendingCount">25 pendientes</span>
+            <!-- Observations Board for "Por revisar" (Replaces the old squished priority table) -->
+            <div class="obs-board-card no-print">
+                <div class="obs-board-header">
+                    <h3><span>📋</span> Detalle de Observaciones (En "Por revisar")</h3>
+                    <span class="badge badge-green" id="obsCount">0 observaciones</span>
                 </div>
-                <div class="table-scroll" style="max-height: 700px;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>ID OT</th>
-                                <th>Prioridad</th>
-                                <th>Descripción</th>
-                                <th>Ubicación</th>
-                                <th>Especialidad</th>
-                                <th>Solicitante</th>
-                                <th>Fecha</th>
-                                <th>Estado</th>
-                                <th>Riesgo</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pendingTableBody"></tbody>
-                    </table>
+                
+                <div class="obs-board-controls">
+                    <div class="obs-search-wrapper">
+                        <span class="obs-search-icon">🔍</span>
+                        <input type="text" id="obsSearchInput" class="obs-search-input" placeholder="Buscar por observación, descripción, ID o ubicación...">
+                    </div>
+                    <div class="obs-specialty-pills" id="obsSpecialtyPills">
+                        <!-- Dynamic specialty pills will be injected here -->
+                    </div>
+                </div>
+                
+                <div class="obs-grid" id="obsGridContainer">
+                    <!-- Dynamic observation cards will be injected here -->
                 </div>
             </div>
         </div>
@@ -1546,11 +1739,8 @@ const staticOtData = [
 
 
 function loadOtData() {
-    // For this specific May 2026 Dashboard, we ONLY use the 
-    // static data extracted from the official Excel.
-    // Bypassing localStorage because the dynamic app logic 
-    // overwrites the "Programada" state into "Pendiente".
-    return staticOtData;
+    const rawData = localStorage.getItem('external_report_data');
+    return rawData ? JSON.parse(rawData) : staticOtData;
 }
 
 otData = loadOtData();
@@ -1600,10 +1790,27 @@ otData.forEach(o => {
 const referenceToday = maxDate || new Date(2026, 4, 25);
 
 // Classify Internal vs Contractor
+// Initialize dynamic technician assignment mapping from parsed data
+window.technicianAssignmentTypes = {};
+if (typeof otData !== 'undefined' && Array.isArray(otData)) {
+    otData.forEach(o => {
+        if (o.tecPrincipal && o.assignmentType) {
+            window.technicianAssignmentTypes[o.tecPrincipal.trim()] = o.assignmentType;
+        }
+        if (o.tecApoyo && o.assignmentType) {
+            window.technicianAssignmentTypes[o.tecApoyo.trim()] = o.assignmentType;
+        }
+    });
+}
+
 function isContractor(name) {
     if (!name) return false;
+    const nameKey = name.trim();
+    if (window.technicianAssignmentTypes && window.technicianAssignmentTypes[nameKey] !== undefined) {
+        return window.technicianAssignmentTypes[nameKey] === 'contractor';
+    }
     const n = name.toUpperCase();
-    return n.includes('CONTRATISTA') || n.includes('CONTRATA') || n.includes('EMPRESA') || n.includes('SAC') || n.includes('S.A.C.') || n.includes('SERVICE') || n.includes('S.R.L.');
+    return n.includes('CONTRATISTA') || n.includes('CONTRATA') || n.includes('EMPRESA') || n.includes('SAC') || n.includes('S.A.C.') || n.includes('SERVICE') || n.includes('S.R.L.') || n.includes('TKE');
 }
 
 // Global Filter State
@@ -1763,21 +1970,33 @@ function updateDashboard() {
     const filteredData = applyGlobalFilters(otData);
     
     // Update Header Date Description dynamically
-    let badgeText = `📅 Mayo 2026 (4 - 25 mayo)`;
+    const excelTitle = localStorage.getItem('external_report_title') || 'Bitácora Importada';
+    let minDateStr = '';
+    let maxDateStr = '';
+    if (otData.length > 0) {
+        const sortedDates = otData.map(o => parseDateStr(o.fecha)).filter(Boolean).sort((a,b) => a - b);
+        if (sortedDates.length > 0) {
+            const minD = sortedDates[0];
+            const maxD = sortedDates[sortedDates.length - 1];
+            minDateStr = `${minD.getDate()}/${minD.getMonth()+1}/${minD.getFullYear()}`;
+            maxDateStr = `${maxD.getDate()}/${maxD.getMonth()+1}/${maxD.getFullYear()}`;
+        }
+    }
+    const rangeText = minDateStr && maxDateStr ? `(${minDateStr} - ${maxDateStr})` : '';
+    let badgeText = `📅 ${excelTitle} ${rangeText}`;
+    
     if (currentGlobalDateRange === 'all') {
-        badgeText = `📅 Todo el Período (4 - 25 Mayo)`;
+        badgeText = `📅 ${excelTitle} — Todo el Período`;
     } else if (currentGlobalDateRange === '1d') {
-        badgeText = `📅 Último Día (25 Mayo)`;
+        badgeText = `📅 ${excelTitle} — Último Día`;
     } else if (currentGlobalDateRange === '1w') {
-        badgeText = `📅 Última Semana (19 - 25 Mayo)`;
+        badgeText = `📅 ${excelTitle} — Última Semana`;
     } else if (currentGlobalDateRange === '1m') {
-        badgeText = `📅 Último Mes`;
+        badgeText = `📅 ${excelTitle} — Último Mes`;
     } else if (currentGlobalDateRange === 'custom') {
         const fromDesc = customDateFromVal ? customDateFromVal.split('-').reverse().join('/') : 'Inicio';
         const toDesc = customDateToVal ? customDateToVal.split('-').reverse().join('/') : 'Fin';
-        badgeText = `📅 Personalizado: ${fromDesc} a ${toDesc}`;
-    } else {
-        badgeText = `📅 Rango: ${currentGlobalDateRange.toUpperCase()}`;
+        badgeText = `📅 ${excelTitle} — Personalizado: ${fromDesc} a ${toDesc}`;
     }
     document.querySelector('.date-badge').textContent = badgeText;
 
@@ -1797,7 +2016,7 @@ function renderOverviewTab(data) {
     const pendientesCount = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
     
     // Total active unfinished OTs for the general "Pendientes" card
-    const activePendingTotal = programadasCount + pendientesCount;
+    const activePendingTotal = pendientesCount;
     
     const altaPrioridadCount = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && priorityClass(o.prioridad) === 'alto').length;
     
@@ -1955,7 +2174,10 @@ function renderOverviewTab(data) {
     });
 
     // 2. Especialidad
-    const espLabels = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura','Otros'];
+    const uniqueSpecialties = Array.from(new Set(data.map(o => o.especialidad))).filter(Boolean);
+    const standardEsp = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura'];
+    const otherEsp = uniqueSpecialties.filter(s => !standardEsp.includes(s) && s !== 'Otros');
+    const espLabels = [...standardEsp, ...otherEsp, 'Otros'].filter(s => uniqueSpecialties.includes(s) || standardEsp.includes(s));
     const espCount = espLabels.map(e => data.filter(o => o.especialidad === e).length);
     const espFinished = espLabels.map(e => data.filter(o => o.especialidad === e && o.estado === 'Finalizado').length);
     safeCreateChart('chartEspecialidad', {
@@ -2160,26 +2382,29 @@ function renderTechniciansTab(globalFilteredData) {
     );
 
     // Sum Total Man-Hours
-    let totalMinutes = 0;
-    techData.forEach(o => {
-        totalMinutes += o.tiempoMin || 0;
-    });
-    const totalHours = totalMinutes / 60;
-    document.getElementById('kpiTotalHorasHombre').textContent = `${totalHours.toFixed(1)} hrs`;
-    document.getElementById('kpiTotalHorasHombreSub').textContent = `Acumulado para ${techData.length} OTs en el período filtrado`;
-
+    // Calculate total and breakdown hours
+    let ownMin = 0;
+    let contMin = 0;
+    let ownCount = 0;
+    let contCount = 0;
+    
     // Process statistics
     const internalStats = {};
     const contractorStats = {};
 
     techData.forEach(o => {
         const name = o.tecPrincipal;
-        if (!name) return; // skip unassigned
+        if (!name || name.toLowerCase().includes('sin asignar')) return; // skip unassigned
         
         const minutes = o.tiempoMin || 0;
         const hours = minutes / 60;
+        const assignment = o.assignmentType || (name && isContractor(name) ? 'contractor' : 'own');
         
-        if (isContractor(name)) {
+        if (assignment === 'unassigned') return; // skip unassigned
+        
+        if (assignment === 'contractor') {
+            contMin += minutes;
+            contCount++;
             if (!contractorStats[name]) {
                 contractorStats[name] = { count: 0, hours: 0, completed: 0, ratings: [], times: [] };
             }
@@ -2191,6 +2416,8 @@ function renderTechniciansTab(globalFilteredData) {
                 contractorStats[name].times.push(o.tiempoMin || 0);
             }
         } else {
+            ownMin += minutes;
+            ownCount++;
             if (!internalStats[name]) {
                 internalStats[name] = { count: 0, hours: 0, completed: 0, ratings: [], times: [] };
             }
@@ -2203,6 +2430,21 @@ function renderTechniciansTab(globalFilteredData) {
             }
         }
     });
+
+    const ownHrs = ownMin / 60;
+    const contHrs = contMin / 60;
+    const totalHours = ownHrs + contHrs;
+    const ownPct = totalHours > 0 ? ((ownHrs * 100) / totalHours).toFixed(1) : '0.0';
+    const contPct = totalHours > 0 ? ((contHrs * 100) / totalHours).toFixed(1) : '0.0';
+
+    if (document.getElementById('kpiHorasPropio')) {
+        document.getElementById('kpiHorasPropio').textContent = `${ownHrs.toFixed(1)} hrs`;
+        document.getElementById('kpiHorasPropioSub').textContent = `${ownCount} OTs (${ownPct}% del total)`;
+    }
+    if (document.getElementById('kpiHorasContratista')) {
+        document.getElementById('kpiHorasContratista').textContent = `${contHrs.toFixed(1)} hrs`;
+        document.getElementById('kpiHorasContratistaSub').textContent = `${contCount} OTs (${contPct}% del total)`;
+    }
 
     // --- Initialize expanded state tracking ---
     if (!window._expandedTechs) {
@@ -2564,30 +2806,23 @@ function renderPendingTab(data) {
     // Dynamic calculations
     const totalPending = pendingOTs.length;
     const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))).length;
-    const sinRqPending = totalPending - rqPending;
-    
-    const carpinteriaPending = pendingOTs.filter(o => o.especialidad === 'Carpintería').length;
-    const pinturaPending = pendingOTs.filter(o => o.especialidad === 'Pintura').length;
-    const albanileriaPending = pendingOTs.filter(o => o.especialidad === 'Albañilería').length;
+    const porRevisarPending = totalPending - rqPending;
 
     // Update KPIs
     document.getElementById('kpiPendingTotal').textContent = totalPending;
     document.getElementById('kpiPendingRQ').textContent = rqPending;
-    document.getElementById('kpiPendingCarpinteria').textContent = carpinteriaPending;
-    document.getElementById('kpiPendingPintura').textContent = pinturaPending;
-    document.getElementById('kpiPendingAlbanileria').textContent = albanileriaPending;
-
-    const highPriorityPending = pendingOTs.filter(o => priorityClass(o.prioridad) === 'alto').length;
-    document.getElementById('alertAltaCount').textContent = highPriorityPending + ' OTs de prioridad ALTA';
+    if (document.getElementById('kpiPendingPorRevisar')) {
+        document.getElementById('kpiPendingPorRevisar').textContent = porRevisarPending;
+    }
 
     // 1. Pending Reason chart (Doughnut) - 2 segments
     safeCreateChart('chartPendingReason', {
         type: 'doughnut',
         data: {
-            labels: ['Con RQ', 'Sin RQ'],
+            labels: ['Con RQ', 'Por revisar'],
             datasets: [{
-                data: [rqPending, sinRqPending],
-                backgroundColor: [colors.purple, colors.amber],
+                data: [rqPending, porRevisarPending],
+                backgroundColor: [colors.purple, colors.green],
                 borderWidth: 0, hoverOffset: 8
             }]
         },
@@ -2611,7 +2846,10 @@ function renderPendingTab(data) {
     });
 
     // 2. Pending by Specialty chart (Stacked Bar)
-    const pendEspLabels = ['Carpintería', 'Electricidad', 'Gasfitería', 'Albañilería', 'Pintura', 'Otros'];
+    const uniquePendSpecialties = Array.from(new Set(pendingOTs.map(o => o.especialidad))).filter(Boolean);
+    const standardEsp = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura'];
+    const otherEsp = uniquePendSpecialties.filter(s => !standardEsp.includes(s) && s !== 'Otros');
+    const pendEspLabels = [...standardEsp, ...otherEsp, 'Otros'].filter(s => uniquePendSpecialties.includes(s) || standardEsp.includes(s));
     const totals = {};
     pendEspLabels.forEach(esp => {
         totals[esp] = pendingOTs.filter(o => o.especialidad === esp).length;
@@ -2633,9 +2871,9 @@ function renderPendingTab(data) {
                     borderRadius: 4
                 },
                 {
-                    label: 'Sin RQ',
+                    label: 'Por revisar',
                     data: sinRqData,
-                    backgroundColor: 'rgba(245, 158, 11, 0.75)', // Amber
+                    backgroundColor: 'rgba(52, 211, 153, 0.75)', // Green
                     borderRadius: 4
                 }
             ]
@@ -2666,6 +2904,149 @@ function renderPendingTab(data) {
             }
         }
     });
+
+    // 3. Observations in 'Por revisar' by Specialty (Helpers & Data Store)
+    const porRevisarOTs = pendingOTs.filter(o => !(o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))));
+    const hasRealObs = (o) => {
+        if (!o.observaciones) return false;
+        const txt = o.observaciones.toLowerCase().trim();
+        return txt !== '' && txt !== '-' && txt !== 'ninguna' && txt !== 'sin observaciones' && txt !== 'no' && txt !== 'sin novedad';
+    };
+
+    // 4. Render/Update Observations Board for 'Por revisar'
+    window.porRevisarOTsRef = porRevisarOTs;
+    
+    // Maintain state across renders (active specialty filter & active search text)
+    const activePill = document.querySelector('#obsSpecialtyPills .obs-pill.active');
+    const prevSpecialty = activePill ? activePill.dataset.obsEsp : 'all';
+    const prevSearch = document.getElementById('obsSearchInput')?.value || '';
+
+    // Observations rendering function
+    window.renderObservationsBoard = function(specialtyFilter = 'all', searchQuery = '') {
+        const obsContainer = document.getElementById('obsGridContainer');
+        const pillsContainer = document.getElementById('obsSpecialtyPills');
+        const countBadge = document.getElementById('obsCount');
+        if (!obsContainer) return;
+
+        const allPorRevisar = (window.porRevisarOTsRef || []).filter(hasRealObs);
+        
+        // Fetch active priority filter from global pending filters bar!
+        const activePrio = document.querySelector('#pendingFilters .filter-btn.active')?.dataset.filter || 'all';
+        
+        // Filter by priority first for correct specialty counts
+        let prioFiltered = allPorRevisar;
+        if (activePrio !== 'all') {
+            prioFiltered = prioFiltered.filter(o => {
+                const p = (o.prioridad || '').toLowerCase();
+                if (activePrio === 'alto') return p.includes('alto') || p.includes('emergencia');
+                if (activePrio === 'medio') return p.includes('medio');
+                if (activePrio === 'bajo') return p.includes('bajo');
+                return true;
+            });
+        }
+        
+        // Render specialty pills dynamically
+        const specialtiesWithObs = Array.from(new Set(prioFiltered.map(o => o.especialidad))).filter(Boolean).sort();
+        
+        let pillsHtml = `<button class="obs-pill ${specialtyFilter === 'all' ? 'active' : ''}" data-obs-esp="all">📂 Todas (${prioFiltered.length})</button>`;
+        
+        const emojiMap = {
+            'Carpintería': '🪚',
+            'Electricidad': '⚡',
+            'Gasfitería': '🚿',
+            'Albañilería': '🧱',
+            'Pintura': '🎨',
+            'Electromecánica': '⚙️',
+            'Otros': '📁'
+        };
+
+        specialtiesWithObs.forEach(esp => {
+            const count = prioFiltered.filter(o => o.especialidad === esp).length;
+            const emoji = emojiMap[esp] || '🔧';
+            pillsHtml += `<button class="obs-pill ${specialtyFilter === esp ? 'active' : ''}" data-obs-esp="${esp}">${emoji} ${esp} (${count})</button>`;
+        });
+        
+        if (pillsContainer) {
+            pillsContainer.innerHTML = pillsHtml;
+            pillsContainer.querySelectorAll('.obs-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    const nextEsp = pill.dataset.obsEsp;
+                    const query = document.getElementById('obsSearchInput')?.value || '';
+                    window.renderObservationsBoard(nextEsp, query);
+                });
+            });
+        }
+
+        // Filter observations by specialty and search query
+        let filteredObs = prioFiltered;
+        if (specialtyFilter !== 'all') {
+            filteredObs = filteredObs.filter(o => o.especialidad === specialtyFilter);
+        }
+        if (searchQuery.trim() !== '') {
+            const q = searchQuery.toLowerCase().trim();
+            filteredObs = filteredObs.filter(o => 
+                (o.id && o.id.toLowerCase().includes(q)) || 
+                (o.observaciones && o.observaciones.toLowerCase().includes(q)) || 
+                (o.desc && o.desc.toLowerCase().includes(q)) ||
+                (o.ubicacion && o.ubicacion.toLowerCase().includes(q))
+            );
+        }
+
+        if (countBadge) {
+            countBadge.textContent = `${filteredObs.length} observaciones`;
+        }
+
+        if (filteredObs.length === 0) {
+            obsContainer.innerHTML = `<div class="obs-empty-state"><span class="obs-empty-icon">✨</span><div>No hay observaciones activas que coincidan con la búsqueda o filtro.</div></div>`;
+            return;
+        }
+
+        obsContainer.innerHTML = filteredObs.map(o => {
+            const prioClass = (o.prioridad || 'Bajo').toLowerCase().split(' ')[0];
+            const badgeClass = o.especialidad === 'Electricidad' ? 'badge-amber' : 
+                                o.especialidad === 'Carpintería' ? 'badge-purple' : 
+                                o.especialidad === 'Gasfitería' ? 'badge-cyan' : 
+                                o.especialidad === 'Albañilería' ? 'badge-red' : 
+                                o.especialidad === 'Pintura' ? 'badge-green' : 'badge-blue';
+            const emoji = emojiMap[o.especialidad] || '🔧';
+            
+            return `
+                <div class="obs-card prio-${prioClass}">
+                    <div>
+                        <div class="obs-card-meta">
+                            <span class="obs-card-id">${o.id}</span>
+                            <div class="obs-card-tags">
+                                <span class="badge badge-${prioClass === 'alto' || prioClass === 'emergencia' ? 'red' : prioClass === 'medio' ? 'amber' : 'green'}">${o.prioridad}</span>
+                                <span class="badge ${badgeClass}">${emoji} ${o.especialidad}</span>
+                            </div>
+                        </div>
+                        <div class="obs-card-desc">${o.desc}</div>
+                        <div class="obs-card-location">📍 <strong>${o.ubicacion}</strong> ${o.solicitante ? ' | Solicitante: ' + o.solicitante : ''}</div>
+                    </div>
+                    <div class="obs-card-bubble">
+                        💬 <strong>Motivo de detención:</strong> ${o.observaciones}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    // Render observations board
+    window.renderObservationsBoard(prevSpecialty, prevSearch);
+
+    // Rebind search listener
+    const searchInput = document.getElementById('obsSearchInput');
+    if (searchInput) {
+        if (prevSearch) searchInput.value = prevSearch;
+        
+        searchInput.replaceWith(searchInput.cloneNode(true));
+        const newSearchInput = document.getElementById('obsSearchInput');
+        newSearchInput.addEventListener('input', (e) => {
+            const activePill = document.querySelector('#obsSpecialtyPills .obs-pill.active');
+            const specialty = activePill ? activePill.dataset.obsEsp : 'all';
+            window.renderObservationsBoard(specialty, e.target.value);
+        });
+    }
 
     // Render local pending table
     const currentActivePendingFilter = document.querySelector('#pendingFilters .filter-btn.active')?.dataset.filter || 'all';
@@ -2710,11 +3091,13 @@ function renderDetailTable(filter) {
     if (filter === 'finalizado') filtered = data.filter(o => o.estado === 'Finalizado');
     else if (filter === 'programado') filtered = data.filter(o => o.estado !== 'Finalizado' && o.programadoStatus === 'Programado');
     else if (filter === 'pendiente') filtered = data.filter(o => o.estado !== 'Finalizado');
-    else if (filter === 'electricidad') filtered = data.filter(o => o.especialidad === 'Electricidad');
-    else if (filter === 'carpinteria') filtered = data.filter(o => o.especialidad === 'Carpintería');
-    else if (filter === 'gasfiteria') filtered = data.filter(o => o.especialidad === 'Gasfitería');
-    else if (filter === 'albanileria') filtered = data.filter(o => o.especialidad === 'Albañilería');
-    else if (filter === 'pintura') filtered = data.filter(o => o.especialidad === 'Pintura');
+    else {
+        const normFilter = filter.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        filtered = data.filter(o => {
+            const normSpec = (o.especialidad || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return normSpec === normFilter || (normFilter === 'carpinteria' && normSpec === 'carpinteria');
+        });
+    }
     
     document.getElementById('detailCount').textContent = filtered.length + ' registros';
     tbody.innerHTML = filtered.map(o => `<tr>
@@ -3131,6 +3514,12 @@ document.querySelectorAll('#pendingFilters .filter-btn').forEach(btn => {
         document.querySelectorAll('#pendingFilters .filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderPendingTable(btn.dataset.filter);
+        if (window.renderObservationsBoard) {
+            const activePill = document.querySelector('#obsSpecialtyPills .obs-pill.active');
+            const specialty = activePill ? activePill.dataset.obsEsp : 'all';
+            const query = document.getElementById('obsSearchInput')?.value || '';
+            window.renderObservationsBoard(specialty, query);
+        }
     });
 });
 
@@ -3144,19 +3533,118 @@ document.querySelectorAll('#detailFilters .filter-btn').forEach(btn => {
 });
 
 // ========================== INITIALIZATION ==========================
+function populateSupervisorSelect() {
+    const select = document.getElementById('globalSupervisorSelect');
+    if (!select) return;
+    
+    // Get unique supervisors
+    const supervisors = Array.from(new Set(otData.map(o => o.supervisor))).filter(s => s && s.trim() !== '').sort();
+    
+    select.innerHTML = '<option value="all" style="background:#0f172a; color:#ffffff;">Todos</option>';
+    supervisors.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.style.background = '#0f172a';
+        opt.style.color = '#ffffff';
+        opt.textContent = s;
+        select.appendChild(opt);
+    });
+}
+
 async function initDashboard() {
-    try {
-        const response = await fetch('otData.json');
-        if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data) && data.length > 0) {
-                otData = data;
-                console.log("Loaded " + otData.length + " OTs from otData.json successfully.");
+    const rawData = localStorage.getItem('external_report_data');
+    if (rawData) {
+        otData = JSON.parse(rawData);
+        console.log("Loaded " + otData.length + " OTs from localStorage successfully.");
+    } else {
+        try {
+            const response = await fetch('otData.json');
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    otData = data;
+                }
             }
-        }
-    } catch (e) {
-        console.log("otData.json not found or failed to load, falling back to localStorage/static data:", e);
+        } catch (e) {}
     }
+function populateSpecialtyFilters() {
+    const uniqueSpecialties = Array.from(new Set(otData.map(o => o.especialidad))).filter(Boolean);
+    const standardEsp = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura'];
+    const otherEsp = uniqueSpecialties.filter(s => !standardEsp.includes(s) && s !== 'Otros');
+    const allSpecialties = [...standardEsp, ...otherEsp, 'Otros'].filter(s => uniqueSpecialties.includes(s) || standardEsp.includes(s));
+
+    const emojiMap = {
+        'Carpintería': '🪚',
+        'Electricidad': '⚡',
+        'Gasfitería': '🚿',
+        'Albañilería': '🧱',
+        'Pintura': '🎨',
+        'Electromecánica': '⚙️',
+        'Jardinería': '🌱',
+        'Piscina': '🏊',
+        'Calderos': '🔥',
+        'Otros': '🛠️'
+    };
+
+    const techFiltersDiv = document.getElementById('techSpecialtyFilters');
+    if (techFiltersDiv) {
+        techFiltersDiv.innerHTML = `
+            <span class="filter-group-label" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Especialidad:</span>
+            <button class="filter-btn active" data-specialty="all">Todas</button>
+`;
+        allSpecialties.forEach(spec => {
+            const btn = document.createElement('button');
+            btn.className = `filter-btn`;
+            btn.dataset.specialty = spec;
+            btn.textContent = `${emojiMap[spec] || '🛠️'} ${spec}`;
+            btn.addEventListener('click', () => {
+                techFiltersDiv.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTechSpecialty = spec;
+                updateDashboard();
+            });
+            techFiltersDiv.appendChild(btn);
+        });
+        
+        const allBtn = techFiltersDiv.querySelector('[data-specialty="all"]');
+        allBtn.addEventListener('click', () => {
+            techFiltersDiv.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            allBtn.classList.add('active');
+            currentTechSpecialty = 'all';
+            updateDashboard();
+        });
+    }
+
+    const detailFiltersDiv = document.getElementById('detailFilters');
+    if (detailFiltersDiv) {
+        detailFiltersDiv.innerHTML = `
+            <button class="filter-btn active" data-filter="all">Todas</button>
+            <button class="filter-btn" data-filter="finalizado">✅ Finalizadas</button>
+            <button class="filter-btn" data-filter="programado">📅 Programadas</button>
+            <button class="filter-btn" data-filter="pendiente">⏳ Pendientes</button>
+`;
+        
+        allSpecialties.forEach(spec => {
+            const lowerSpec = spec.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const btn = document.createElement('button');
+            btn.className = `filter-btn`;
+            btn.dataset.filter = lowerSpec;
+            btn.textContent = `${emojiMap[spec] || '🛠️'} ${spec}`;
+            detailFiltersDiv.appendChild(btn);
+        });
+
+        detailFiltersDiv.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                detailFiltersDiv.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderDetailTable(btn.dataset.filter);
+            });
+        });
+    }
+}
+
+    populateSupervisorSelect();
+    populateSpecialtyFilters();
     updateDashboard();
 }
 
@@ -3349,7 +3837,7 @@ function updateReportPreview() {
     const cierreCount = filteredData.filter(o => o.estado !== 'Finalizado' && (o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre')).length;
     const programadasCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus === 'Programado').length;
     const pendientesCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
-    const activePendingTotal = programadasCount + pendientesCount;
+    const activePendingTotal = pendientesCount;
     const activeTechs = new Set(filteredData.map(o => o.tecPrincipal).filter(Boolean)).size;
 
     // Workforce split (Propio vs Contratista)
@@ -3407,7 +3895,7 @@ function updateReportPreview() {
                     <span style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'Inter', sans-serif;">Reporte de Auditoría y Detalle Operativo</span>
                     <h1 style="font-size: 22px; font-weight: 900; color: #1e293b; margin: 4px 0 6px 0; letter-spacing: -0.02em; text-transform: uppercase; font-family: 'Inter', sans-serif;">Informe de Mantenimiento</h1>
                     <div style="width: 30px; height: 3px; background: #fbbf24; margin: 0 auto 8px auto; border-radius: 2px;"></div>
-                    <h3 style="font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; font-family: 'Inter', sans-serif;">MAYO 2026</h3>
+                    <h3 style="font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; font-family: 'Inter', sans-serif;">${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</h3>
                 </div>
 
                 <!-- Metadata Grid -->
@@ -3471,7 +3959,7 @@ function updateReportPreview() {
             pageContentHtml = `
                 <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-                        <span>INFORME DE MANTENIMIENTO — MAYO 2026</span>
+                        <span>INFORME DE MANTENIMIENTO — ${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</span>
                         <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
                     </div>
                 </div>
@@ -3575,7 +4063,7 @@ function updateReportPreview() {
             pageContentHtml = `
                 <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-                        <span>INFORME DE MANTENIMIENTO — MAYO 2026</span>
+                        <span>INFORME DE MANTENIMIENTO — ${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</span>
                         <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
                     </div>
                 </div>
@@ -3688,7 +4176,7 @@ function updateReportPreview() {
             pageContentHtml = `
                 <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-                        <span>INFORME DE MANTENIMIENTO — MAYO 2026</span>
+                        <span>INFORME DE MANTENIMIENTO — ${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</span>
                         <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
                     </div>
                 </div>
@@ -3793,7 +4281,7 @@ function updateReportPreview() {
         const footerHtml = `
             <!-- Footer -->
             <div style="border-top: 1px solid #f1f5f9; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8px; color: #94a3b8; font-family: 'Inter', sans-serif; box-sizing: border-box; width: 100%;">
-                <span>Informe Mensual de Mantenimiento CRL</span>
+                <span>Informe de Mantenimiento CRL — ${localStorage.getItem('external_report_title') || 'Bitácora'}</span>
                 <span style="font-weight: 700;">Página ${currentPageIndex} de ${totalPages}</span>
             </div>
         `;
@@ -4019,7 +4507,7 @@ function renderReportCharts(filteredData, activeSections) {
                 datasets: [{
                     data: supData,
                     backgroundColor: 'rgba(217,119,6,0.5)',
-                    borderColor: printColors.amber,
+                    borderColor: printColors.green || '#34d399',
                     borderWidth: 1,
                     borderRadius: 3
                 }]
@@ -4220,10 +4708,10 @@ function renderReportCharts(filteredData, activeSections) {
                         borderRadius: 3
                     },
                     {
-                        label: 'Sin RQ',
+                        label: 'Por revisar',
                         data: sinRqData,
-                        backgroundColor: 'rgba(245, 158, 11, 0.75)', // Amber
-                        borderColor: printColors.amber,
+                        backgroundColor: 'rgba(52, 211, 153, 0.75)', // Green
+                        borderColor: printColors.green || '#34d399',
                         borderWidth: 1,
                         borderRadius: 3
                     }

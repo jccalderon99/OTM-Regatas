@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Gestión Real-time — Club Regatas Lima</title>
+    <meta name="description" content="Dashboard de gestión y análisis en tiempo real de actividades de mantenimiento (OTM, OTI, Rutinarias)">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0f1d;
+            --bg-secondary: #111827;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --border-subtle: rgba(255,255,255,0.08);
+            --border-accent: rgba(99,102,241,0.4);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #6366f1;
+            --accent-blue-glow: rgba(99,102,241,0.25);
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --gradient-1: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --gradient-2: linear-gradient(135deg, #06b6d4, #3b82f6);
+            --gradient-3: linear-gradient(135deg, #10b981, #059669);
+            --shadow-glow: 0 0 25px rgba(99,102,241,0.15);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Ambient background glow */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 15% 15%, rgba(99,102,241,0.06) 0%, transparent 60%),
+                        radial-gradient(circle at 85% 85%, rgba(6,182,212,0.05) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .app { position: relative; z-index: 1; }
+
+        /* Header */
+        .header {
+            padding: 24px 40px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(17,24,39,0.75);
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: var(--gradient-1);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.35);
+        }
+        .header h1 {
+            font-size: 20px; font-weight: 800;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header .subtitle { font-size: 13px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+        .header-right { display: flex; gap: 12px; align-items: center; }
+        
+        .btn-pdf {
+            background: var(--gradient-1);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+        }
+        .btn-pdf:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(139,92,246,0.5);
+        }
+
+        .date-badge {
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.25);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--accent-blue);
+            font-weight: 700;
+        }
+
+        /* Navigation tabs */
+        .sub-header-container {
+            max-width: 1600px;
+            margin: 0 auto 20px;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .nav-tab {
+            padding: 14px 22px;
+            border-radius: 10px 10px 0 0;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.3s;
+            margin-bottom: -1px;
+        }
+        .nav-tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
+        .nav-tab.active {
+            background: var(--bg-card);
+            color: var(--accent-blue);
+            border-color: var(--border-subtle);
+            border-bottom: 2px solid var(--accent-blue);
+        }
+
+        /* Main content */
+        .main {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px 40px 60px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 18px 22px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-glow);
+            border-color: var(--border-accent);
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+        }
+        .kpi-card:nth-child(1)::before { background: var(--gradient-1); }
+        .kpi-card:nth-child(2)::before { background: var(--gradient-2); }
+        .kpi-card:nth-child(3)::before { background: var(--gradient-3); }
+        .kpi-card:nth-child(4)::before { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+
+        .kpi-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-top: 6px; }
+        .kpi-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+
+        /* Charts Layout grid */
+        .charts-layout-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .chart-card:hover {
+            border-color: rgba(99,102,241,0.25);
+        }
+        .chart-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0px;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            margin-top: 14px;
+        }
+
+        /* Editable cell styles */
+        .editable-cell {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .editable-cell:hover {
+            cursor: pointer;
+            background: rgba(99,102,241,0.08) !important;
+            outline: 1.5px dashed var(--accent-blue);
+            outline-offset: -2px;
+        }
+
+        /* Filter block */
+        .filters-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .filter-group { display: flex; flexDirection: column; gap: 6px; }
+        .filter-group label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; }
+        .filter-select, .filter-input {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border-subtle);
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            width: 100%;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .filter-select:focus, .filter-input:focus { border-color: var(--accent-blue); }
+
+        /* Tables */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 24px;
+            overflow: hidden;
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .table-header h3 { font-size: 16px; font-weight: 800; }
+        .search-box {
+            position: relative;
+            max-width: 320px;
+            width: 100%;
+        }
+        .search-box input {
+            padding-left: 36px;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+        th {
+            background: rgba(0,0,0,0.15);
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-subtle);
+            white-space: nowrap;
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        tr:hover td { background: rgba(255,255,255,0.01); }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-otm { background: rgba(99,102,241,0.15); color: var(--accent-blue); }
+        .badge-oti { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+        .badge-rut { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+
+        .badge-prio-alto { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+        .badge-prio-medio { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+        .badge-prio-bajo { background: rgba(99,102,241,0.15); color: var(--accent-blue); }
+
+        .badge-status-finalizado { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .badge-status-programado { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+        .badge-status-pendiente { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+        .badge-status-cancelada { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+
+        /* Report print styling */
+        #reportPrintView {
+            display: none;
+            background: white;
+            color: black;
+            padding: 40px;
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+        }
+        .print-header {
+            border-bottom: 3px double #1e293b;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .print-title { font-size: 20px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .print-subtitle { font-size: 12px; color: #475569; margin-top: 4px; }
+        .print-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 14px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 8px;
+        }
+        .print-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .print-chart-card {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 16px;
+            background: #f8fafc;
+        }
+        .print-chart-title { font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        .print-kpis {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .print-kpi-card {
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            background: #f8fafc;
+        }
+        .print-kpi-val { font-size: 18px; font-weight: 800; color: #0f172a; }
+        .print-kpi-lbl { font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+
+        .print-signatures {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            text-align: center;
+        }
+        .sig-line {
+            border-top: 1px solid #475569;
+            width: 240px;
+            margin: 60px auto 0;
+            padding-top: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        @media (max-width: 1024px) {
+            .charts-layout-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <div class="logo-icon">⚡</div>
+                <div>
+                    <h1>Dashboard de Gestión Real-time</h1>
+                    <div class="subtitle" id="dashboardSubtitle">Visualización unificada de OTM, OTI y Actividades Rutinarias</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="date-badge" id="lastUpdatedBadge">Cargando...</div>
+                <button onclick="resetDashboardView()" class="btn-pdf" style="background: rgba(239,68,68,0.12); border: 1px solid var(--accent-red); color: var(--accent-red); box-shadow: none;">
+                    <span>🔄</span> Restablecer Vista
+                </button>
+                <button class="btn-pdf" id="btnExportPDF">
+                    <span>📥</span> Exportar PDF Ejecutivo
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Subheader Tabs -->
+    <div class="sub-header-container">
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="summary">Resumen General</button>
+            <button class="nav-tab" data-tab="pending">OTs Pendientes</button>
+            <button class="nav-tab" data-tab="technicians">Técnicos</button>
+            <button class="nav-tab" data-tab="detail">Detalle Completo</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main">
+        
+        <!-- Tab 1: Resumen General -->
+        <div class="tab-content active" id="tab-summary">
+            <!-- KPI Cards -->
+            <div class="kpi-grid" id="kpiGridSummary">
+                <div class="kpi-card">
+                    <div class="kpi-label">Actividades Totales</div>
+                    <div class="kpi-value" id="kpiTotalAct">0</div>
+                    <div class="kpi-meta">OTMs, OTIs y Bitácoras</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Horas Totales Invertidas</div>
+                    <div class="kpi-value" id="kpiTotalHours">0.0h</div>
+                    <div class="kpi-meta">Suma decimal de tiempos netos</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Eficiencia Operativa</div>
+                    <div class="kpi-value" id="kpiEfficiency">0%</div>
+                    <div class="kpi-meta">Tasa de finalización / cierre</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Satisfacción Promedio</div>
+                    <div class="kpi-value" id="kpiSatisfaction">0.0</div>
+                    <div class="kpi-meta">Conformidad OTM (1 a 5 ⭐)</div>
+                </div>
+            </div>
+
+            <!-- Creador de Gráficos Dinámicos (Chart Builder) -->
+            <div class="chart-card" style="margin-bottom: 24px; border: 1px solid var(--border-accent); background: rgba(99,102,241,0.03);">
+                <h3 style="font-size: 14px; font-weight: 800; color: var(--accent-blue); display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    🛠️ Constructor de Gráficos Dinámicos <span style="font-size: 10px; font-weight: 400; color: var(--text-muted);">(Lienzo de Análisis Personalizado)</span>
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 14px; align-items: end;">
+                    <div class="filter-group">
+                        <label>Eje X (Variable)</label>
+                        <select class="filter-select" id="builderX">
+                            <option value="specialty">Especialidad</option>
+                            <option value="technician_names">Técnico Asignado</option>
+                            <option value="location">Ubicación</option>
+                            <option value="activity_type">Tipo de Actividad</option>
+                            <option value="urgency">Prioridad / Urgencia</option>
+                            <option value="status">Estado</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Eje Y (Métrica)</label>
+                        <select class="filter-select" id="builderY">
+                            <option value="count">Cantidad de Actividades</option>
+                            <option value="hours">Horas Hombre Totales</option>
+                            <option value="rating">Calificación de Satisfacción</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Tipo de Gráfico</label>
+                        <select class="filter-select" id="builderType">
+                            <option value="bar">Gráfico de Barras</option>
+                            <option value="doughnut">Gráfico de Dona</option>
+                            <option value="pie">Gráfico de Torta / Circular</option>
+                            <option value="line">Gráfico de Líneas</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Título del Gráfico</label>
+                        <input type="text" class="filter-input" id="builderTitle" placeholder="Ej: Horas por Ubicación">
+                    </div>
+                    <div>
+                        <button onclick="addWidgetFromBuilder()" class="btn-pdf" style="width: 100%; justify-content: center; padding: 10px; border-radius: 8px; font-size: 13px;">
+                            ➕ Agregar Gráfico
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Widgets Layout Grid -->
+            <div class="charts-layout-grid" id="chartsGrid">
+                <!-- Dynamic charts are rendered here -->
+            </div>
+        </div>
+
+        <!-- Tab 2: OTs Pendientes -->
+        <div class="tab-content" id="tab-pending">
+            <div class="kpi-grid">
+                <div class="kpi-card" style="background: rgba(239,68,68,0.05)">
+                    <div class="kpi-label" style="color: var(--accent-red)">Total OTs Pendientes</div>
+                    <div class="kpi-value" id="kpiPendientesCount">0</div>
+                    <div class="kpi-meta">OTMs y OTIs activas</div>
+                </div>
+                <div class="kpi-card" style="background: rgba(245,158,11,0.05)">
+                    <div class="kpi-label" style="color: var(--accent-amber)">Pendientes Sin Asignar</div>
+                    <div class="kpi-value" id="kpiPendientesSinAsignar">0</div>
+                    <div class="kpi-meta">Sin técnico asignado</div>
+                </div>
+                <div class="kpi-card" style="background: rgba(99,102,241,0.05)">
+                    <div class="kpi-label" style="color: var(--accent-blue)">Pendientes Urgentes (Alta)</div>
+                    <div class="kpi-value" id="kpiPendientesUrgentes">0</div>
+                    <div class="kpi-meta">Prioridad alta o de emergencia</div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="table-header">
+                    <h3>Lista de Órdenes Pendientes</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tablePending">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Tipo</th>
+                                <th>Especialidad</th>
+                                <th>Descripción</th>
+                                <th>Ubicación</th>
+                                <th>Fecha Programación</th>
+                                <th>Técnicos</th>
+                                <th>Urgencia</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyPending">
+                            <tr><td colspan="9" style="text-align: center;">Cargando órdenes pendientes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Técnicos -->
+        <div class="tab-content" id="tab-technicians">
+            <div class="chart-row-equal" style="margin-bottom: 28px;">
+                <div class="chart-card">
+                    <h3>Horas Totales Invertidas por Técnico (Decimal)</h3>
+                    <div class="chart-container">
+                        <canvas id="chartTecnicoHoras"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Actividades Completadas por Técnico</h3>
+                    <div class="chart-container">
+                        <canvas id="chartTecnicoCantidad"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="table-header">
+                    <h3>Rendimiento y Carga de Trabajo de Técnicos</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tableTechnicians">
+                        <thead>
+                            <tr>
+                                <th>Técnico</th>
+                                <th>Total Actividades</th>
+                                <th>Horas OTM</th>
+                                <th>Horas OTI</th>
+                                <th>Horas Rutinarias</th>
+                                <th>Horas Totales</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyTechnicians">
+                            <tr><td colspan="6" style="text-align: center;">Cargando ranking de técnicos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Detalle Completo (SPREADSHEET MODE) -->
+        <div class="tab-content" id="tab-detail">
+            <!-- Advanced Filters -->
+            <div class="filters-panel">
+                <div class="filter-group">
+                    <label>Tipo de Actividad</label>
+                    <select class="filter-select" id="filterType">
+                        <option value="ALL">Todos los tipos</option>
+                        <option value="OTM">OTM (Mantenimiento)</option>
+                        <option value="OTI">OTI (Interna)</option>
+                        <option value="RUTINARIA">Rutinaria (Bitácora)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Especialidad</label>
+                    <select class="filter-select" id="filterSpecialty">
+                        <option value="ALL">Todas las especialidades</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Técnico</label>
+                    <select class="filter-select" id="filterTech">
+                        <option value="ALL">Todos los técnicos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Estado</label>
+                    <select class="filter-select" id="filterStatus">
+                        <option value="ALL">Todos los estados</option>
+                        <option value="Finalizado">Finalizado</option>
+                        <option value="Programado">Programado</option>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Cierre">Canceladas</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Master Table -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3 style="display: flex; align-items: center; gap: 8px;">
+                        📝 Grilla Interactiva Tipo Excel 
+                        <span style="font-size: 11px; font-weight: 500; color: var(--accent-blue); background: rgba(99,102,241,0.12); padding: 2px 8px; border-radius: 4px;">
+                            Click en cualquier celda con borde punteado para editar al instante
+                        </span>
+                    </h3>
+                    <div class="search-box">
+                        <input type="text" class="filter-input" id="searchBoxDetail" placeholder="🔍 Buscar por código, descripción, ubicación...">
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tableMaster">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Tipo</th>
+                                <th>Fecha (Editar)</th>
+                                <th>Especialidad (Editar)</th>
+                                <th>Descripción (Editar)</th>
+                                <th>Ubicación (Editar)</th>
+                                <th>Técnico(s) (Editar)</th>
+                                <th>Duración (Editar)</th>
+                                <th>Estado (Editar)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyMaster">
+                            <tr><td colspan="9" style="text-align: center;">Cargando base de datos unificada...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ========================================== -->
+<!-- HIDDEN REPORT PRINT VIEW FOR PERFECT PDF   -->
+<!-- ========================================== -->
+<div id="reportPrintView">
+    <div class="print-header">
+        <div class="print-title">Reporte Ejecutivo de Mantenimiento</div>
+        <div class="print-subtitle">Análisis Unificado de OTM, OTI y Rutinarias — Club Regatas Lima</div>
+        <div class="print-meta">
+            <div><strong>Emisor:</strong> Sistema de Gestión de Mantenimiento</div>
+            <div id="printReportDate"><strong>Fecha de Informe:</strong> -</div>
+        </div>
+    </div>
+
+    <!-- Print KPIs -->
+    <div class="print-kpis">
+        <div class="print-kpi-card">
+            <div class="print-kpi-val" id="printKpiTotalAct">0</div>
+            <div class="print-kpi-lbl">Actividades Totales</div>
+        </div>
+        <div class="print-kpi-card">
+            <div class="print-kpi-val" id="printKpiTotalHours">0.0h</div>
+            <div class="print-kpi-lbl">Horas Hombre</div>
+        </div>
+        <div class="print-kpi-card">
+            <div class="print-kpi-val" id="printKpiEfficiency">0%</div>
+            <div class="print-kpi-lbl">Eficiencia Operativa</div>
+        </div>
+        <div class="print-kpi-card">
+            <div class="print-kpi-val" id="printKpiSatisfaction">0.0</div>
+            <div class="print-kpi-lbl">Satisfacción Promedio</div>
+        </div>
+    </div>
+
+    <div class="print-grid">
+        <div class="print-chart-card">
+            <div class="print-chart-title">Actividades por Especialidad</div>
+            <div style="height: 220px; position: relative;">
+                <canvas id="chartReportEspecialidad"></canvas>
+            </div>
+        </div>
+        <div class="print-chart-card">
+            <div class="print-chart-title">Distribución por Tipo</div>
+            <div style="height: 220px; position: relative;">
+                <canvas id="chartReportTipo"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="print-grid" style="margin-top: 14px;">
+        <div class="print-chart-card">
+            <div class="print-chart-title">Horas Invertidas por Especialidad</div>
+            <div style="height: 220px; position: relative;">
+                <canvas id="chartReportHoras"></canvas>
+            </div>
+        </div>
+        <div class="print-chart-card">
+            <div class="print-chart-title">Eficiencia de Técnicos (Horas)</div>
+            <div style="height: 220px; position: relative;">
+                <canvas id="chartReportTechHoras"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="print-signatures">
+        <div>
+            <div class="sig-line">Supervisor de Mantenimiento</div>
+        </div>
+        <div>
+            <div class="sig-line">Jefatura / Ingeniería de Planta</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global references and chart memory
+    let reportData = null;
+    let activities = [];
+    let layout = [];
+    const chartInstances = {};
+    let activeEditingCell = null;
+
+    const specialties = ['Electricidad', 'Carpintería', 'Gasfitería', 'Albañilería', 'Pintura', 'Jardinería', 'Piscina', 'Calderos', 'Otros'];
+    let techList = [];
+    let locations = [];
+
+    // Default layout setup
+    const DEFAULT_LAYOUT = [
+        { id: 'chartEspecialidadesApilado', type: 'bar', x: 'specialty', y: 'count', isStacked: true, title: 'Actividades por Especialidad y Tipo', size: 'col-span-1' },
+        { id: 'chartTipoDona', type: 'doughnut', x: 'activity_type', y: 'count', title: 'Distribución por Tipo de Actividad', size: 'col-span-1' },
+        { id: 'chartHorasEspecialidad', type: 'bar', x: 'specialty', y: 'hours', title: 'Horas Hombre Totales por Especialidad', size: 'col-span-1' },
+        { id: 'chartPropioContrata', type: 'pie', x: 'assignment_type', y: 'count', title: 'Asignación de Personal en OTM', size: 'col-span-1' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load initial data
+        const rawReportData = localStorage.getItem('internal_report_data');
+        if (!rawReportData) {
+            alert('No se encontraron datos cargados. Abre el dashboard desde el módulo de reportes.');
+            return;
+        }
+
+        reportData = JSON.parse(rawReportData);
+        activities = reportData.activities;
+
+        // Deduce list of technicians and locations from loaded activities
+        const techs = new Set();
+        activities.forEach(act => {
+            if (act.technician_names && act.technician_names !== 'No Asignado') {
+                act.technician_names.split(',').forEach(n => techs.add(n.trim()));
+            }
+        });
+        techList = Array.from(techs).sort();
+        locations = Array.from(new Set(activities.map(act => act.location))).filter(l => l !== '').sort();
+
+        // Load custom layouts if existing in localStorage
+        const savedLayout = localStorage.getItem('internal_report_layout');
+        layout = savedLayout ? JSON.parse(savedLayout) : [...DEFAULT_LAYOUT];
+
+        document.getElementById('lastUpdatedBadge').textContent = 'Última actualización: ' + reportData.lastUpdated;
+
+        // Navigation logic
+        const tabs = document.querySelectorAll('.nav-tab');
+        const contents = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+
+                tab.classList.add('active');
+                const target = 'tab-' + tab.getAttribute('data-tab');
+                document.getElementById(target).classList.add('active');
+            });
+        });
+
+        // Populate master table select filters dynamically
+        const selectSpecialty = document.getElementById('filterSpecialty');
+        specialties.forEach(spec => {
+            const opt = document.createElement('option');
+            opt.value = spec;
+            opt.textContent = spec;
+            selectSpecialty.appendChild(opt);
+        });
+
+        const selectTech = document.getElementById('filterTech');
+        techList.forEach(tech => {
+            const opt = document.createElement('option');
+            opt.value = tech;
+            opt.textContent = tech;
+            selectTech.appendChild(opt);
+        });
+
+        // Set up filters
+        document.getElementById('filterType').addEventListener('change', renderMasterTable);
+        document.getElementById('filterSpecialty').addEventListener('change', renderMasterTable);
+        document.getElementById('filterTech').addEventListener('change', renderMasterTable);
+        document.getElementById('filterStatus').addEventListener('change', renderMasterTable);
+        document.getElementById('searchBoxDetail').addEventListener('input', renderMasterTable);
+
+        // First full refresh
+        saveDataAndRefresh();
+    });
+
+    // ==========================================
+    // AGGREGATION & CHART BUILDER DATA ENGINES
+    // ==========================================
+    function aggregateData(w) {
+        const xKey = w.x;
+        const yKey = w.y;
+        
+        let xValues = [];
+        if (xKey === 'specialty') {
+            xValues = specialties;
+        } else if (xKey === 'technician_names') {
+            xValues = techList;
+        } else if (xKey === 'location') {
+            xValues = locations;
+        } else if (xKey === 'activity_type') {
+            xValues = ['OTM', 'OTI', 'RUTINARIA'];
+        } else if (xKey === 'urgency') {
+            xValues = ['Emergencia', 'Alto', 'Medio', 'Bajo'];
+        } else if (xKey === 'status') {
+            xValues = ['Pendiente', 'Programado', 'Finalizado', 'Cierre'];
+        } else {
+            xValues = Array.from(new Set(activities.map(act => act[xKey] || 'Otros')));
+        }
+
+        // Stacking check
+        if (w.isStacked && w.x === 'specialty') {
+            const oTMData = [];
+            const oTIData = [];
+            const routineData = [];
+
+            xValues.forEach(spec => {
+                const specActs = activities.filter(act => act.specialty === spec);
+                oTMData.push(specActs.filter(act => act.activity_type === 'OTM').length);
+                oTIData.push(specActs.filter(act => act.activity_type === 'OTI').length);
+                routineData.push(specActs.filter(act => act.activity_type === 'RUTINARIA').length);
+            });
+            return {
+                labels: xValues,
+                datasets: [
+                    { label: 'OTM', data: oTMData, backgroundColor: '#6366f1' },
+                    { label: 'OTI', data: oTIData, backgroundColor: '#06b6d4' },
+                    { label: 'Rutinaria', data: routineData, backgroundColor: '#10b981' }
+                ]
+            };
+        }
+
+        const dataMap = {};
+        xValues.forEach(xv => {
+            dataMap[xv] = { sum: 0, count: 0 };
+        });
+
+        activities.forEach(act => {
+            let xv = act[xKey] || 'Otros';
+            // handle technical substring joins
+            if (xKey === 'technician_names') {
+                xValues.forEach(tech => {
+                    if (act.technician_names && act.technician_names.includes(tech)) {
+                        if (yKey === 'count') {
+                            dataMap[tech].sum += 1;
+                        } else if (yKey === 'hours') {
+                            dataMap[tech].sum += act.execution_time_hours || 0;
+                        } else if (yKey === 'rating') {
+                            if (act.rating > 0) {
+                                dataMap[tech].sum += act.rating;
+                                dataMap[tech].count += 1;
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (dataMap[xv] !== undefined) {
+                if (yKey === 'count') {
+                    dataMap[xv].sum += 1;
+                } else if (yKey === 'hours') {
+                    dataMap[xv].sum += act.execution_time_hours || 0;
+                } else if (yKey === 'rating') {
+                    if (act.rating > 0) {
+                        dataMap[xv].sum += act.rating;
+                        dataMap[xv].count += 1;
+                    }
+                }
+            }
+        });
+
+        const chartData = [];
+        xValues.forEach(xv => {
+            if (yKey === 'rating') {
+                const avg = dataMap[xv].count > 0 ? Number((dataMap[xv].sum / dataMap[xv].count).toFixed(1)) : 0;
+                chartData.push(avg);
+            } else {
+                chartData.push(Number(dataMap[xv].sum.toFixed(1)));
+            }
+        });
+
+        let bgColors = '#6366f1';
+        if (w.type === 'doughnut' || w.type === 'pie') {
+            bgColors = ['#6366f1', '#06b6d4', '#10b981', '#fbbf24', '#8b5cf6', '#ef4444', '#f472b6', '#ec4899', '#059669'];
+        } else if (w.id === 'chartHorasEspecialidad') {
+            bgColors = '#8b5cf6';
+        } else if (w.id === 'chartTecnicoHoras' || w.id === 'chartTecnicoCantidad') {
+            bgColors = '#10b981';
+        }
+
+        const yLabel = yKey === 'count' ? 'Tareas' : yKey === 'hours' ? 'Horas' : 'Calificación Promedio';
+
+        return {
+            labels: xValues,
+            datasets: [{
+                label: yLabel,
+                data: chartData,
+                backgroundColor: bgColors
+            }]
+        };
+    }
+
+    function initWidgetChart(w) {
+        const canvas = document.getElementById(`canvas_${w.id}`);
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const data = aggregateData(w);
+        
+        const config = {
+            type: w.type,
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: (w.type === 'doughnut' || w.type === 'pie' || w.isStacked),
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', boxWidth: 12, padding: 12 }
+                    }
+                }
+            }
+        };
+
+        if (w.type === 'bar') {
+            config.options.indexAxis = w.isStacked ? 'y' : 'x';
+            config.options.scales = {
+                x: { stacked: w.isStacked, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8' } },
+                y: { stacked: w.isStacked, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8' } }
+            };
+        } else if (w.type === 'line') {
+            config.options.scales = {
+                x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8' } },
+                y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8' } }
+            };
+        }
+
+        if (chartInstances[w.id]) {
+            chartInstances[w.id].destroy();
+        }
+
+        chartInstances[w.id] = new Chart(ctx, config);
+    }
+
+    function renderChartsGrid() {
+        const grid = document.getElementById('chartsGrid');
+        grid.innerHTML = '';
+        
+        layout.forEach((w, idx) => {
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            card.style.gridColumn = w.size === 'col-span-2' ? 'span 2' : 'span 1';
+            
+            // Header with layout controls
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle)">
+                    <h3 style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 0;">${w.title}</h3>
+                    <div style="display: flex; gap: 4px;">
+                        <button onclick="moveWidget(${idx}, -1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px; font-size: 11px; color: var(--text-secondary);" title="Subir">⬆️</button>
+                        <button onclick="moveWidget(${idx}, 1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px; font-size: 11px; color: var(--text-secondary);" title="Bajar">⬇️</button>
+                        <button onclick="toggleWidgetSize(${idx})" style="background: none; border: none; cursor: pointer; padding: 2px 6px; font-size: 11px; color: var(--text-secondary);" title="Agrandar/Reducir">↔️</button>
+                        <button onclick="deleteWidget(${idx})" style="background: none; border: none; cursor: pointer; padding: 2px 6px; font-size: 11px; color: var(--accent-red);" title="Eliminar">❌</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="canvas_${w.id}"></canvas>
+                </div>
+            `;
+            grid.appendChild(card);
+            
+            initWidgetChart(w);
+        });
+    }
+
+    // ==========================================
+    // WIDGET GRID LAYOUT ACTIONS
+    // ==========================================
+    window.moveWidget = function(idx, direction) {
+        const targetIdx = idx + direction;
+        if (targetIdx < 0 || targetIdx >= layout.length) return;
+        
+        // Swap
+        const temp = layout[idx];
+        layout[idx] = layout[targetIdx];
+        layout[targetIdx] = temp;
+        
+        saveLayoutAndRefresh();
+    };
+
+    window.toggleWidgetSize = function(idx) {
+        layout[idx].size = layout[idx].size === 'col-span-2' ? 'col-span-1' : 'col-span-2';
+        saveLayoutAndRefresh();
+    };
+
+    window.deleteWidget = function(idx) {
+        if (confirm('¿Estás seguro de eliminar este gráfico del panel?')) {
+            if (chartInstances[layout[idx].id]) {
+                chartInstances[layout[idx].id].destroy();
+                delete chartInstances[layout[idx].id];
+            }
+            layout.splice(idx, 1);
+            saveLayoutAndRefresh();
+        }
+    };
+
+    window.addWidgetFromBuilder = function() {
+        const x = document.getElementById('builderX').value;
+        const y = document.getElementById('builderY').value;
+        const type = document.getElementById('builderType').value;
+        let title = document.getElementById('builderTitle').value.trim();
+
+        if (!title) {
+            const xLabel = document.getElementById('builderX').selectedOptions[0].textContent;
+            const yLabel = document.getElementById('builderY').selectedOptions[0].textContent;
+            title = `${yLabel} por ${xLabel}`;
+        }
+
+        const id = `custom_chart_${Date.now()}`;
+        const newWidget = {
+            id: id,
+            type: type,
+            x: x,
+            y: y,
+            title: title,
+            size: 'col-span-1'
+        };
+
+        layout.push(newWidget);
+        document.getElementById('builderTitle').value = '';
+        saveLayoutAndRefresh();
+    };
+
+    window.resetDashboardView = function() {
+        if (confirm('¿Deseas restablecer el panel completo y borrar todos tus cambios personalizados (gráficos y celdas editadas)?')) {
+            localStorage.removeItem('internal_report_layout');
+            layout = [...DEFAULT_LAYOUT];
+
+            // Re-load virgin Supabase data
+            const rawReportData = localStorage.getItem('internal_report_data');
+            if (rawReportData) {
+                const cleanData = JSON.parse(rawReportData);
+                // Clear any manual spreadsheet edits by restoring original page load data if we refreshed context
+                location.reload();
+            }
+        }
+    };
+
+    function saveLayoutAndRefresh() {
+        localStorage.setItem('internal_report_layout', JSON.stringify(layout));
+        renderChartsGrid();
+    }
+
+    // ==========================================
+    // INLINE EXCEL SPREADSHEET EDITOR
+    // ==========================================
+    window.makeCellEditable = function(td, actId, field, type, optionsList = []) {
+        if (activeEditingCell === td) return;
+        activeEditingCell = td;
+        
+        const actIndex = activities.findIndex(a => a.id === actId);
+        if (actIndex === -1) return;
+        const act = activities[actIndex];
+        const currentVal = act[field];
+        
+        td.innerHTML = '';
+        td.style.padding = '4px 8px';
+        
+        if (type === 'select') {
+            const select = document.createElement('select');
+            select.className = 'filter-select';
+            select.style.padding = '4px';
+            select.style.fontSize = '12px';
+            select.style.width = '100%';
+            
+            optionsList.forEach(opt => {
+                const o = document.createElement('option');
+                o.value = opt;
+                o.textContent = opt === 'Cierre' ? 'Cancelada' : opt;
+                if (opt === currentVal) o.selected = true;
+                select.appendChild(o);
+            });
+            
+            select.addEventListener('blur', () => commitEdit(td, actIndex, field, select.value, actId));
+            select.addEventListener('change', () => commitEdit(td, actIndex, field, select.value, actId));
+            td.appendChild(select);
+            select.focus();
+        } else {
+            const input = document.createElement('input');
+            input.className = 'filter-input';
+            input.style.padding = '4px';
+            input.style.fontSize = '12px';
+            input.style.width = '100%';
+            input.value = currentVal || '';
+            
+            if (type === 'number') {
+                input.type = 'number';
+                input.step = '0.1';
+            } else if (type === 'date') {
+                input.type = 'date';
+            } else {
+                input.type = 'text';
+            }
+            
+            input.addEventListener('blur', () => commitEdit(td, actIndex, field, input.value, actId));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') commitEdit(td, actIndex, field, input.value, actId);
+                if (e.key === 'Escape') saveDataAndRefresh(); // Cancel
+            });
+            td.appendChild(input);
+            input.focus();
+        }
+    };
+
+    function commitEdit(td, actIndex, field, newVal, actId) {
+        activeEditingCell = null;
+        let val = newVal;
+        if (field === 'execution_time_hours') {
+            val = parseFloat(newVal) || 0;
+        }
+        activities[actIndex][field] = val;
+        
+        saveDataAndRefresh();
+    }
+
+    function saveDataAndRefresh() {
+        reportData.activities = activities;
+        localStorage.setItem('internal_report_data', JSON.stringify(reportData));
+        
+        // Recalculate KPIs
+        const totalAct = activities.length;
+        const totalHours = activities.reduce((sum, act) => sum + act.execution_time_hours, 0);
+        const finalizadasCount = activities.filter(act => act.status === 'Finalizado').length;
+        const canceladasCount = activities.filter(act => act.status === 'Cierre').length;
+        const efficiency = totalAct > 0 ? Math.round(((finalizadasCount + canceladasCount) / totalAct) * 100) : 0;
+        
+        const otmsWithRating = activities.filter(act => act.activity_type === 'OTM' && act.rating > 0);
+        const satisfaction = otmsWithRating.length > 0 
+            ? (otmsWithRating.reduce((sum, act) => sum + act.rating, 0) / otmsWithRating.length).toFixed(1)
+            : 'N/A';
+
+        document.getElementById('kpiTotalAct').textContent = totalAct;
+        document.getElementById('kpiTotalHours').textContent = totalHours.toFixed(1) + 'h';
+        document.getElementById('kpiEfficiency').textContent = efficiency + '%';
+        document.getElementById('kpiSatisfaction').textContent = satisfaction;
+
+        // Redraw tables and widgets
+        renderChartsGrid();
+        renderPendingTable();
+        renderTechTable();
+        renderMasterTable();
+    }
+
+    // ==========================================
+    // OTHER TAB RENDERS
+    // ==========================================
+    function renderPendingTable() {
+        const pendingActs = activities.filter(act => act.status === 'Pendiente' || act.status === 'Programado');
+        document.getElementById('kpiPendientesCount').textContent = pendingActs.length;
+        document.getElementById('kpiPendientesSinAsignar').textContent = pendingActs.filter(act => !act.technician_names || act.technician_names === 'No Asignado').length;
+        document.getElementById('kpiPendientesUrgentes').textContent = pendingActs.filter(act => act.urgency === 'Alto' || act.urgency === 'Emergencia').length;
+
+        const tbodyPending = document.getElementById('tbodyPending');
+        tbodyPending.innerHTML = '';
+
+        if (pendingActs.length === 0) {
+            tbodyPending.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">🎉 ¡Felicidades! No hay actividades pendientes.</td></tr>';
+            return;
+        }
+
+        pendingActs.forEach(act => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${act.code}</strong></td>
+                <td><span class="badge badge-${act.activity_type.toLowerCase()}">${act.activity_type}</span></td>
+                <td>${act.specialty}</td>
+                <td title="${act.description}">${act.description}</td>
+                <td>${act.location}</td>
+                <td>${act.start_time ? act.start_time.slice(0, 10) : 'Pendiente'}</td>
+                <td>${act.technician_names}</td>
+                <td><span class="badge badge-prio-${act.urgency.toLowerCase()}">${act.urgency}</span></td>
+                <td><span class="badge badge-status-${act.status.toLowerCase()}">${act.status === 'Cierre' ? 'Cancelada' : act.status}</span></td>
+            `;
+            tbodyPending.appendChild(tr);
+        });
+    }
+
+    function renderTechTable() {
+        // Compile stats for tech table
+        const techStats = techList.map(tech => {
+            const techActs = activities.filter(act => act.technician_names && act.technician_names.includes(tech));
+            
+            const hoursOtm = techActs.filter(act => act.activity_type === 'OTM').reduce((sum, act) => sum + act.execution_time_hours, 0);
+            const hoursOti = techActs.filter(act => act.activity_type === 'OTI').reduce((sum, act) => sum + act.execution_time_hours, 0);
+            const hoursRut = techActs.filter(act => act.activity_type === 'RUTINARIA').reduce((sum, act) => sum + act.execution_time_hours, 0);
+            const hoursTotal = hoursOtm + hoursOti + hoursRut;
+
+            return {
+                name: tech,
+                totalCount: techActs.length,
+                hoursOtm,
+                hoursOti,
+                hoursRut,
+                hoursTotal
+            };
+        }).sort((a, b) => b.hoursTotal - a.hoursTotal);
+
+        // Tech rank charts
+        const ctxTechHoras = document.getElementById('chartTecnicoHoras').getContext('2d');
+        const configTechHoras = {
+            type: 'bar',
+            data: {
+                labels: techStats.map(t => t.name),
+                datasets: [{
+                    label: 'Horas Totales',
+                    data: techStats.map(t => t.hoursTotal),
+                    backgroundColor: '#10b981'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#94a3b8' } },
+                    y: { ticks: { color: '#94a3b8' } }
+                }
+            }
+        };
+        if (chartInstances['chartTecnicoHoras']) chartInstances['chartTecnicoHoras'].destroy();
+        chartInstances['chartTecnicoHoras'] = new Chart(ctxTechHoras, configTechHoras);
+
+        const ctxTechCantidad = document.getElementById('chartTecnicoCantidad').getContext('2d');
+        const configTechCantidad = {
+            type: 'bar',
+            data: {
+                labels: techStats.map(t => t.name),
+                datasets: [{
+                    label: 'Total Tareas',
+                    data: techStats.map(t => t.totalCount),
+                    backgroundColor: '#6366f1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#94a3b8' } },
+                    y: { ticks: { color: '#94a3b8' } }
+                }
+            }
+        };
+        if (chartInstances['chartTecnicoCantidad']) chartInstances['chartTecnicoCantidad'].destroy();
+        chartInstances['chartTecnicoCantidad'] = new Chart(ctxTechCantidad, configTechCantidad);
+
+        const tbodyTech = document.getElementById('tbodyTechnicians');
+        tbodyTech.innerHTML = '';
+        techStats.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${t.name}</strong></td>
+                <td>${t.totalCount}</td>
+                <td>${t.hoursOtm.toFixed(1)}h</td>
+                <td>${t.hoursOti.toFixed(1)}h</td>
+                <td>${t.hoursRut.toFixed(1)}h</td>
+                <td><strong style="color: var(--accent-green)">${t.hoursTotal.toFixed(1)}h</strong></td>
+            `;
+            tbodyTech.appendChild(tr);
+        });
+    }
+
+    function renderMasterTable() {
+        const filterType = document.getElementById('filterType').value;
+        const filterSpecialty = document.getElementById('filterSpecialty').value;
+        const filterTech = document.getElementById('filterTech').value;
+        const filterStatus = document.getElementById('filterStatus').value;
+        const searchVal = document.getElementById('searchBoxDetail').value.toLowerCase();
+
+        const filtered = activities.filter(act => {
+            if (filterType !== 'ALL' && act.activity_type !== filterType) return false;
+            if (filterSpecialty !== 'ALL' && act.specialty !== filterSpecialty) return false;
+            if (filterTech !== 'ALL' && (!act.technician_names || !act.technician_names.includes(filterTech))) return false;
+            if (filterStatus !== 'ALL' && act.status !== filterStatus) return false;
+
+            if (searchVal) {
+                return act.code.toLowerCase().includes(searchVal) ||
+                       act.description.toLowerCase().includes(searchVal) ||
+                       act.location.toLowerCase().includes(searchVal) ||
+                       (act.technician_names && act.technician_names.toLowerCase().includes(searchVal));
+            }
+            return true;
+        });
+
+        const tbodyMaster = document.getElementById('tbodyMaster');
+        tbodyMaster.innerHTML = '';
+
+        if (filtered.length === 0) {
+            tbodyMaster.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">⚠️ No se encontraron actividades.</td></tr>';
+            return;
+        }
+
+        filtered.forEach(act => {
+            const tr = document.createElement('tr');
+            
+            // Render spreadsheet cells with click-to-edit capabilities
+            tr.innerHTML = `
+                <td><strong>${act.code}</strong></td>
+                <td><span class="badge badge-${act.activity_type.toLowerCase()}">${act.activity_type}</span></td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'record_date', 'date')">${act.record_date}</td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'specialty', 'select', specialties)">${act.specialty}</td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'description', 'text')" title="${act.description}">${act.description}</td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'location', 'select', locations)">${act.location}</td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'technician_names', 'select', techList)">${act.technician_names}</td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'execution_time_hours', 'number')">${act.execution_time_hours.toFixed(1)}h</td>
+                <td class="editable-cell" onclick="makeCellEditable(this, '${act.id}', 'status', 'select', ['Pendiente', 'Programado', 'Finalizado', 'Cierre'])">
+                    <span class="badge badge-status-${act.status.toLowerCase()}">${act.status === 'Cierre' ? 'Cancelada' : act.status}</span>
+                </td>
+            `;
+            tbodyMaster.appendChild(tr);
+        });
+    }
+
+    // ==========================================
+    // EXPORT EXECUTIVE REPORT PDF
+    // ==========================================
+    document.getElementById('btnExportPDF').addEventListener('click', async () => {
+        const btnPDF = document.getElementById('btnExportPDF');
+        btnPDF.disabled = true;
+        btnPDF.textContent = '⏳ Generando Reporte...';
+
+        try {
+            document.getElementById('printReportDate').innerHTML = '<strong>Fecha de Informe:</strong> ' + new Date().toLocaleString();
+            document.getElementById('printKpiTotalAct').textContent = activities.length;
+            document.getElementById('printKpiTotalHours').textContent = (activities.reduce((sum, act) => sum + act.execution_time_hours, 0)).toFixed(1) + 'h';
+            
+            const finalCount = activities.filter(act => act.status === 'Finalizado').length;
+            const cancelCount = activities.filter(act => act.status === 'Cierre').length;
+            const eff = activities.length > 0 ? Math.round(((finalCount + cancelCount) / activities.length) * 100) : 0;
+            document.getElementById('printKpiEfficiency').textContent = eff + '%';
+
+            const otmsWithRating = activities.filter(act => act.activity_type === 'OTM' && act.rating > 0);
+            const sat = otmsWithRating.length > 0 
+                ? (otmsWithRating.reduce((sum, act) => sum + act.rating, 0) / otmsWithRating.length).toFixed(1)
+                : 'N/A';
+            document.getElementById('printKpiSatisfaction').textContent = sat;
+
+            const printArea = document.getElementById('reportPrintView');
+            printArea.style.display = 'block';
+
+            // Print Specialty stacked bar
+            const ctxPrintSpec = document.getElementById('chartReportEspecialidad').getContext('2d');
+            const oTMData = []; const oTIData = []; const routineData = [];
+            specialties.forEach(spec => {
+                const specActs = activities.filter(act => act.specialty === spec);
+                oTMData.push(specActs.filter(act => act.activity_type === 'OTM').length);
+                oTIData.push(specActs.filter(act => act.activity_type === 'OTI').length);
+                routineData.push(specActs.filter(act => act.activity_type === 'RUTINARIA').length);
+            });
+            let chartPrintSpec = new Chart(ctxPrintSpec, {
+                type: 'bar',
+                data: {
+                    labels: specialties,
+                    datasets: [
+                        { label: 'OTM', data: oTMData, backgroundColor: '#4f46e5' },
+                        { label: 'OTI', data: oTIData, backgroundColor: '#0891b2' },
+                        { label: 'Rutinaria', data: routineData, backgroundColor: '#059669' }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { stacked: true }, y: { stacked: true } }
+                }
+            });
+
+            // Print Type (Dona)
+            const ctxPrintType = document.getElementById('chartReportTipo').getContext('2d');
+            let chartPrintType = new Chart(ctxPrintType, {
+                type: 'doughnut',
+                data: {
+                    labels: ['OTM', 'OTI', 'Rutinaria'],
+                    datasets: [{
+                        data: [
+                            activities.filter(act => act.activity_type === 'OTM').length,
+                            activities.filter(act => act.activity_type === 'OTI').length,
+                            activities.filter(act => act.activity_type === 'RUTINARIA').length
+                        ],
+                        backgroundColor: ['#4f46e5', '#0891b2', '#059669']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' } } }
+            });
+
+            // Print Hours
+            const ctxPrintHoras = document.getElementById('chartReportHoras').getContext('2d');
+            const hoursPerSpecialty = specialties.map(spec => {
+                return activities.filter(act => act.specialty === spec).reduce((sum, act) => sum + act.execution_time_hours, 0);
+            });
+            let chartPrintHoras = new Chart(ctxPrintHoras, {
+                type: 'bar',
+                data: {
+                    labels: specialties,
+                    datasets: [{ data: hoursPerSpecialty, backgroundColor: '#7c3aed' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // Print Techs
+            const techStats = techList.map(tech => {
+                const techActs = activities.filter(act => act.technician_names && act.technician_names.includes(tech));
+                return { name: tech, hoursTotal: techActs.reduce((sum, act) => sum + act.execution_time_hours, 0) };
+            }).sort((a,b) => b.hoursTotal - a.hoursTotal);
+
+            const ctxPrintTech = document.getElementById('chartReportTechHoras').getContext('2d');
+            let chartPrintTech = new Chart(ctxPrintTech, {
+                type: 'bar',
+                data: {
+                    labels: techStats.slice(0, 5).map(t => t.name),
+                    datasets: [{ data: techStats.slice(0, 5).map(t => t.hoursTotal), backgroundColor: '#059669' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 400));
+
+            const canvas = await html2canvas(printArea, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+
+            chartPrintSpec.destroy();
+            chartPrintType.destroy();
+            chartPrintHoras.destroy();
+            chartPrintTech.destroy();
+
+            printArea.style.display = 'none';
+
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(pageHeight, imgHeight));
+            pdf.save('Informe_Gestion_Mantenimiento_Live_' + new Date().toISOString().slice(0, 10) + '.pdf');
+
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error al compilar el PDF.');
+        } finally {
+            btnPDF.disabled = false;
+            btnPDF.textContent = '📥 Exportar PDF Ejecutivo';
+        }
+    });
+</script>
+
+</body>
+</html>
