@@ -3450,34 +3450,38 @@ function renderEfficiencyTab(data) {
         }
     });
 
-    // --- 5. Polar Chart: Mapa de Calor (Reloj de Actividad) ---
-    // Agrupamos: 06:00 a 17:59 (hora a hora) y 18:00 a 05:59 (Turno Noche)
-    const hourCounts = {
-        '06:00': 0, '07:00': 0, '08:00': 0, '09:00': 0, '10:00': 0, '11:00': 0,
-        '12:00': 0, '13:00': 0, '14:00': 0, '15:00': 0, '16:00': 0, '17:00': 0,
-        'Noche (18h-05h)': 0
-    };
+    // --- 5. Scatter Chart: Mapa de Calor (Reloj de Actividad) ---
+    const scatterPoints = [];
+    let hasStartTimeData = false;
 
     data.forEach(o => {
         if (o.horaInicioNum !== undefined && o.horaInicioNum !== null) {
+            hasStartTimeData = true;
             const h = o.horaInicioNum;
-            if (h >= 6 && h <= 17) {
-                const hourKey = h.toString().padStart(2, '0') + ':00';
-                hourCounts[hourKey]++;
-            } else {
-                hourCounts['Noche (18h-05h)']++;
-            }
+            // Spread randomly across the 60 minutes for a natural distribution
+            const minuteFraction = Math.random(); 
+            const angleDeg = 90 - (((h % 12) + minuteFraction) * 30);
+            const angleRad = angleDeg * Math.PI / 180;
+            
+            // Random radius between 0.4 and 0.95 to create a thick "band" of activity
+            const r = 0.4 + (Math.random() * 0.55);
+            
+            // AM vs PM colors (AM = warmer yellow/orange, PM = reddish/pink)
+            const isPM = h >= 12;
+            const centerColor = isPM ? 'rgba(236, 72, 153, 1)' : 'rgba(250, 204, 21, 1)';
+            const haloColor = isPM ? 'rgba(219, 39, 119, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+
+            scatterPoints.push({
+                x: r * Math.cos(angleRad),
+                y: r * Math.sin(angleRad),
+                hour: h,
+                centerColor,
+                haloColor
+            });
         }
     });
 
-    const clockLabels = Object.keys(hourCounts);
-    const clockData = Object.values(hourCounts);
-    
-    // Check if we actually have data
-    const totalClockData = clockData.reduce((sum, val) => sum + val, 0);
-
-    if (totalClockData === 0) {
-        // Fallback if no start time data is found
+    if (!hasStartTimeData) {
         const canvas = document.getElementById('chartActivityClock');
         if (canvas) {
             const ctx = canvas.getContext('2d');
@@ -3487,57 +3491,92 @@ function renderEfficiencyTab(data) {
             ctx.fillText('No se encontraron datos de "Hora de Inicio" en el archivo subido.', canvas.width / 2, canvas.height / 2);
             ctx.fillText('Asegúrate de subir nuevamente tu Excel actualizado.', canvas.width / 2, canvas.height / 2 + 20);
         }
-        return; // Skip chart generation
+        return; 
     }
 
-    // Generamos colores: cálidos para picos altos, fríos para bajos
-    const maxVol = Math.max(...clockData) || 1;
-    const clockBgColors = clockData.map(v => {
-        const ratio = v / maxVol;
-        if (ratio > 0.75) return 'rgba(239, 68, 68, 0.7)'; // Red
-        if (ratio > 0.5) return 'rgba(245, 158, 11, 0.7)'; // Amber
-        if (ratio > 0.25) return 'rgba(16, 185, 129, 0.7)'; // Green
-        return 'rgba(59, 130, 246, 0.6)'; // Blue
-    });
+    const clockFacePlugin = {
+        id: 'clockFace',
+        beforeDraw: (chart) => {
+            const ctx = chart.canvas.getContext('2d');
+            const xAxis = chart.scales.x;
+            const yAxis = chart.scales.y;
+            const centerX = xAxis.getPixelForValue(0);
+            const centerY = yAxis.getPixelForValue(0);
+            const radius = Math.abs(xAxis.getPixelForValue(1) - centerX);
+
+            ctx.save();
+            // Outer clock ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Inner hole ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * 0.4, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.stroke();
+
+            // Crosshairs
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - radius); ctx.lineTo(centerX, centerY + radius);
+            ctx.moveTo(centerX - radius, centerY); ctx.lineTo(centerX + radius, centerY);
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.stroke();
+
+            // Hour numbers
+            ctx.font = 'bold 12px Inter';
+            ctx.fillStyle = '#64748b';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 1; i <= 12; i++) {
+                const angle = (90 - (i * 30)) * Math.PI / 180;
+                const textX = xAxis.getPixelForValue(1.12 * Math.cos(angle));
+                const textY = yAxis.getPixelForValue(1.12 * Math.sin(angle));
+                ctx.fillText(i.toString(), textX, textY);
+            }
+            ctx.restore();
+        }
+    };
 
     safeCreateChart('chartActivityClock', {
-        type: 'radar',
+        type: 'scatter',
         data: {
-            labels: clockLabels,
             datasets: [{
-                data: clockData,
-                backgroundColor: 'transparent',
-                borderColor: 'rgba(148, 163, 184, 0.2)',
-                pointBackgroundColor: clockBgColors,
-                pointBorderColor: 'var(--bg-card, #ffffff)',
-                pointBorderWidth: 2,
-                pointRadius: clockData.map(v => Math.max(6, (v / maxVol) * 20)),
-                pointHoverRadius: 10
+                data: scatterPoints,
+                backgroundColor: scatterPoints.map(p => p.centerColor),
+                borderColor: scatterPoints.map(p => p.haloColor),
+                borderWidth: 8, // Creates the glowing halo
+                pointRadius: 2, // The bright solid center
+                pointHoverRadius: 4,
+                pointHoverBorderWidth: 10
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                r: {
-                    angleLines: { color: 'rgba(255,255,255,0.05)' },
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    pointLabels: { color: '#94a3b8', font: { size: 11, weight: 'bold' } },
-                    ticks: { display: false, stepSize: Math.ceil(maxVol/4) }
-                }
+                x: { min: -1.25, max: 1.25, display: false },
+                y: { min: -1.25, max: 1.25, display: false }
             },
             plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return ' ' + context.raw + ' OTs iniciadas';
+                        label: function(ctx) {
+                            const raw = ctx.raw;
+                            const ampm = raw.hour >= 12 ? 'PM' : 'AM';
+                            let h12 = raw.hour % 12;
+                            if (h12 === 0) h12 = 12;
+                            return ` OT iniciada ~ ${h12}:00 ${ampm}`;
                         }
                     }
                 }
             }
-        }
+        },
+        plugins: [clockFacePlugin]
     });
 }
 
