@@ -729,32 +729,42 @@ export default function Reports() {
             const rawTiempoStr = getVal(colTiempo); 
             let tiempoMin = parseExecutionTime(rawTiempoStr);
 
+            let startHourNum: number | null = null;
+            
+            const parseTimeStr = (t: string) => {
+              const num = Number(t);
+              if (!isNaN(num) && num > 0 && num < 1) {
+                const totalMin = Math.round(num * 24 * 60);
+                const h = Math.floor(totalMin / 60);
+                const m = totalMin % 60;
+                return { h, m };
+              }
+              const matches = t.match(/(\d+)\s*:\s*(\d+)(?:\s*:\s*\d+)?\s*(am|pm)?/i);
+              if (matches) {
+                let h = parseInt(matches[1], 10);
+                const m = parseInt(matches[2], 10);
+                const ampm = matches[3];
+                if (ampm) {
+                  if (ampm.toLowerCase() === 'pm' && h < 12) h += 12;
+                  if (ampm.toLowerCase() === 'am' && h === 12) h = 0;
+                }
+                return { h, m };
+              }
+              return null;
+            };
+
+            if (colHoraInicio !== -1) {
+              const startStr = getVal(colHoraInicio).trim();
+              if (startStr) {
+                const tStart = parseTimeStr(startStr);
+                if (tStart) startHourNum = tStart.h;
+              }
+            }
+
             if (tiempoMin === 0 && colHoraInicio !== -1 && colHoraFin !== -1) {
               const startStr = getVal(colHoraInicio).trim();
               const endStr = getVal(colHoraFin).trim();
               if (startStr && endStr) {
-                const parseTimeStr = (t: string) => {
-                  const num = Number(t);
-                  if (!isNaN(num) && num > 0 && num < 1) {
-                    const totalMin = Math.round(num * 24 * 60);
-                    const h = Math.floor(totalMin / 60);
-                    const m = totalMin % 60;
-                    return { h, m };
-                  }
-                  const matches = t.match(/(\d+)\s*:\s*(\d+)(?:\s*:\s*\d+)?\s*(am|pm)?/i);
-                  if (matches) {
-                    let h = parseInt(matches[1], 10);
-                    const m = parseInt(matches[2], 10);
-                    const ampm = matches[3];
-                    if (ampm) {
-                      if (ampm.toLowerCase() === 'pm' && h < 12) h += 12;
-                      if (ampm.toLowerCase() === 'am' && h === 12) h = 0;
-                    }
-                    return { h, m };
-                  }
-                  return null;
-                };
-                
                 const tStart = parseTimeStr(startStr);
                 const tEnd = parseTimeStr(endStr);
                 
@@ -795,6 +805,7 @@ export default function Reports() {
               riesgo: riesgo,
               observaciones: getVal(colObservaciones),
               assignmentType: assignmentType,
+              horaInicioNum: startHourNum,
               responseTimeDays: colResponseTime !== -1 ? parseResponseTime(
                 worksheet[XLSX.utils.encode_cell({ r, c: colResponseTime })] 
                   ? (worksheet[XLSX.utils.encode_cell({ r, c: colResponseTime })].v !== undefined 

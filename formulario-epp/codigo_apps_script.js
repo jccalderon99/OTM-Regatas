@@ -584,6 +584,7 @@ function getHtml() {
           <option value="Piscina">Piscina</option>
           <option value="Calderista">Calderista</option>
           <option value="Jardinería">Jardinería</option>
+          <option value="Gasfitería">Gasfitería</option>
         </select>
       </div>
 
@@ -623,7 +624,7 @@ function getHtml() {
     // Datos maestros de EPPs por especialidad
     const EPP_DATA = {
       "Pintura": [
-        "Casco de Seguridad",
+        "Casco de Seguridad con Barbiquejo",
         "Lentes de Seguridad",
         "Sobrelentes de Seguridad",
         "Guantes de Nitrilo / Jebe",
@@ -633,18 +634,17 @@ function getHtml() {
         "Mameluco Descartable (Tyvek)"
       ],
       "Albañilería": [
-        "Casco de Seguridad",
+        "Casco de Seguridad con Barbiquejo",
         "Lentes de Seguridad (Claros/Oscuros)",
         "Sobrelentes de Seguridad",
         "Guantes de Badana / Cuero",
         "Respirador contra Polvo / Partículas (N95)",
         "Zapatos de Seguridad (Punta de Acero)",
         "Tapones Auditivos",
-        "Protector Auditivo Tipo Copa para Casco",
         "Cortavientos para Casco"
       ],
       "Electricista": [
-        "Casco de Seguridad Dieléctrico (Clase E)",
+        "Casco de Seguridad Dieléctrico con Barbiquejo",
         "Lentes de Seguridad (Protección UV)",
         "Sobrelentes de Seguridad",
         "Guantes Dieléctricos + Protector de Cuero",
@@ -653,17 +653,17 @@ function getHtml() {
         "Chaleco Reflectivo / Ropa Ignífuga"
       ],
       "Carpintería": [
-        "Casco de Seguridad",
+        "Casco de Seguridad con Barbiquejo",
         "Lentes de Seguridad",
         "Sobrelentes de Seguridad",
         "Guantes Anti-corte / Badana",
         "Mascarilla contra Polvo de Madera (Filtros P100)",
         "Zapatos de Seguridad (Punta de Acero)",
-        "Tapones Auditivos / Orejeras Copa",
+        "Tapones Auditivos",
         "Mandil de Cuero para Corte"
       ],
       "Piscina": [
-        "Casco de Seguridad",
+        "Casco de Seguridad con Barbiquejo",
         "Lentes de Seguridad",
         "Sobrelentes de Seguridad",
         "Guantes de Nitrilo Caña Larga (Químicos)",
@@ -674,15 +674,13 @@ function getHtml() {
         "Mandil de PVC Impermeable"
       ],
       "Calderista": [
-        "Casco de Seguridad",
+        "Casco de Seguridad con Barbiquejo",
         "Lentes de Seguridad (Antiempañante)",
         "Sobrelentes de Seguridad",
         "Guantes de Cuero Cromo Térmico / Caña Larga",
         "Zapatos de Seguridad (Punta de Acero)",
         "Tapones Auditivos",
-        "Protector Auditivo Tipo Copa",
-        "Respirador + Filtros para Gases/Vapores",
-        "Protector Facial contra Calor/Salpicaduras"
+        "Respirador + Filtros para Gases/Vapores"
       ],
       "Jardinería": [
         "Casco de Seguridad con Barbiquejo",
@@ -691,8 +689,16 @@ function getHtml() {
         "Guantes de Cuero / Badana",
         "Zapatos / Botas de Seguridad Antideslizantes",
         "Tapones de Oído / Orejeras",
-        "Respirador contra Polvo / Pesticidas",
-        "Protector Facial para Desbrozadora"
+        "Respirador contra Polvo / Pesticidas"
+      ],
+      "Gasfitería": [
+        "Casco de Seguridad con Barbiquejo",
+        "Lentes de Seguridad (Claros)",
+        "Sobrelentes de Seguridad",
+        "Guantes de Nitrilo",
+        "Zapatos de Seguridad (Punta de Acero)",
+        "Tapones Auditivos",
+        "Respirador contra Polvo / Partículas (N95)"
       ]
     };
 

@@ -1544,6 +1544,15 @@
                     </div>
                 </div>
             </div>
+
+            <div class="charts-grid" style="margin-bottom: 32px; grid-template-columns: 1fr;">
+                <div class="chart-card">
+                    <h3><span>⏰</span> Mapa de Calor: Reloj de Actividad (Hora de Inicio de OTs)</h3>
+                    <div class="chart-wrapper" style="height: 400px; display: flex; justify-content: center;">
+                        <canvas id="chartActivityClock"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 </div>
@@ -3436,6 +3445,73 @@ function renderEfficiencyTab(data) {
                 y: {
                     grid: { display: false },
                     ticks: { color: '#e2e8f0', font: { size: 11 } }
+                }
+            }
+        }
+    });
+
+    // --- 5. Polar Chart: Mapa de Calor (Reloj de Actividad) ---
+    // Agrupamos: 06:00 a 17:59 (hora a hora) y 18:00 a 05:59 (Turno Noche)
+    const hourCounts = {
+        '06:00': 0, '07:00': 0, '08:00': 0, '09:00': 0, '10:00': 0, '11:00': 0,
+        '12:00': 0, '13:00': 0, '14:00': 0, '15:00': 0, '16:00': 0, '17:00': 0,
+        'Noche (18h-05h)': 0
+    };
+
+    data.forEach(o => {
+        if (o.horaInicioNum !== undefined && o.horaInicioNum !== null) {
+            const h = o.horaInicioNum;
+            if (h >= 6 && h <= 17) {
+                const hourKey = h.toString().padStart(2, '0') + ':00';
+                hourCounts[hourKey]++;
+            } else {
+                hourCounts['Noche (18h-05h)']++;
+            }
+        }
+    });
+
+    const clockLabels = Object.keys(hourCounts);
+    const clockData = Object.values(hourCounts);
+    
+    // Generamos colores: cálidos para picos altos, fríos para bajos
+    const maxVol = Math.max(...clockData) || 1;
+    const clockBgColors = clockData.map(v => {
+        const ratio = v / maxVol;
+        if (ratio > 0.75) return 'rgba(239, 68, 68, 0.7)'; // Red
+        if (ratio > 0.5) return 'rgba(245, 158, 11, 0.7)'; // Amber
+        if (ratio > 0.25) return 'rgba(16, 185, 129, 0.7)'; // Green
+        return 'rgba(59, 130, 246, 0.6)'; // Blue
+    });
+
+    safeCreateChart('chartActivityClock', {
+        type: 'polarArea',
+        data: {
+            labels: clockLabels,
+            datasets: [{
+                data: clockData,
+                backgroundColor: clockBgColors,
+                borderWidth: 1,
+                borderColor: 'var(--bg-card, #ffffff)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    ticks: { display: false, stepSize: Math.ceil(maxVol/5) },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 11 }, color: '#e2e8f0' } },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return ' ' + context.raw + ' OTs iniciadas';
+                        }
+                    }
                 }
             }
         }
