@@ -1355,8 +1355,31 @@
             <div class="charts-grid" style="margin-bottom: 32px; grid-template-columns: 1fr;">
                 <div class="chart-card">
                     <h3><span>⏰</span> Mapa de Calor: Reloj de Actividad (Hora de Inicio de OTs)</h3>
-                    <div class="chart-wrapper" style="height: 400px; display: flex; justify-content: center;">
-                        <canvas id="chartActivityClock"></canvas>
+                    <style>
+                        @media (min-width: 768px) {
+                            .activity-grid-split {
+                                grid-template-columns: 2fr 1fr !important;
+                            }
+                        }
+                    </style>
+                    <div class="activity-grid-split" style="display: grid; grid-template-columns: 1fr; gap: 20px; align-items: center; margin-top: 15px;">
+                        <div class="chart-wrapper" style="height: 400px; display: flex; justify-content: center;">
+                            <canvas id="chartActivityClock"></canvas>
+                        </div>
+                        
+                        <div style="background: rgba(30, 41, 59, 0.5); padding: 20px; border-radius: 8px; border: 1px solid rgba(51, 65, 85, 0.5);">
+                            <h4 style="color: #22d3ee; margin: 0 0 10px 0; font-size: 14px; display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">💡</span> ¿Cómo leer este radar?
+                            </h4>
+                            <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5; margin: 0 0 12px 0;">
+                                Proyecta las OTs según su hora de inicio usando la forma de un reloj tradicional (12 arriba, 6 abajo).
+                            </p>
+                            <ul style="list-style: none; padding: 0; margin: 0; color: #94a3b8; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                <li style="display: flex; align-items: center;"><span style="color: #facc15; margin-right: 8px; font-size: 16px;">●</span> <strong>Turno AM:</strong> Puntos Amarillos</li>
+                                <li style="display: flex; align-items: center;"><span style="color: #ec4899; margin-right: 8px; font-size: 16px;">●</span> <strong>Turno PM:</strong> Puntos Magenta</li>
+                                <li style="display: flex; align-items: center;"><span style="color: #22d3ee; margin-right: 8px; font-size: 16px;">✨</span> <strong>Intensidad:</strong> Las zonas ardientes (nubes de neón) indican alta concentración u horarios pico.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
