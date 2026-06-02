@@ -3459,18 +3459,17 @@ function renderEfficiencyTab(data) {
         if (o.horaInicioNum !== undefined && o.horaInicioNum !== null) {
             hasStartTimeData = true;
             const h = o.horaInicioNum;
-            // Spread randomly across the 60 minutes for a natural distribution
             const minuteFraction = Math.random(); 
             const angleDeg = 90 - (((h % 12) + minuteFraction) * 30);
             const angleRad = angleDeg * Math.PI / 180;
             
-            // Random radius between 0.4 and 0.95 to create a thick "band" of activity
-            const r = 0.4 + (Math.random() * 0.55);
+            // Random radius between 0.35 and 0.95 to create a thick "band" of activity
+            const r = 0.35 + (Math.random() * 0.6);
             
-            // AM vs PM colors (AM = warmer yellow/orange, PM = reddish/pink)
             const isPM = h >= 12;
-            const centerColor = isPM ? 'rgba(236, 72, 153, 1)' : 'rgba(250, 204, 21, 1)';
-            const haloColor = isPM ? 'rgba(219, 39, 119, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+            // Hot neon yellow for AM, hot neon magenta/pink for PM
+            const centerColor = isPM ? 'rgba(255, 105, 180, 0.85)' : 'rgba(255, 235, 59, 0.85)';
+            const haloColor = isPM ? 'rgba(255, 20, 147, 0.15)' : 'rgba(255, 152, 0, 0.15)';
 
             const pt = {
                 x: r * Math.cos(angleRad),
@@ -3512,29 +3511,47 @@ function renderEfficiencyTab(data) {
             const radius = Math.abs(xAxis.getPixelForValue(1) - centerX);
 
             ctx.save();
-            // Outer clock ring
+            
+            // Inner cyber-blue glow
+            const radGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            radGrad.addColorStop(0, 'rgba(6, 182, 212, 0.08)');
+            radGrad.addColorStop(0.8, 'rgba(6, 182, 212, 0.02)');
+            radGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = radGrad;
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-            ctx.lineWidth = 1;
+            ctx.fill();
+
+            // Outer radar ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)'; // Cyan
+            ctx.lineWidth = 1.5;
             ctx.stroke();
 
             // Inner hole ring
             ctx.beginPath();
-            ctx.arc(centerX, centerY, radius * 0.4, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.arc(centerX, centerY, radius * 0.35, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
             ctx.stroke();
 
             // Crosshairs
             ctx.beginPath();
             ctx.moveTo(centerX, centerY - radius); ctx.lineTo(centerX, centerY + radius);
             ctx.moveTo(centerX - radius, centerY); ctx.lineTo(centerX + radius, centerY);
-            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
+            ctx.stroke();
+            
+            // Sub-divisions
+            ctx.beginPath();
+            ctx.moveTo(centerX - radius*0.7, centerY - radius*0.7); ctx.lineTo(centerX + radius*0.7, centerY + radius*0.7);
+            ctx.moveTo(centerX - radius*0.7, centerY + radius*0.7); ctx.lineTo(centerX + radius*0.7, centerY - radius*0.7);
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.05)';
             ctx.stroke();
 
             // Hour numbers
             ctx.font = 'bold 12px Inter';
-            ctx.fillStyle = '#64748b';
+            ctx.fillStyle = '#22d3ee'; // Cyan bright
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             for (let i = 1; i <= 12; i++) {
@@ -3544,6 +3561,18 @@ function renderEfficiencyTab(data) {
                 ctx.fillText(i.toString(), textX, textY);
             }
             ctx.restore();
+        }
+    };
+
+    const neonGlowPlugin = {
+        id: 'neonGlow',
+        beforeDatasetsDraw: (chart) => {
+            chart.ctx.save();
+            // Lighter blending creates intense bright white hot-spots where points overlap!
+            chart.ctx.globalCompositeOperation = 'lighter';
+        },
+        afterDatasetsDraw: (chart) => {
+            chart.ctx.restore();
         }
     };
 
@@ -3563,20 +3592,20 @@ function renderEfficiencyTab(data) {
                     data: scatterPointsAM,
                     backgroundColor: scatterPointsAM.map(p => p.centerColor),
                     borderColor: scatterPointsAM.map(p => p.haloColor),
-                    borderWidth: 8, // Creates the glowing halo
-                    pointRadius: 2, // The bright solid center
-                    pointHoverRadius: 4,
-                    pointHoverBorderWidth: 10
+                    borderWidth: 16, // Massive glowing halo
+                    pointRadius: 2.5, // Bright solid core
+                    pointHoverRadius: 5,
+                    pointHoverBorderWidth: 20
                 },
                 {
                     label: 'Turno PM (12:00 - 23:59)',
                     data: scatterPointsPM,
                     backgroundColor: scatterPointsPM.map(p => p.centerColor),
                     borderColor: scatterPointsPM.map(p => p.haloColor),
-                    borderWidth: 8,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
-                    pointHoverBorderWidth: 10
+                    borderWidth: 16,
+                    pointRadius: 2.5,
+                    pointHoverRadius: 5,
+                    pointHoverBorderWidth: 20
                 }
             ]
         },
@@ -3612,7 +3641,7 @@ function renderEfficiencyTab(data) {
                 }
             }
         },
-        plugins: [clockFacePlugin]
+        plugins: [clockFacePlugin, neonGlowPlugin]
     });
 }
 
