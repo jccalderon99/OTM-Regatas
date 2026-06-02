@@ -3068,7 +3068,8 @@ function renderEfficiencyTab(data) {
     });
 
     // --- 5. Scatter Chart: Mapa de Calor (Reloj de Actividad) ---
-    const scatterPoints = [];
+    const scatterPointsAM = [];
+    const scatterPointsPM = [];
     let hasStartTimeData = false;
 
     data.forEach(o => {
@@ -3088,13 +3089,19 @@ function renderEfficiencyTab(data) {
             const centerColor = isPM ? 'rgba(236, 72, 153, 1)' : 'rgba(250, 204, 21, 1)';
             const haloColor = isPM ? 'rgba(219, 39, 119, 0.15)' : 'rgba(245, 158, 11, 0.15)';
 
-            scatterPoints.push({
+            const pt = {
                 x: r * Math.cos(angleRad),
                 y: r * Math.sin(angleRad),
                 hour: h,
                 centerColor,
                 haloColor
-            });
+            };
+
+            if (isPM) {
+                scatterPointsPM.push(pt);
+            } else {
+                scatterPointsAM.push(pt);
+            }
         }
     });
 
@@ -3167,15 +3174,28 @@ function renderEfficiencyTab(data) {
     safeCreateChart('chartActivityClock', {
         type: 'scatter',
         data: {
-            datasets: [{
-                data: scatterPoints,
-                backgroundColor: scatterPoints.map(p => p.centerColor),
-                borderColor: scatterPoints.map(p => p.haloColor),
-                borderWidth: 8, // Creates the glowing halo
-                pointRadius: 2, // The bright solid center
-                pointHoverRadius: 4,
-                pointHoverBorderWidth: 10
-            }]
+            datasets: [
+                {
+                    label: 'Turno AM (00:00 - 11:59)',
+                    data: scatterPointsAM,
+                    backgroundColor: scatterPointsAM.map(p => p.centerColor),
+                    borderColor: scatterPointsAM.map(p => p.haloColor),
+                    borderWidth: 8, // Creates the glowing halo
+                    pointRadius: 2, // The bright solid center
+                    pointHoverRadius: 4,
+                    pointHoverBorderWidth: 10
+                },
+                {
+                    label: 'Turno PM (12:00 - 23:59)',
+                    data: scatterPointsPM,
+                    backgroundColor: scatterPointsPM.map(p => p.centerColor),
+                    borderColor: scatterPointsPM.map(p => p.haloColor),
+                    borderWidth: 8,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    pointHoverBorderWidth: 10
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -3185,7 +3205,16 @@ function renderEfficiencyTab(data) {
                 y: { min: -1.25, max: 1.25, display: false }
             },
             plugins: {
-                legend: { display: false },
+                legend: { 
+                    display: true, 
+                    position: 'bottom',
+                    labels: {
+                        color: '#cbd5e1',
+                        font: { size: 12 },
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
                 datalabels: { display: false },
                 tooltip: {
                     callbacks: {
