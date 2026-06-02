@@ -3157,6 +3157,13 @@ function renderEfficiencyTab(data) {
         }
     };
 
+    const canvasElement = document.getElementById('chartActivityClock');
+    if (canvasElement && canvasElement.parentElement) {
+        canvasElement.parentElement.style.width = 'auto';
+        canvasElement.parentElement.style.aspectRatio = '1 / 1';
+        canvasElement.parentElement.style.margin = '0 auto';
+    }
+
     safeCreateChart('chartActivityClock', {
         type: 'scatter',
         data: {
