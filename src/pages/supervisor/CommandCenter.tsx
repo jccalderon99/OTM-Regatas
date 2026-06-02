@@ -521,7 +521,7 @@ export default function CommandCenter() {
     <div>
 
       {/* Filters Banner */}
-      <div className="glass-card" style={{ position: 'relative', zIndex: 80, marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+      <div className="glass-card" style={{ position: 'relative', zIndex: 20, marginBottom: 24, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div className="form-group" style={{ minWidth: 200, marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '0.7rem', margin: 0, color: 'var(--text-muted)' }}>Elegir Supervisor:</label>
