@@ -3473,6 +3473,23 @@ function renderEfficiencyTab(data) {
     const clockLabels = Object.keys(hourCounts);
     const clockData = Object.values(hourCounts);
     
+    // Check if we actually have data
+    const totalClockData = clockData.reduce((sum, val) => sum + val, 0);
+
+    if (totalClockData === 0) {
+        // Fallback if no start time data is found
+        const canvas = document.getElementById('chartActivityClock');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.font = '14px Inter';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.fillText('No se encontraron datos de "Hora de Inicio" en el archivo subido.', canvas.width / 2, canvas.height / 2);
+            ctx.fillText('Asegúrate de subir nuevamente tu Excel actualizado.', canvas.width / 2, canvas.height / 2 + 20);
+        }
+        return; // Skip chart generation
+    }
+
     // Generamos colores: cálidos para picos altos, fríos para bajos
     const maxVol = Math.max(...clockData) || 1;
     const clockBgColors = clockData.map(v => {
