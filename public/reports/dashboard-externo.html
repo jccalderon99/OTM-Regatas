@@ -201,6 +201,33 @@
         .kpi-card:nth-child(5)::before { background: var(--gradient-2); }
         .kpi-card:nth-child(6)::before { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
 
+        /* Align KPI card top gradients with left borders on specific tabs */
+        #tab-technicians .kpi-card:nth-child(1)::before,
+        #tab-technicians .kpi-card:nth-child(2)::before {
+            background: var(--gradient-2);
+        }
+        #tab-technicians .kpi-card:nth-child(3)::before,
+        #tab-technicians .kpi-card:nth-child(4)::before {
+            background: var(--gradient-1);
+        }
+        #tab-technicians .kpi-card:nth-child(5)::before {
+            background: var(--gradient-4);
+        }
+
+        #tab-efficiency .kpi-card:nth-child(1)::before {
+            background: var(--gradient-2);
+        }
+        #tab-efficiency .kpi-card:nth-child(2)::before {
+            background: var(--gradient-3);
+        }
+
+        #tab-pending .kpi-card:nth-child(2)::before {
+            background: var(--gradient-1);
+        }
+        #tab-pending .kpi-card:nth-child(3)::before {
+            background: var(--gradient-3);
+        }
+
         .kpi-label {
             font-size: 12px;
             color: var(--text-muted);
@@ -1214,6 +1241,16 @@
                 </div>
             </div>
 
+            <!-- Dynamic Conclusions Card -->
+            <div class="chart-card" id="conclusionesCapacidadCard" style="margin-bottom: 24px; border-left: 4px solid var(--accent-amber); padding: 20px;">
+                <h3 style="margin-top: 0; color: #f8fafc; margin-bottom: 12px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    <span>💡</span> Conclusiones de Capacidad Técnico-Operativa
+                </h3>
+                <div id="conclusionesCapacidadTexto" style="color: #cbd5e1; font-size: 13px; line-height: 1.6;">
+                    Cargando conclusiones...
+                </div>
+            </div>
+
             <!-- Top Charts Row (Line Balance & Status Doughnut) -->
             <div class="main-charts-row">
                 <div class="chart-card">
@@ -1292,12 +1329,28 @@
                     <div class="kpi-sub" id="kpiHorasPropioSub" style="font-size: 11px;">0 OTs ejecutadas</div>
                 </div>
 
+                <!-- Propio Days Card -->
+                <div class="kpi-card" style="padding: 20px 24px; border-left: 4px solid var(--accent-cyan); box-sizing: border-box; height: 100%;">
+                    <div class="kpi-icon" style="top:12px; right:16px; font-size:24px;">📅</div>
+                    <div class="kpi-label" style="font-size: 12px; margin-bottom: 4px;">Días Hombre - Personal Propio</div>
+                    <div class="kpi-value" id="kpiDiasPropio" style="color: var(--accent-cyan); font-size: 34px; margin-bottom: 4px;">0.0 días</div>
+                    <div class="kpi-sub" id="kpiDiasPropioSub" style="font-size: 11px;">0 OTs ejecutadas</div>
+                </div>
+
                 <!-- Contratista Hours Card -->
                 <div class="kpi-card" style="padding: 20px 24px; border-left: 4px solid var(--accent-purple); box-sizing: border-box; height: 100%;">
                     <div class="kpi-icon" style="top:12px; right:16px; font-size:24px;">🏢</div>
                     <div class="kpi-label" style="font-size: 12px; margin-bottom: 4px;">Horas Hombre - Contratistas</div>
                     <div class="kpi-value" id="kpiHorasContratista" style="color: var(--accent-purple); font-size: 34px; margin-bottom: 4px;">0.0 hrs</div>
                     <div class="kpi-sub" id="kpiHorasContratistaSub" style="font-size: 11px;">0 OTs ejecutadas</div>
+                </div>
+
+                <!-- Contratista Days Card -->
+                <div class="kpi-card" style="padding: 20px 24px; border-left: 4px solid var(--accent-purple); box-sizing: border-box; height: 100%;">
+                    <div class="kpi-icon" style="top:12px; right:16px; font-size:24px;">📅</div>
+                    <div class="kpi-label" style="font-size: 12px; margin-bottom: 4px;">Días Hombre - Contratistas</div>
+                    <div class="kpi-value" id="kpiDiasContratista" style="color: var(--accent-purple); font-size: 34px; margin-bottom: 4px;">0.0 días</div>
+                    <div class="kpi-sub" id="kpiDiasContratistaSub" style="font-size: 11px;">0 OTs ejecutadas</div>
                 </div>
 
                 <!-- Rating Card (Moved from Resumen General) -->
@@ -1589,30 +1642,22 @@
             <span id="reportModalTitle" class="title">Cargando reporte...</span>
         </div>
         
-        <!-- Selection checkboxes in header -->
-        <div class="report-selectors">
-            <label class="report-select-label">
-                <input type="checkbox" id="chkReportOverview" class="report-select-checkbox" checked>
-                📊 Resumen General
-            </label>
-            <label class="report-select-label">
-                <input type="checkbox" id="chkReportAreas" class="report-select-checkbox" checked>
-                🏢 Demanda y Eficiencia
-            </label>
-            <label class="report-select-label">
-                <input type="checkbox" id="chkReportTechs" class="report-select-checkbox" checked>
-                👷 Desempeño de Técnicos
-            </label>
-            <label class="report-select-label">
-                <input type="checkbox" id="chkReportQuality" class="report-select-checkbox" checked>
-                🔴 Análisis de Pendientes
-            </label>
+        <!-- Selection checkboxes in header (hidden but kept for JS compatibility) -->
+        <div style="display: none;">
+            <input type="checkbox" id="chkReportOverview" checked>
+            <input type="checkbox" id="chkReportAreas" checked>
+            <input type="checkbox" id="chkReportTechs" checked>
+            <input type="checkbox" id="chkReportQuality" checked>
+        </div>
+        
+        <div class="report-selectors" style="color: #cbd5e1; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+            <span>📋</span> Estructura Fija: 3 Páginas Ejecutivas
         </div>
         
         <div class="report-buttons">
             <button id="btnReportClose" class="report-btn-secondary">Cancelar</button>
             <button id="btnReportPrint" class="report-btn-primary">
-                <span>🖨️</span> Descargar PDF / Imprimir
+                <span>📥</span> Descargar Informe en PDF
             </button>
         </div>
     </div>
@@ -1780,8 +1825,8 @@ otData = loadOtData();
 // ========================== HELPERS ==========================
 const colors = {
     blue: '#6366f1', cyan: '#22d3ee', green: '#34d399', amber: '#fbbf24',
-    red: '#f87171', purple: '#a78bfa', pink: '#f472b6', orange: '#fb923c',
-    teal: '#2dd4bf', lime: '#a3e635', rose: '#fb7185', sky: '#38bdf8'
+    red: '#f87171', purple: '#a78bfa', pink: '#f472b6', orange: '#f8a168',
+    burgundy: '#c06c84', teal: '#2dd4bf', lime: '#a3e635', rose: '#fb7185', sky: '#38bdf8'
 };
 const techColors = ['#6366f1','#22d3ee','#34d399','#fbbf24','#f87171','#a78bfa','#fb923c','#f472b6','#2dd4bf','#a3e635','#38bdf8','#fb7185'];
 
@@ -1883,7 +1928,7 @@ const centerTextPlugin = {
             chart.data.datasets[0].data.forEach(v => { sum += Number(v) || 0; });
             
             ctx.fillStyle = chart.options.plugins?.centerTextColor || '#ffffff';
-            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.font = 'bold 13px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
@@ -2067,6 +2112,62 @@ function renderOverviewTab(data) {
     document.getElementById('mainKpiRatingSub').textContent = `De ${ratedOTs.length} evaluaciones`;
     document.getElementById('mainKpiTechs').textContent = activeTechs;
 
+    // --- 💡 Cálculo Dinámico de Conclusiones de Capacidad ---
+    const pendingOTs = data.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre'));
+    const totalPending = pendingOTs.length;
+    
+    // Albañilería stats
+    const albanileriaAll = data.filter(o => o.especialidad && o.especialidad.toLowerCase().includes('albañiler'));
+    const albanileriaFinalizadas = albanileriaAll.filter(o => o.estado === 'Finalizado' && o.tiempoMin > 0);
+    const albanileriaAvgMin = albanileriaFinalizadas.length > 0
+        ? (albanileriaFinalizadas.reduce((sum, o) => sum + o.tiempoMin, 0) / albanileriaFinalizadas.length)
+        : 825; // default 13.75h = 825 min if no data
+    const albanileriaMttrHours = albanileriaAvgMin / 60;
+    const albanileriaPending = pendingOTs.filter(o => o.especialidad && o.especialidad.toLowerCase().includes('albañiler')).length;
+    const albanileriaWorkloadHours = albanileriaPending * albanileriaMttrHours;
+
+    // Carpintería stats
+    const carpinteriaPending = pendingOTs.filter(o => o.especialidad && o.especialidad.toLowerCase().includes('carpinter')).length;
+
+    // Logística vs Capacidad Técnica
+    const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.toLowerCase().includes('suministro'))).length;
+    const porRevisarPending = totalPending - rqPending;
+    
+    const pctRq = totalPending > 0 ? Math.round((rqPending / totalPending) * 100) : 0;
+    const pctPorRevisar = totalPending > 0 ? Math.round((porRevisarPending / totalPending) * 100) : 0;
+
+    const rateCierre = totalOTs > 0 ? ((finalizadasCount * 100) / totalOTs).toFixed(1) : '0';
+
+    const textoHtml = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div>
+                <p style="margin: 0 0 8px 0; font-weight: 700; color: #f8fafc; font-size: 13.5px;">📈 Balance General de Carga</p>
+                <ul style="margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 12.5px;">
+                    <li style="margin-bottom: 6px;">Se ha registrado un total de <strong>${totalOTs} OTs</strong> en el período, con una tasa de cierre bruto del <strong>${rateCierre}%</strong> (${finalizadasCount} finalizadas).</li>
+                    <li style="margin-bottom: 6px;">El backlog activo acumula <strong>${totalPending} OTs pendientes</strong> de ejecución (excluyendo cierres).</li>
+                </ul>
+            </div>
+            <div>
+                <p style="margin: 0 0 8px 0; font-weight: 700; color: #f8fafc; font-size: 13.5px;">⏱️ Especialidades Críticas y MTTR</p>
+                <ul style="margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 12.5px;">
+                    <li style="margin-bottom: 6px;"><strong>Albañilería</strong> presenta el mayor MTTR con <strong>${albanileriaMttrHours.toFixed(2)} horas</strong> promedio por tarea. Con <strong>${albanileriaPending} OTs pendientes</strong>, se requieren aproximadamente <strong>${albanileriaWorkloadHours.toFixed(1)} horas-hombre</strong> de dedicación exclusiva para resolver su backlog.</li>
+                    <li style="margin-bottom: 6px;"><strong>Carpintería</strong> es la especialidad más saturada por volumen con <strong>${carpinteriaPending} OTs pendientes</strong>, evidenciando sobrecarga por volumen de solicitudes menores.</li>
+                </ul>
+            </div>
+            <div>
+                <p style="margin: 0 0 8px 0; font-weight: 700; color: #f8fafc; font-size: 13.5px;">🛒 Bloqueos: Logística vs Capacidad</p>
+                <ul style="margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 12.5px;">
+                    <li style="margin-bottom: 6px;">El <strong>${pctRq}% (${rqPending} OTs)</strong> de la cola pendiente está detenido por adquisición de materiales (<strong>Con RQ</strong>).</li>
+                    <li style="margin-bottom: 6px;">El <strong>${pctPorRevisar}% (${porRevisarPending} OTs)</strong> restante no presenta bloqueos de suministros (<strong>Por revisar</strong>) y espera únicamente asignación de capacidad horaria técnica.</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    const conclusionesEl = document.getElementById('conclusionesCapacidadTexto');
+    if (conclusionesEl) {
+        conclusionesEl.innerHTML = textoHtml;
+    }
+
     // --- Overview Charts ---
     // 0. Balance Diario: OTs Creadas vs Finalizadas daily balance grouping & sorting
     const datesMap = {};
@@ -2089,7 +2190,10 @@ function renderOverviewTab(data) {
     });
 
     const sortedTimes = Object.keys(datesMap).map(Number).sort((a, b) => a - b);
-    const dailyLabels = sortedTimes.map(t => datesMap[t].dateStr);
+    const dailyLabels = sortedTimes.map(t => {
+        const parts = datesMap[t].dateStr.split('/');
+        return parts.length >= 2 ? parts.slice(0, 2).join('/') : datesMap[t].dateStr;
+    });
     const dailyRequested = sortedTimes.map(t => datesMap[t].requested);
     const dailyFinalized = sortedTimes.map(t => datesMap[t].finalized);
 
@@ -2179,7 +2283,7 @@ function renderOverviewTab(data) {
     safeCreateChart('chartEstado', {
         type: 'doughnut',
         data: {
-            labels: ['Finalizadas', 'Programadas', 'Cierre (Canceladas)', 'Pendientes'],
+            labels: ['Finalizadas', 'Programadas', 'Canceladas', 'Pendientes'],
             datasets: [{
                 data: [finalizadasCount, programadasCount, cierreCount, pendientesCount],
                 backgroundColor: [colors.green, colors.blue, '#64748b', colors.amber],
@@ -2190,15 +2294,15 @@ function renderOverviewTab(data) {
             responsive: true, maintainAspectRatio: false,
             layout: {
                 padding: {
-                    top: 45,
-                    bottom: 45,
-                    left: 45,
-                    right: 45
+                    top: 55,
+                    bottom: 25,
+                    left: 35,
+                    right: 35
                 }
             },
             rotation: -45,
             plugins: {
-                legend: { position: 'bottom', labels: { padding: 40, usePointStyle: true, pointStyleWidth: 10 } },
+                legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyleWidth: 10 } },
                 datalabels: doughnutDatalabels
             },
             cutout: '65%'
@@ -2473,9 +2577,17 @@ function renderTechniciansTab(globalFilteredData) {
         document.getElementById('kpiHorasPropio').textContent = `${ownHrs.toFixed(1)} hrs`;
         document.getElementById('kpiHorasPropioSub').textContent = `${ownCount} OTs (${ownPct}% del total)`;
     }
+    if (document.getElementById('kpiDiasPropio')) {
+        document.getElementById('kpiDiasPropio').textContent = `${(ownHrs / 24).toFixed(1)} días`;
+        document.getElementById('kpiDiasPropioSub').textContent = `Equivale a ${(ownHrs / 8).toFixed(1)} jornadas (8h)`;
+    }
     if (document.getElementById('kpiHorasContratista')) {
         document.getElementById('kpiHorasContratista').textContent = `${contHrs.toFixed(1)} hrs`;
         document.getElementById('kpiHorasContratistaSub').textContent = `${contCount} OTs (${contPct}% del total)`;
+    }
+    if (document.getElementById('kpiDiasContratista')) {
+        document.getElementById('kpiDiasContratista').textContent = `${(contHrs / 24).toFixed(1)} días`;
+        document.getElementById('kpiDiasContratistaSub').textContent = `Equivale a ${(contHrs / 8).toFixed(1)} jornadas (8h)`;
     }
 
     // --- Initialize expanded state tracking ---
@@ -2489,25 +2601,49 @@ function renderTechniciansTab(globalFilteredData) {
     }
     window._techChartTracking = window._techChartTracking || {};
 
-    // --- Core function: Render Nesting Horizontal Bar Chart with 60% Opacity Breakdown ---
+    // --- Core function: Render Nesting Horizontal Bar Chart grouped by Specialty with Tree connectors ---
     window.updateNestingChart = function(chartId) {
         const wrapEl = document.getElementById('wrap' + chartId.replace('chart', ''));
         if (!wrapEl) return;
 
         const isInternal = chartId.includes('Tecnicos');
         const isQty = chartId.includes('Cantidad');
-        const stats = isInternal ? internalStats : contractorStats;
         const expandedSet = window._expandedTechs[chartId];
 
-        // 1. Sort base technicians descending
-        let sortedNames = [];
-        if (isQty) {
-            sortedNames = Object.keys(stats).sort((a, b) => stats[b].completed - stats[a].completed);
-        } else {
-            sortedNames = Object.keys(stats).sort((a, b) => stats[b].hours - stats[a].hours);
-        }
+        // 1. Group data by specialty and technician
+        const specMap = {};
+        techData.forEach(o => {
+            const name = o.tecPrincipal;
+            if (!name || name.toLowerCase().includes('sin asignar')) return;
 
-        // 2. Build rows
+            const assignment = o.assignmentType || (name && isContractor(name) ? 'contractor' : 'own');
+            if (assignment === 'unassigned') return;
+            if (isInternal && assignment !== 'own') return;
+            if (!isInternal && assignment !== 'contractor') return;
+
+            const esp = o.especialidad || 'Otros';
+            if (!specMap[esp]) {
+                specMap[esp] = {};
+            }
+            if (!specMap[esp][name]) {
+                specMap[esp][name] = { count: 0, completed: 0, hours: 0 };
+            }
+
+            specMap[esp][name].count++;
+            if (o.estado === 'Finalizado') {
+                specMap[esp][name].completed++;
+            }
+            specMap[esp][name].hours += (o.tiempoMin || 0) / 60;
+        });
+
+        // 2. Sort specialties by total volume/hours descending
+        const sortedSpecs = Object.keys(specMap).sort((a, b) => {
+            const sumA = Object.values(specMap[a]).reduce((sum, t) => sum + (isQty ? t.completed : t.hours), 0);
+            const sumB = Object.values(specMap[b]).reduce((sum, t) => sum + (isQty ? t.completed : t.hours), 0);
+            return sumB - sumA;
+        });
+
+        // 3. Build hierarchical labels and data
         const labels = [];
         const tracking = [];
         const completedData = [];
@@ -2524,100 +2660,147 @@ function renderTechniciansTab(globalFilteredData) {
         const hoursColors = [];
         const hoursNestedColors = [];
 
-        sortedNames.forEach((name, idx) => {
-            // base color for this technician
-            let baseColor = isInternal ? techColors[idx % techColors.length] : colors.purple;
-            if (!isInternal && isQty) {
-                baseColor = techColors[(idx + 4) % techColors.length];
+        const specEmojis = {
+            'Carpintería': '🪚',
+            'Electricidad': '⚡',
+            'Gasfitería': '🚿',
+            'Albañilería': '🧱',
+            'Pintura': '🎨',
+            'Electromecánica': '⚙️',
+            'Jardinería': '🌱',
+            'Piscina': '🏊',
+            'Calderos': '🔥',
+            'Otros': '🔧'
+        };
+
+        function getSpecEmoji(esp) {
+            for (const key in specEmojis) {
+                if (esp.toLowerCase().includes(key.toLowerCase())) {
+                    return specEmojis[key];
+                }
             }
+            return '🔧';
+        }
 
-            const shortName = isInternal ? name.split(' ').slice(0, 2).join(' ') : name.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ');
+        sortedSpecs.forEach(esp => {
+            const sortedTechs = Object.keys(specMap[esp]).sort((a, b) => {
+                const valA = isQty ? specMap[esp][a].completed : specMap[esp][a].hours;
+                const valB = isQty ? specMap[esp][b].completed : specMap[esp][b].hours;
+                return valB - valA;
+            });
 
-            // Add parent technician row
-            labels.push(shortName);
-            tracking.push({ type: 'tech', name: name });
+            if (sortedTechs.length === 0) return;
+
+            // Add specialty header row
+            labels.push(`${getSpecEmoji(esp)} ${esp.toUpperCase()}`);
+            tracking.push({ type: 'header', specialty: esp });
 
             if (isQty) {
-                completedData.push(stats[name].completed);
+                completedData.push(0);
                 programadoData.push(0);
                 pendienteData.push(0);
-
-                completedColors.push(baseColor);
+                completedColors.push('transparent');
                 programadoColors.push('transparent');
                 pendienteColors.push('transparent');
             } else {
-                hoursData.push(parseFloat(stats[name].hours.toFixed(1)));
-                hoursColors.push(baseColor);
-
+                hoursData.push(0);
+                hoursColors.push('transparent');
                 hoursNestedData.push(0);
                 hoursNestedColors.push('transparent');
             }
 
-            // If expanded, insert child specialty rows below
-            if (expandedSet.has(name)) {
-                const myOTs = techData.filter(o => o.tecPrincipal === name);
+            // Add technicians in this specialty
+            sortedTechs.forEach((name, idx) => {
+                let baseColor = isInternal ? techColors[idx % techColors.length] : colors.purple;
+                if (!isInternal && isQty) {
+                    baseColor = techColors[(idx + 4) % techColors.length];
+                }
+
+                const shortName = isInternal ? name.trim().split(/\s+/).slice(0, 2).join(' ') : name.replace('CONTRATISTA ', '').trim().split(/\s+/).slice(0, 2).join(' ');
+                const prefix = (idx === sortedTechs.length - 1) ? '   └─ ' : '   ├─ ';
+
+                labels.push(prefix + shortName);
+                tracking.push({ type: 'tech', name: name, specialty: esp });
+
+                const val = isQty ? specMap[esp][name].completed : parseFloat(specMap[esp][name].hours.toFixed(1));
 
                 if (isQty) {
-                    const nonFinal = myOTs.filter(o => o.estado !== 'Finalizado');
-                    const espMap = {};
-                    nonFinal.forEach(o => {
-                        const esp = o.especialidad || 'Otros';
-                        if (!espMap[esp]) espMap[esp] = { programado: 0, pendiente: 0 };
-                        const isProg = o.programadoStatus === 'Programado' || o.estado === 'Programada';
-                        if (isProg) espMap[esp].programado++;
-                        else espMap[esp].pendiente++;
-                    });
-
-                    const espLabels = Object.keys(espMap).sort((a, b) => 
-                        (espMap[b].programado + espMap[b].pendiente) - (espMap[a].programado + espMap[a].pendiente)
-                    );
-
-                    espLabels.forEach(esp => {
-                        labels.push(`   ↳ ${esp}`);
-                        tracking.push({ type: 'specialty', techName: name, specialty: esp });
-
-                        completedData.push(0);
-                        programadoData.push(espMap[esp].programado);
-                        pendienteData.push(espMap[esp].pendiente);
-
-                        completedColors.push('transparent');
-                        
-                        // Opacity of 35% (0.35) for nested rows
-                        programadoColors.push('rgba(251, 191, 36, 0.35)');
-                        pendienteColors.push('rgba(248, 113, 113, 0.35)');
-                    });
+                    completedData.push(val);
+                    programadoData.push(0);
+                    pendienteData.push(0);
+                    completedColors.push(baseColor);
+                    programadoColors.push('transparent');
+                    pendienteColors.push('transparent');
                 } else {
-                    const espMap = {};
-                    myOTs.forEach(o => {
-                        const esp = o.especialidad || 'Otros';
-                        if (!espMap[esp]) espMap[esp] = 0;
-                        espMap[esp] += (o.tiempoMin || 0) / 60;
-                    });
-
-                    const espLabels = Object.keys(espMap).sort((a, b) => espMap[b] - espMap[a]);
-
-                    espLabels.forEach(esp => {
-                        labels.push(`   ↳ ${esp}`);
-                        tracking.push({ type: 'specialty', techName: name, specialty: esp });
-
-                        hoursNestedData.push(parseFloat(espMap[esp].toFixed(1)));
-
-                        // Dynamic opacity 35% conversion for parent color
-                        let rgbaColor = 'rgba(6, 182, 212, 0.35)';
-                        if (!isInternal) rgbaColor = 'rgba(139, 92, 246, 0.35)';
-                        if (baseColor.startsWith('#')) {
-                            const r = parseInt(baseColor.slice(1,3), 16);
-                            const g = parseInt(baseColor.slice(3,5), 16);
-                            const b = parseInt(baseColor.slice(5,7), 16);
-                            rgbaColor = `rgba(${r}, ${g}, ${b}, 0.35)`;
-                        }
-                        hoursNestedColors.push(rgbaColor);
-
-                        hoursData.push(0);
-                        hoursColors.push('transparent');
-                    });
+                    hoursData.push(val);
+                    hoursColors.push(baseColor);
+                    hoursNestedData.push(0);
+                    hoursNestedColors.push('transparent');
                 }
-            }
+
+                // If technician is expanded, add child breakdown rows
+                const key = name + '::' + esp;
+                if (expandedSet.has(key)) {
+                    const myOTs = techData.filter(o => o.tecPrincipal === name && o.especialidad === esp);
+
+                    if (isQty) {
+                        const nonFinal = myOTs.filter(o => o.estado !== 'Finalizado');
+                        let prog = 0;
+                        let pend = 0;
+                        nonFinal.forEach(o => {
+                            const isProg = o.programadoStatus === 'Programado' || o.estado === 'Programada';
+                            if (isProg) prog++;
+                            else pend++;
+                        });
+
+                        // Programado child row
+                        labels.push('         ↳ Programado');
+                        tracking.push({ type: 'status', status: 'Programado', techName: name, specialty: esp });
+                        completedData.push(0);
+                        programadoData.push(prog);
+                        pendienteData.push(0);
+                        completedColors.push('transparent');
+                        programadoColors.push('rgba(251, 191, 36, 0.55)');
+                        pendienteColors.push('transparent');
+
+                        // Pendiente child row
+                        labels.push('         ↳ Pendiente');
+                        tracking.push({ type: 'status', status: 'Pendiente', techName: name, specialty: esp });
+                        completedData.push(0);
+                        programadoData.push(0);
+                        pendienteData.push(pend);
+                        completedColors.push('transparent');
+                        programadoColors.push('transparent');
+                        pendienteColors.push('rgba(248, 113, 113, 0.55)');
+                    } else {
+                        const typeMap = {};
+                        myOTs.forEach(o => {
+                            const t = o.tipo || 'Otros';
+                            typeMap[t] = (typeMap[t] || 0) + (o.tiempoMin || 0) / 60;
+                        });
+                        const sortedTypes = Object.keys(typeMap).sort((a, b) => typeMap[b] - typeMap[a]);
+                        sortedTypes.forEach(t => {
+                            labels.push(`         ↳ ${t}`);
+                            tracking.push({ type: 'type_breakdown', typeVal: t, techName: name, specialty: esp });
+
+                            hoursNestedData.push(parseFloat(typeMap[t].toFixed(1)));
+
+                            let rgbaColor = 'rgba(6, 182, 212, 0.45)';
+                            if (!isInternal) rgbaColor = 'rgba(139, 92, 246, 0.45)';
+                            if (baseColor.startsWith('#')) {
+                                const r = parseInt(baseColor.slice(1,3), 16);
+                                const g = parseInt(baseColor.slice(3,5), 16);
+                                const b = parseInt(baseColor.slice(5,7), 16);
+                                rgbaColor = `rgba(${r}, ${g}, ${b}, 0.45)`;
+                            }
+                            hoursNestedColors.push(rgbaColor);
+
+                            hoursData.push(0);
+                            hoursColors.push('transparent');
+                        });
+                    }
+                }
+            });
         });
 
         window._techChartTracking[chartId] = tracking;
@@ -2662,7 +2845,7 @@ function renderTechniciansTab(globalFilteredData) {
                     barThickness: 22
                 },
                 {
-                    label: 'Detalle Especialidad',
+                    label: 'Desglose',
                     data: hoursNestedData,
                     backgroundColor: hoursNestedColors,
                     borderRadius: 4,
@@ -2734,10 +2917,12 @@ function renderTechniciansTab(globalFilteredData) {
                     const track = window._techChartTracking[chartId][idx];
                     if (track && track.type === 'tech') {
                         const techName = track.name;
-                        if (expandedSet.has(techName)) {
-                            expandedSet.delete(techName);
+                        const esp = track.specialty;
+                        const key = techName + '::' + esp;
+                        if (expandedSet.has(key)) {
+                            expandedSet.delete(key);
                         } else {
-                            expandedSet.add(techName);
+                            expandedSet.add(key);
                         }
                         window.updateNestingChart(chartId);
                     }
@@ -2751,9 +2936,17 @@ function renderTechniciansTab(globalFilteredData) {
     // Expand / Collapse all helpers
     window.expandAllTechs = function(chartId) {
         const isInternal = chartId.includes('Tecnicos');
-        const stats = isInternal ? internalStats : contractorStats;
         const expandedSet = window._expandedTechs[chartId];
-        Object.keys(stats).forEach(name => expandedSet.add(name));
+        techData.forEach(o => {
+            const name = o.tecPrincipal;
+            if (!name || name.toLowerCase().includes('sin asignar')) return;
+            const assignment = o.assignmentType || (name && isContractor(name) ? 'contractor' : 'own');
+            if (assignment === 'unassigned') return;
+            if (isInternal && assignment !== 'own') return;
+            if (!isInternal && assignment !== 'contractor') return;
+            const esp = o.especialidad || 'Otros';
+            expandedSet.add(name + '::' + esp);
+        });
         window.updateNestingChart(chartId);
     };
 
@@ -2793,7 +2986,7 @@ function renderTechniciansTab(globalFilteredData) {
             if (ratio >= 0.8) { ratingText = 'Excelente'; barColor = colors.green; }
             else if (ratio >= 0.5) { ratingText = 'Medio'; barColor = colors.amber; }
 
-            const initial = name.split(' ').map(n => n[0]).slice(0, 2).join('');
+            const initial = name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('');
             
             return `<tr>
                 <td>
@@ -2854,7 +3047,7 @@ function renderPendingTab(data) {
             labels: ['Con RQ', 'Por revisar'],
             datasets: [{
                 data: [rqPending, porRevisarPending],
-                backgroundColor: [colors.purple, colors.green],
+                backgroundColor: [colors.orange, colors.burgundy],
                 borderWidth: 0, hoverOffset: 8
             }]
         },
@@ -2899,13 +3092,13 @@ function renderPendingTab(data) {
                 {
                     label: 'Con RQ',
                     data: rqData,
-                    backgroundColor: 'rgba(147, 51, 234, 0.75)', // Purple
+                    backgroundColor: 'rgba(248, 161, 104, 0.75)', // Soft Orange
                     borderRadius: 4
                 },
                 {
                     label: 'Por revisar',
                     data: sinRqData,
-                    backgroundColor: 'rgba(52, 211, 153, 0.75)', // Green
+                    backgroundColor: 'rgba(192, 108, 132, 0.75)', // Soft Burgundy
                     borderRadius: 4
                 }
             ]
@@ -3461,6 +3654,7 @@ function renderEfficiencyTab(data) {
             scales: {
                 x: {
                     beginAtZero: true,
+                    grace: '15%',
                     title: { display: true, text: 'Horas Promedio', color: '#e2e8f0', font: { weight: 'bold', size: 11 } },
                     grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: { color: '#94a3b8' }
@@ -3933,6 +4127,8 @@ const printColors = {
     red: '#dc2626',
     purple: '#7c3aed',
     cyan: '#0891b2',
+    orange: '#f8a168',
+    burgundy: '#c06c84',
     text: '#1e293b',
     mutedText: '#64748b',
     border: 'rgba(0, 0, 0, 0.08)'
@@ -4006,33 +4202,24 @@ function getPrintDoughnutOptions(totalSum) {
 }
 
 // Core logic to process filtered data and compile pages
+
 function updateReportPreview() {
     // 1. Get dynamically filtered OTs
     const filteredData = applyGlobalFilters(otData);
     
-    // 2. Determine which sections are active
-    const activeSections = [];
-    if (chkReportOverview.checked) activeSections.push({ key: 'overview', name: 'Resumen General' });
-    if (chkReportAreas.checked) activeSections.push({ key: 'areas', name: 'Demanda y Eficiencia' });
-    if (chkReportTechs.checked) activeSections.push({ key: 'techs', name: 'Desempeño de Técnicos' });
-    if (chkReportQuality.checked) activeSections.push({ key: 'quality', name: 'Análisis de Pendientes' });
+    // 2. Determine which sections are active (fixed 3-page narrative report)
+    const activeSections = [
+        { key: 'overview', name: 'Resumen General' },
+        { key: 'efficiency', name: 'Eficiencia y Operatividad' },
+        { key: 'quality', name: 'Análisis de Pendientes' }
+    ];
 
     // Update Header Modal Title with total pages
     const totalPages = activeSections.length;
-    reportModalTitle.textContent = totalPages > 0 ? `Reporte Detallado (${totalPages} ${totalPages === 1 ? 'Página' : 'Páginas'})` : 'Sin páginas seleccionadas';
+    reportModalTitle.textContent = `Reporte Ejecutivo (${totalPages} Páginas)`;
 
     // Clear previous charts
     destroyReportCharts();
-
-    if (totalPages === 0) {
-        printArea.innerHTML = `
-            <div style="background: white; border: 1px solid #cbd5e1; border-radius: var(--radius); padding: 40px; text-align: center; color: #64748b; width: 794px; box-sizing: border-box; box-shadow: var(--shadow-lg);">
-                <span style="font-size: 40px; display: block; margin-bottom: 12px;">📭</span>
-                <strong>Por favor, selecciona al menos una sección en la cabecera para previsualizar el reporte.</strong>
-            </div>
-        `;
-        return;
-    }
 
     // 3. Compute all metrics on filtered data
     // Date limits
@@ -4049,14 +4236,12 @@ function updateReportPreview() {
         }
     }
 
+    const reportTitle = (localStorage.getItem('external_report_title') || 'MAYO 2026').toUpperCase();
+
     // KPI values
     const totalOTs = filteredData.length;
-    const routineCompliance = 100; // Maestros CRL
     const ratedOTMs = filteredData.filter(o => o.calificacion > 0);
     const avgCSAT = ratedOTMs.length > 0 ? (ratedOTMs.reduce((sum, o) => sum + o.calificacion, 0) / ratedOTMs.length).toFixed(1) : '3.4';
-    
-    const timeOTs = filteredData.filter(o => o.tiempoMin > 0);
-    const avgExecTime = timeOTs.length > 0 ? (timeOTs.reduce((sum, o) => sum + o.tiempoMin, 0) / timeOTs.length / 60).toFixed(1) : '2.5';
 
     // Status metrics
     const finalizadasCount = filteredData.filter(o => o.estado === 'Finalizado').length;
@@ -4064,21 +4249,12 @@ function updateReportPreview() {
     const programadasCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus === 'Programado').length;
     const pendientesCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
     const activePendingTotal = pendientesCount;
-    const activeTechs = new Set(filteredData.map(o => o.tecPrincipal).filter(Boolean)).size;
 
-    // Workforce split (Propio vs Contratista)
-    let ownCount = 0;
-    let contCount = 0;
-    filteredData.forEach(o => {
-        if (o.tecPrincipal && isContractor(o.tecPrincipal)) {
-            contCount++;
-        } else {
-            ownCount++;
-        }
-    });
-    const totalWork = ownCount + contCount;
-    const ownPercent = totalWork > 0 ? Math.round((ownCount / totalWork) * 100) : 50;
-    const contPercent = totalWork > 0 ? Math.round((contCount / totalWork) * 100) : 50;
+    // SLA metrics
+    const validSlaData = filteredData.filter(o => o.responseTimeDays !== undefined && o.responseTimeDays !== null && o.responseTimeDays > 0);
+    const avgResponseTime = validSlaData.length > 0 ? (validSlaData.reduce((sum, o) => sum + o.responseTimeDays, 0) / validSlaData.length) : null;
+    const compliantCount = validSlaData.filter(o => o.responseTimeDays <= 2).length;
+    const slaCompliancePct = validSlaData.length > 0 ? Math.round((compliantCount / validSlaData.length) * 100) : 0;
 
     // Sum Total Man-Hours
     let totalMinutes = 0;
@@ -4103,7 +4279,7 @@ function updateReportPreview() {
         let pageContentHtml = '';
 
         if (section.key === 'overview') {
-            // PAGE 1: RESUMEN GENERAL
+            // PAGE 1: RESUMEN GENERAL (De lo General)
             pageContentHtml = `
                 <!-- Main Header -->
                 <div style="border-bottom: 2px solid #0284c7; padding-bottom: 12px; box-sizing: border-box;">
@@ -4121,7 +4297,7 @@ function updateReportPreview() {
                     <span style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'Inter', sans-serif;">Reporte de Auditoría y Detalle Operativo</span>
                     <h1 style="font-size: 22px; font-weight: 900; color: #1e293b; margin: 4px 0 6px 0; letter-spacing: -0.02em; text-transform: uppercase; font-family: 'Inter', sans-serif;">Informe de Mantenimiento</h1>
                     <div style="width: 30px; height: 3px; background: #fbbf24; margin: 0 auto 8px auto; border-radius: 2px;"></div>
-                    <h3 style="font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; font-family: 'Inter', sans-serif;">${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</h3>
+                    <h3 style="font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; font-family: 'Inter', sans-serif;">${reportTitle}</h3>
                 </div>
 
                 <!-- Metadata Grid -->
@@ -4163,217 +4339,127 @@ function updateReportPreview() {
                     </div>
                 </div>
 
-                <!-- Page 1 Charts Row -->
-                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-top: 25px; box-sizing: border-box;">
-                    <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 10px; font-weight: 800; color: #1e293b; margin: 0 0 10px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Balance Diario: Creadas vs Finalizadas</h4>
-                        <div style="height: 140px; position: relative;">
+                <!-- Page 1 Row 1 Charts (Balance and Estado) -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-top: 20px; box-sizing: border-box;">
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Balance Diario: Creadas vs Finalizadas</h4>
+                        <div style="height: 120px; position: relative;">
                             <canvas id="chartReportBalance"></canvas>
                         </div>
                     </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 10px; font-weight: 800; color: #1e293b; margin: 0 0 10px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Estado de OTs (4 Estados)</h4>
-                        <div style="height: 140px; position: relative;">
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Estado de OTs</h4>
+                        <div style="height: 120px; position: relative;">
                             <canvas id="chartReportEstado"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page 1 Row 2 Charts (Especialidad and Prioridad) -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-top: 15px; box-sizing: border-box;">
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">OTs por Especialidad</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportEspecialidad"></canvas>
+                        </div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">Distribución por Prioridad</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="chartReportPrioridad"></canvas>
                         </div>
                     </div>
                 </div>
             `;
         } 
-        else if (section.key === 'areas') {
-            // PAGE 2: DEMANDA Y EFICIENCIA (ÁREAS, ESPECIALIDAD, PRIORIDAD, UBICACIÓN, SUPERVISOR)
+        else if (section.key === 'efficiency') {
+            // PAGE 2: EFICIENCIA Y OPERATIVIDAD (Tiempos de Atención y Actividad)
             pageContentHtml = `
                 <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-                        <span>INFORME DE MANTENIMIENTO — ${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</span>
+                        <span>INFORME DE MANTENIMIENTO — EFICIENCIA Y OPERATIVIDAD</span>
                         <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
                     </div>
                 </div>
 
                 <div style="margin: 15px 0 10px 0;">
                     <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa II</span>
-                    <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Distribución de la Demanda y Criterios Operativos</h2>
-                    <p style="font-size: 10px; color: #64748b; margin: 0;">Análisis del volumen por especialidades técnicas, distribución de prioridades de servicio, focos de demanda en infraestructura y ubicaciones críticas.</p>
+                    <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Distribución Horaria y Tiempos de Respuesta</h2>
+                    <p style="font-size: 10px; color: #64748b; margin: 0;">Análisis del mapa de calor de actividades (reloj de inicio de OTs) y los indicadores de cumplimiento de acuerdos de nivel de servicio (SLA).</p>
                 </div>
 
-                <!-- Page 2 Charts Grid -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 15px; box-sizing: border-box;">
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">OTs por Especialidad</h4>
-                        <div style="height: 120px; position: relative;">
-                            <canvas id="chartReportEspecialidad"></canvas>
-                        </div>
+                <!-- SLA Mini KPIs -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; margin-top: 10px;">
+                    <div style="border: 1px solid rgba(2,132,199,0.15); background: rgba(2,132,199,0.02); padding: 8px 12px; border-radius: 8px; text-align: center;">
+                        <span style="display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">Tiempo Medio de Respuesta</span>
+                        <strong style="color: #0284c7; font-size: 15px; display: block; margin-top: 2px;">${avgResponseTime !== null ? (avgResponseTime * 24).toFixed(1) + ' hrs' : '—'}</strong>
                     </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Distribución por Prioridad</h4>
-                        <div style="height: 120px; position: relative;">
-                            <canvas id="chartReportPrioridad"></canvas>
-                        </div>
-                    </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">OTs por Área Solicitante</h4>
-                        <div style="height: 120px; position: relative;">
-                            <canvas id="chartReportArea"></canvas>
-                        </div>
-                    </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Top 10 Ubicaciones</h4>
-                        <div style="height: 120px; position: relative;">
-                            <canvas id="chartReportUbicacion"></canvas>
-                        </div>
-                    </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">OTs por Supervisor</h4>
-                        <div style="height: 120px; position: relative;">
-                            <canvas id="chartReportSupervisor"></canvas>
-                        </div>
-                    </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Tipo de Mantenimiento</h4>
-                        <div style="height: 120px; position: relative;">
-                            <canvas id="chartReportTipoMantenimiento"></canvas>
-                        </div>
+                    <div style="border: 1px solid rgba(22,163,74,0.15); background: rgba(22,163,74,0.02); padding: 8px 12px; border-radius: 8px; text-align: center;">
+                        <span style="display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">Cumplimiento de SLA (&le; 2 días)</span>
+                        <strong style="color: #16a34a; font-size: 15px; display: block; margin-top: 2px;">${slaCompliancePct}%</strong>
                     </div>
                 </div>
-            `;
-        } 
-        else if (section.key === 'techs') {
-            // PAGE 3: DESEMPEÑO Y TRABAJO DE TÉCNICOS (INTERNAL & CONTRACTORS)
-            const allStats = {};
-            filteredData.forEach(o => {
-                const name = o.tecPrincipal;
-                if (!name) return;
-                if (!allStats[name]) allStats[name] = { count: 0, completed: 0, ratings: [], times: [] };
-                allStats[name].count++;
-                if (o.estado === 'Finalizado') {
-                    allStats[name].completed++;
-                    if (o.calificacion > 0) allStats[name].ratings.push(o.calificacion);
-                    allStats[name].times.push(o.tiempoMin || 0);
-                }
-            });
 
-            const sortedTechNamesReport = Object.keys(allStats).sort((a,b) => allStats[b].count - allStats[a].count).slice(0, 6);
-
-            const techReportRows = sortedTechNamesReport.map(name => {
-                const stat = allStats[name];
-                const pct = stat.count > 0 ? ((stat.completed * 100) / stat.count).toFixed(0) + '%' : '0%';
-                const avgRating = stat.ratings.length > 0 ? (stat.ratings.reduce((sum, r) => sum + r, 0) / stat.ratings.length).toFixed(1) : '—';
-                const avgMin = stat.times.length > 0 ? stat.times.reduce((sum, t) => sum + t, 0) / stat.times.length : 0;
-                const avgTimeStr = avgMin > 0 ? (avgMin >= 60 ? `${Math.floor(avgMin/60)}h ${Math.round(avgMin%60)}m` : `${Math.round(avgMin)}m`) : '—';
-                
-                let ratingText = 'Bajo';
-                let barColor = '#f87171'; // red
-                const ratio = stat.completed / (stat.count || 1);
-                if (ratio >= 0.8) { ratingText = 'Excelente'; barColor = printColors.green; }
-                else if (ratio >= 0.5) { ratingText = 'Medio'; barColor = printColors.amber; }
-
-                return `
-                    <tr style="border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 5px 8px; font-weight: 700; color: #334155;">${name}</td>
-                        <td style="padding: 5px 8px; text-align: center; font-weight: 700;">${stat.count}</td>
-                        <td style="padding: 5px 8px; text-align: center; font-weight: 700; color: ${printColors.blue};">${pct}</td>
-                        <td style="padding: 5px 8px; text-align: center; font-weight: 700; color: ${printColors.amber};">${avgRating} ⭐</td>
-                        <td style="padding: 5px 8px; text-align: center; color: #64748b;">${avgTimeStr}</td>
-                        <td style="padding: 5px 8px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 50px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                                    <div style="width: ${pct}; height: 100%; background: ${barColor};"></div>
-                                </div>
-                                <span style="font-size: 9px; font-weight: 700; color: #475569;">${ratingText}</span>
+                <!-- Page 2 Chart Row -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-top: 15px; box-sizing: border-box;">
+                    <!-- Activity Clock Scatter chart inside dark background container -->
+                    <div style="border: 1px solid #1e293b; padding: 12px 12px 20px 12px; border-radius: 8px; box-sizing: border-box; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+                        <h4 style="font-size: 9px; font-weight: 800; color: #38bdf8; margin: 0 0 10px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">⏰ Reloj de Actividad (Hora de Inicio)</h4>
+                        <div style="height: 220px; width: 220px; margin: 0 auto; position: relative;">
+                            <canvas id="chartReportActivityClock"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        <!-- Comment / Legend container -->
+                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px 14px; border-radius: 8px; font-size: 9px; line-height: 1.4; color: #334155; height: 110px; box-sizing: border-box;">
+                            <h4 style="color: #0284c7; margin: 0 0 4px 0; font-size: 10px; font-weight: 700; display: flex; align-items: center;">
+                                <span style="margin-right: 6px;">💡</span> Leyenda del Reloj
+                            </h4>
+                            <p style="margin: 0 0 4px 0;">Proyecta el inicio de OTs usando un formato de reloj tradicional (12 arriba, 6 abajo).</p>
+                            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                                <li style="display: flex; align-items: center; gap: 6px;"><span style="color: #facc15; font-size: 12px;">●</span> <strong>AM:</strong> Puntos Amarillos (00:00 - 11:59)</li>
+                                <li style="display: flex; align-items: center; gap: 6px;"><span style="color: #ec4899; font-size: 12px;">●</span> <strong>PM:</strong> Puntos Magenta (12:00 - 23:59)</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- SLA Compliance Doughnut Chart -->
+                        <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white; height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">🎯 Distribución de SLA</h4>
+                            <div style="height: 120px; position: relative;">
+                                <canvas id="chartReportSlaCompliance"></canvas>
                             </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            pageContentHtml = `
-                <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-                        <span>INFORME DE MANTENIMIENTO — ${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</span>
-                        <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
-                    </div>
-                </div>
-
-                <div style="margin: 15px 0 10px 0;">
-                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa III</span>
-                    <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Avance Técnico, Carga de Trabajo y Desempeño</h2>
-                    <p style="font-size: 10px; color: #64748b; margin: 0;">Análisis del rendimiento acumulado, horas de ejecución real y desglose del personal propio y contratistas externos en planta.</p>
-                </div>
-
-                <div style="margin-bottom: 12px; box-sizing: border-box;">
-                    <div style="border: 1px solid #cbd5e1; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #06b6d4; border-radius: 6px; background: #fafafa;">
-                        <div>
-                            <div style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Total de Horas Hombre Ejecutadas</div>
-                            <div style="color: #0891b2; font-size: 26px; font-weight: 900;">${totalHours.toFixed(1)} hrs</div>
-                            <div style="font-size: 8px; color: #94a3b8;">Suma del tiempo total de trabajo registrado en el período</div>
                         </div>
-                        <div style="font-size: 32px;">⏱️</div>
-                    </div>
-                </div>
-
-                <!-- Page 3 Charts Grid -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; box-sizing: border-box;">
-                    <!-- Personal Interno -->
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #0284c7; margin: 0 0 6px 0; text-transform: uppercase;">Internos: Cantidad OTs</h4>
-                        <div style="height: 110px; position: relative;">
-                            <canvas id="chartReportTechCantidad"></canvas>
-                        </div>
-                    </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #0284c7; margin: 0 0 6px 0; text-transform: uppercase;">Internos: Horas Hombre</h4>
-                        <div style="height: 110px; position: relative;">
-                            <canvas id="chartReportTechHoras"></canvas>
-                        </div>
-                    </div>
-                    <!-- Contratistas -->
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #9333ea; margin: 0 0 6px 0; text-transform: uppercase;">Contratistas: OTs</h4>
-                        <div style="height: 110px; position: relative;">
-                            <canvas id="chartReportContrCantidad"></canvas>
-                        </div>
-                    </div>
-                    <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
-                        <h4 style="font-size: 9px; font-weight: 800; color: #9333ea; margin: 0 0 6px 0; text-transform: uppercase;">Contratistas: Horas</h4>
-                        <div style="height: 110px; position: relative;">
-                            <canvas id="chartReportContrHoras"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detailed table -->
-                <div style="margin-top: 15px; box-sizing: border-box;">
-                    <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Carga de Trabajo y Desempeño de Técnicos (Top 6)</h4>
-                    <div class="report-table-box">
-                        <table class="report-table">
-                            <thead>
-                                <tr style="background: #f8fafc; text-align: left; color: #475569; border-bottom: 1px solid #e2e8f0;">
-                                    <th style="padding: 5px 8px;">Técnico</th>
-                                    <th style="padding: 5px 8px; text-align: center;">Total OTs</th>
-                                    <th style="padding: 5px 8px; text-align: center;">% Fin.</th>
-                                    <th style="padding: 5px 8px; text-align: center;">Satisfacción</th>
-                                    <th style="padding: 5px 8px; text-align: center;">Tiempo Prom.</th>
-                                    <th style="padding: 5px 8px;">Desempeño</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${techReportRows}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             `;
         } 
         else if (section.key === 'quality') {
-            // PAGE 4: ANÁLISIS DE PENDIENTES, MOTIVOS, TABLA DE PENDIENTES Y FIRMAS
-            const pendingOTsList = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre'))
-                .sort((a, b) => {
-                    const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
-                    const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
-                    const bP = Object.keys(prio).find(k => b.prioridad.includes(k)) || 'Bajo';
-                    if (prio[aP] !== prio[bP]) return prio[aP] - prio[bP];
-                    return (b.riesgo ? 1 : 0) - (a.riesgo ? 1 : 0);
-                }).slice(0, 5);
+            // PAGE 3: CUELLOS DE BOTELLA Y PENDIENTES
+            // Dynamic conclusions for print
+            const albanileriaAll = filteredData.filter(o => o.especialidad && o.especialidad.toLowerCase().includes('albañiler'));
+            const albanileriaFinalizadas = albanileriaAll.filter(o => o.estado === 'Finalizado' && o.tiempoMin > 0);
+            const albanileriaAvgMin = albanileriaFinalizadas.length > 0
+                ? (albanileriaFinalizadas.reduce((sum, o) => sum + o.tiempoMin, 0) / albanileriaFinalizadas.length)
+                : 825;
+            const albanileriaMttrHours = albanileriaAvgMin / 60;
+            const albanileriaPending = pendingOTs.filter(o => o.especialidad && o.especialidad.toLowerCase().includes('albañiler')).length;
+            const albanileriaWorkloadHours = albanileriaPending * albanileriaMttrHours;
+
+            const carpinteriaPending = pendingOTs.filter(o => o.especialidad && o.especialidad.toLowerCase().includes('carpinter')).length;
+
+            const porRevisarPending = totalPending - rqPending;
+            const pctRq = totalPending > 0 ? Math.round((rqPending / totalPending) * 100) : 0;
+            const pctPorRevisar = totalPending > 0 ? Math.round((porRevisarPending / totalPending) * 100) : 0;
+            const rateCierre = totalOTs > 0 ? ((finalizadasCount * 100) / totalOTs).toFixed(1) : '0';
+
+            const pendingOTsList = pendingOTs.sort((a, b) => {
+                const prio = { 'Alto': 0, 'Emergencia': 0, 'Medio': 1, 'Bajo': 2 };
+                const aP = Object.keys(prio).find(k => a.prioridad.includes(k)) || 'Bajo';
+                const bP = Object.keys(prio).find(k => b.prioridad.includes(k)) || 'Bajo';
+                if (prio[aP] !== prio[bP]) return prio[aP] - prio[bP];
+                return (b.riesgo ? 1 : 0) - (a.riesgo ? 1 : 0);
+            }).slice(0, 5);
 
             const pendingReportRows = pendingOTsList.map(o => {
                 const isHigh = priorityClass(o.prioridad) === 'alto';
@@ -4402,13 +4488,13 @@ function updateReportPreview() {
             pageContentHtml = `
                 <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; box-sizing: border-box;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b;">
-                        <span>INFORME DE MANTENIMIENTO — ${(localStorage.getItem('external_report_title') || 'Bitácora').toUpperCase()}</span>
+                        <span>INFORME DE MANTENIMIENTO — PRIORIZACIÓN Y CUELLOS DE BOTELLA</span>
                         <span style="font-weight: 800;">CLUB DE REGATAS LIMA</span>
                     </div>
                 </div>
 
                 <div style="margin: 15px 0 10px 0;">
-                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa IV</span>
+                    <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.05em;">Sección Operativa III</span>
                     <h2 style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 4px 0 6px 0; text-transform: uppercase;">Priorización y Cuellos de Botella: OTs Pendientes</h2>
                     <p style="font-size: 10px; color: #64748b; margin: 0;">Diagnóstico detallado de las tareas pendientes de resolver, análisis de requerimientos logísticos (RQ) y distribución por especialidades.</p>
                 </div>
@@ -4444,17 +4530,17 @@ function updateReportPreview() {
                     </div>
                 </div>
 
-                <!-- Page 4 Charts Grid -->
+                <!-- Page 3 Charts Grid -->
                 <div style="display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 16px; margin-top: 15px; box-sizing: border-box;">
                     <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
                         <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Motivos de OTs Pendientes</h4>
-                        <div style="height: 125px; position: relative;">
+                        <div style="height: 120px; position: relative;">
                             <canvas id="chartReportPendingReason"></canvas>
                         </div>
                     </div>
                     <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; box-sizing: border-box; background: white;">
                         <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase;">Pendientes por Especialidad</h4>
-                        <div style="height: 125px; position: relative;">
+                        <div style="height: 120px; position: relative;">
                             <canvas id="chartReportPendingSpecialty"></canvas>
                         </div>
                     </div>
@@ -4479,6 +4565,23 @@ function updateReportPreview() {
                                 ${pendingReportRows.length > 0 ? pendingReportRows : '<tr><td colspan="6" style="padding:15px; text-align:center; color:#94a3b8;">No hay órdenes pendientes en este período</td></tr>'}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Executive Conclusions Section -->
+                <div style="margin-top: 15px; background: #fafafa; border: 1px solid #cbd5e1; border-left: 4px solid #fbbf24; padding: 10px 14px; border-radius: 6px; box-sizing: border-box;">
+                    <h4 style="font-size: 9px; font-weight: 800; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase; font-family: 'Inter', sans-serif;">💡 Conclusiones de Capacidad Técnico-Operativa</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 8px; color: #475569; line-height: 1.4; font-family: 'Inter', sans-serif;">
+                        <div>
+                            <span style="font-weight: 700; color: #1e293b;">📈 Balance General de Carga:</span> Se registraron <strong>${totalOTs} OTs</strong> en el período, con una tasa de cierre bruto del <strong>${rateCierre}%</strong>. El backlog activo acumula <strong>${totalPending} OTs pendientes</strong>.
+                            <br><br>
+                            <span style="font-weight: 700; color: #1e293b;">⚡ Saturación Carpintería:</span> Es la especialidad más saturada por cantidad de solicitudes, acumulando <strong>${carpinteriaPending} OTs pendientes</strong>.
+                        </div>
+                        <div>
+                            <span style="font-weight: 700; color: #1e293b;">⏱️ MTTR y Albañilería:</span> Albañilería presenta el mayor MTTR con <strong>${albanileriaMttrHours.toFixed(2)} horas</strong> promedio. Con <strong>${albanileriaPending} OTs pendientes</strong>, requiere aproximadamente <strong>${albanileriaWorkloadHours.toFixed(1)} horas-hombre</strong> de dedicación exclusiva para resolver su backlog.
+                            <br><br>
+                            <span style="font-weight: 700; color: #1e293b;">🛒 Bloqueo Logístico vs Capacidad:</span> El <strong>${pctRq}% (${rqPending} OTs)</strong> está bloqueado por materiales (Con RQ). El <strong>${pctPorRevisar}% (${porRevisarPending} OTs)</strong> restante está bloqueado únicamente por capacidad técnica de mano de obra (Por revisar).
+                        </div>
                     </div>
                 </div>
             `;
@@ -4507,7 +4610,7 @@ function updateReportPreview() {
         const footerHtml = `
             <!-- Footer -->
             <div style="border-top: 1px solid #f1f5f9; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8px; color: #94a3b8; font-family: 'Inter', sans-serif; box-sizing: border-box; width: 100%;">
-                <span>Informe de Mantenimiento CRL — ${localStorage.getItem('external_report_title') || 'Bitácora'}</span>
+                <span>Informe Mensual de Mantenimiento CRL</span>
                 <span style="font-weight: 700;">Página ${currentPageIndex} de ${totalPages}</span>
             </div>
         `;
@@ -4525,7 +4628,7 @@ function updateReportPreview() {
 
     printArea.innerHTML = compiledHtml;
 
-    // 5. Asynchronously render all the 13 Chart.js graphs inside the generated printArea
+    // 5. Asynchronously render Chart.js graphs inside the generated printArea
     setTimeout(() => {
         renderReportCharts(filteredData, activeSections);
     }, 100);
@@ -4551,7 +4654,10 @@ function renderReportCharts(filteredData, activeSections) {
             }
         });
         const sortedTimes = Object.keys(datesMap).map(Number).sort((a, b) => a - b);
-        const dailyLabels = sortedTimes.map(t => datesMap[t].dateStr);
+        const dailyLabels = sortedTimes.map(t => {
+            const parts = datesMap[t].dateStr.split('/');
+            return parts.length >= 2 ? parts.slice(0, 2).join('/') : datesMap[t].dateStr;
+        });
         const dailyCreated = sortedTimes.map(t => datesMap[t].created);
         const dailyResolved = sortedTimes.map(t => datesMap[t].resolved);
 
@@ -4603,14 +4709,14 @@ function renderReportCharts(filteredData, activeSections) {
 
         // --- 2. chartReportEstado (Doughnut - 4 states) ---
         const finalizadasCount = filteredData.filter(o => o.estado === 'Finalizado').length;
-        const cierreCount = filteredData.filter(o => o.estado !== 'Finalizado' && (o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre')).length;
-        const programadasCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus === 'Programado').length;
-        const pendientesCount = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado').length;
+        const programadasCount = filteredData.filter(o => o.estado === 'Programada' || o.programadoStatus === 'Programado').length;
+        const pendientesCount = filteredData.filter(o => o.estado === 'Pendiente' || (o.estado !== 'Finalizado' && o.programadoStatus !== 'Programado' && o.estado !== 'Cierre' && o.programadoStatus !== 'Cierre')).length;
+        const cierreCount = filteredData.filter(o => o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre').length;
 
         safeCreateReportChart('chartReportEstado', {
             type: 'doughnut',
             data: {
-                labels: ['Finalizadas', 'Programadas', 'Cierre (Canceladas)', 'Pendientes'],
+                labels: ['Finalizadas', 'Programadas', 'Canceladas', 'Pendientes'],
                 datasets: [{
                     data: [finalizadasCount, programadasCount, cierreCount, pendientesCount],
                     backgroundColor: [printColors.green, printColors.blue, '#64748b', printColors.amber],
@@ -4620,10 +4726,8 @@ function renderReportCharts(filteredData, activeSections) {
             },
             options: getPrintDoughnutOptions(finalizadasCount + programadasCount + cierreCount + pendientesCount)
         });
-    }
 
-    if (activeKeys.includes('areas')) {
-        // --- 3. chartReportEspecialidad (Bar - Total vs Finalizadas) ---
+        // --- 3. chartReportEspecialidad (Bar) ---
         const espLabels = ['Carpintería','Electricidad','Gasfitería','Albañilería','Pintura','Otros'];
         const espCount = espLabels.map(e => filteredData.filter(o => o.especialidad === e).length);
         const espFinished = espLabels.map(e => filteredData.filter(o => o.especialidad === e && o.estado === 'Finalizado').length);
@@ -4679,237 +4783,204 @@ function renderReportCharts(filteredData, activeSections) {
             },
             options: getPrintDoughnutOptions(filteredData.length)
         });
+    }
 
-        // --- 5. chartReportArea (Horizontal Bar) ---
-        const areaCount = countBy(filteredData, 'area');
-        const areaLabels = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]).slice(0, 5);
-        const areaData = areaLabels.map(a => areaCount[a]);
-        const areaShortLabels = areaLabels.map(a => a.replace(/^\d+\.\s*/, '').slice(0, 16));
+    if (activeKeys.includes('efficiency')) {
+        // --- 5. chartReportActivityClock (Scatter on Dark Background) ---
+        const scatterPointsAM = [];
+        const scatterPointsPM = [];
+        let hasStartTimeData = false;
 
-        safeCreateReportChart('chartReportArea', {
-            type: 'bar',
-            data: {
-                labels: areaShortLabels,
-                datasets: [{
-                    data: areaData,
-                    backgroundColor: 'rgba(8,145,178,0.5)',
-                    borderColor: printColors.cyan,
-                    borderWidth: 1,
-                    borderRadius: 3
-                }]
-            },
-            options: getPrintBarOptions(true, false)
-        });
-
-        // --- 6. chartReportUbicacion (Bar) ---
-        const ubiCount = countBy(filteredData, 'ubicacion');
-        const ubiLabels = Object.keys(ubiCount).sort((a, b) => ubiCount[b] - ubiCount[a]).slice(0, 5);
-        const ubiData = ubiLabels.map(u => ubiCount[u]);
-
-        safeCreateReportChart('chartReportUbicacion', {
-            type: 'bar',
-            data: {
-                labels: ubiLabels.map(l => l.slice(0, 12)),
-                datasets: [{
-                    data: ubiData,
-                    backgroundColor: 'rgba(124,58,237,0.5)',
-                    borderColor: printColors.purple,
-                    borderWidth: 1,
-                    borderRadius: 3
-                }]
-            },
-            options: getPrintBarOptions(false, false)
-        });
-
-        // --- 7. chartReportSupervisor (Bar) ---
-        const supCount = countBy(filteredData, 'supervisor');
-        const supLabels = Object.keys(supCount).filter(Boolean).sort((a, b) => supCount[b] - supCount[a]).slice(0, 6);
-        const supData = supLabels.map(s => supCount[s]);
-
-        safeCreateReportChart('chartReportSupervisor', {
-            type: 'bar',
-            data: {
-                labels: supLabels,
-                datasets: [{
-                    data: supData,
-                    backgroundColor: 'rgba(217,119,6,0.5)',
-                    borderColor: printColors.green || '#34d399',
-                    borderWidth: 1,
-                    borderRadius: 3
-                }]
-            },
-            options: getPrintBarOptions(false, false)
-        });
-
-        // --- 7b. chartReportTipoMantenimiento (Doughnut) ---
-        const typeCount = {};
         filteredData.forEach(o => {
-            let type = o.tipo ? o.tipo.trim() : '';
-            if (!type || type === '') {
-                type = 'Sin Clasificar';
-            } else if (type === 'Correctivo') {
-                type = 'Correctivo';
-            } else if (type === 'Preventivo') {
-                type = 'Preventivo';
-            } else if (type === 'Soporte') {
-                type = 'Soporte';
-            } else if (type === 'Cierre') {
-                type = 'Canceladas (Cierre)';
-            } else if (type === 'RQ') {
-                type = 'En Proceso (RQ)';
+            if (o.horaInicioNum !== undefined && o.horaInicioNum !== null) {
+                hasStartTimeData = true;
+                const h = o.horaInicioNum;
+                const minuteFraction = Math.random(); 
+                const angleDeg = 90 - (((h % 12) + minuteFraction) * 30);
+                const angleRad = angleDeg * Math.PI / 180;
+                
+                const r = 0.35 + (Math.random() * 0.6);
+                
+                const isPM = h >= 12;
+                const centerColor = isPM ? 'rgba(255, 105, 180, 0.85)' : 'rgba(255, 235, 59, 0.85)';
+                const haloColor = isPM ? 'rgba(255, 20, 147, 0.15)' : 'rgba(255, 152, 0, 0.15)';
+
+                const pt = {
+                    x: r * Math.cos(angleRad),
+                    y: r * Math.sin(angleRad),
+                    hour: h,
+                    centerColor,
+                    haloColor
+                };
+
+                if (isPM) {
+                    scatterPointsPM.push(pt);
+                } else {
+                    scatterPointsAM.push(pt);
+                }
             }
-            typeCount[type] = (typeCount[type] || 0) + 1;
         });
-        const typeLabels = Object.keys(typeCount).sort((a,b) => typeCount[b] - typeCount[a]);
-        const typeData = typeLabels.map(t => typeCount[t]);
 
-        const printColorMap = {
-            'Correctivo': printColors.blue,
-            'Preventivo': printColors.green,
-            'Soporte': printColors.cyan,
-            'En Proceso (RQ)': printColors.amber,
-            'Canceladas (Cierre)': '#94a3b8',
-            'Sin Clasificar': printColors.purple
+        const clockFaceReportPlugin = {
+            id: 'clockFaceReport',
+            beforeDraw: (chart) => {
+                const ctx = chart.canvas.getContext('2d');
+                const xAxis = chart.scales.x;
+                const yAxis = chart.scales.y;
+                const centerX = xAxis.getPixelForValue(0);
+                const centerY = yAxis.getPixelForValue(0);
+                const radius = Math.abs(xAxis.getPixelForValue(1) - centerX);
+
+                ctx.save();
+                
+                // Inner cyber-blue glow
+                const radGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+                radGrad.addColorStop(0, 'rgba(6, 182, 212, 0.08)');
+                radGrad.addColorStop(0.8, 'rgba(6, 182, 212, 0.02)');
+                radGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = radGrad;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Outer radar ring
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)'; // Cyan
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Inner hole ring
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius * 0.35, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
+                ctx.stroke();
+
+                // Crosshairs
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY - radius); ctx.lineTo(centerX, centerY + radius);
+                ctx.moveTo(centerX - radius, centerY); ctx.lineTo(centerX + radius, centerY);
+                ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
+                ctx.stroke();
+                
+                // Hour numbers
+                ctx.font = 'bold 10px Inter';
+                ctx.fillStyle = '#22d3ee'; // Cyan bright
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (let i = 1; i <= 12; i++) {
+                    const angle = (90 - (i * 30)) * Math.PI / 180;
+                    const textX = xAxis.getPixelForValue(1.12 * Math.cos(angle));
+                    const textY = yAxis.getPixelForValue(1.12 * Math.sin(angle));
+                    ctx.fillText(i.toString(), textX, textY);
+                }
+                ctx.restore();
+            }
         };
-        const printBackgroundColors = typeLabels.map(label => printColorMap[label] || printColors.purple);
 
-        const typeReportOpts = getPrintDoughnutOptions(filteredData.length);
-        safeCreateReportChart('chartReportTipoMantenimiento', {
+        const neonGlowReportPlugin = {
+            id: 'neonGlowReport',
+            beforeDatasetsDraw: (chart) => {
+                chart.ctx.save();
+                chart.ctx.globalCompositeOperation = 'lighter';
+            },
+            afterDatasetsDraw: (chart) => {
+                chart.ctx.restore();
+            }
+        };
+
+        safeCreateReportChart('chartReportActivityClock', {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Turno AM',
+                        data: scatterPointsAM,
+                        backgroundColor: scatterPointsAM.map(p => p.centerColor),
+                        borderColor: scatterPointsAM.map(p => p.haloColor),
+                        borderWidth: 10,
+                        pointRadius: 2.0,
+                        pointHoverRadius: 4,
+                    },
+                    {
+                        label: 'Turno PM',
+                        data: scatterPointsPM,
+                        backgroundColor: scatterPointsPM.map(p => p.centerColor),
+                        borderColor: scatterPointsPM.map(p => p.haloColor),
+                        borderWidth: 10,
+                        pointRadius: 2.0,
+                        pointHoverRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { min: -1.25, max: 1.25, display: false },
+                    y: { min: -1.25, max: 1.25, display: false }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: false }
+                }
+            },
+            plugins: [clockFaceReportPlugin, neonGlowReportPlugin]
+        });
+
+        // --- 6. chartReportSlaCompliance (Doughnut) ---
+        const validSlaData = filteredData.filter(o => o.responseTimeDays !== undefined && o.responseTimeDays !== null && o.responseTimeDays > 0);
+        const excellentCount = validSlaData.filter(o => o.responseTimeDays <= 2).length;
+        const standardCount = validSlaData.filter(o => o.responseTimeDays > 2 && o.responseTimeDays <= 5).length;
+        const delayedCount = validSlaData.filter(o => o.responseTimeDays > 5).length;
+
+        safeCreateReportChart('chartReportSlaCompliance', {
             type: 'doughnut',
             data: {
-                labels: typeLabels,
+                labels: [
+                    `Excelente: ${excellentCount}`,
+                    `Estándar: ${standardCount}`,
+                    `Rezagado: ${delayedCount}`
+                ],
                 datasets: [{
-                    data: typeData,
-                    backgroundColor: printBackgroundColors,
+                    data: [excellentCount, standardCount, delayedCount],
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
                     borderWidth: 1,
                     borderColor: '#ffffff'
                 }]
             },
-            options: {
-                ...typeReportOpts,
-                rotation: 45,
-                layout: { padding: { top: 10, bottom: 25, left: 10, right: 10 } },
-                plugins: {
-                    ...typeReportOpts.plugins,
-                    legend: {
-                        ...typeReportOpts.plugins.legend,
-                        labels: {
-                            ...typeReportOpts.plugins.legend.labels,
-                            padding: 15
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    if (activeKeys.includes('techs')) {
-        // --- Process Technical Workforces Statistics ---
-        const internalStats = {};
-        const contractorStats = {};
-        
-        filteredData.forEach(o => {
-            const name = o.tecPrincipal;
-            if (!name) return;
-            const hours = (o.tiempoMin || 0) / 60;
-            if (isContractor(name)) {
-                if (!contractorStats[name]) contractorStats[name] = { count: 0, hours: 0 };
-                contractorStats[name].count++;
-                contractorStats[name].hours += hours;
-            } else {
-                if (!internalStats[name]) internalStats[name] = { count: 0, hours: 0 };
-                internalStats[name].count++;
-                internalStats[name].hours += hours;
-            }
-        });
-
-        const intNames = Object.keys(internalStats).sort((a, b) => internalStats[b].count - internalStats[a].count).slice(0, 4);
-        const intCounts = intNames.map(n => internalStats[n].count);
-        const intNamesByHours = Object.keys(internalStats).sort((a, b) => internalStats[b].hours - internalStats[a].hours).slice(0, 4);
-        const intHours = intNamesByHours.map(n => parseFloat(internalStats[n].hours.toFixed(1)));
-
-        const contNames = Object.keys(contractorStats).sort((a, b) => contractorStats[b].count - contractorStats[a].count).slice(0, 4);
-        const contCounts = contNames.map(n => contractorStats[n].count);
-        const contNamesByHours = Object.keys(contractorStats).sort((a, b) => contractorStats[b].hours - contractorStats[a].hours).slice(0, 4);
-        const contHours = contNamesByHours.map(n => parseFloat(contractorStats[n].hours.toFixed(1)));
-
-        // --- 8. chartReportTechCantidad ---
-        safeCreateReportChart('chartReportTechCantidad', {
-            type: 'bar',
-            data: {
-                labels: intNames.map(n => n.split(' ').slice(0, 2).join(' ')),
-                datasets: [{ data: intCounts, backgroundColor: 'rgba(2,132,199,0.5)', borderColor: printColors.blue, borderWidth: 1, borderRadius: 3 }]
-            },
-            options: getPrintBarOptions(false, false)
-        });
-
-        // --- 9. chartReportTechHoras ---
-        safeCreateReportChart('chartReportTechHoras', {
-            type: 'bar',
-            data: {
-                labels: intNamesByHours.map(n => n.split(' ').slice(0, 2).join(' ')),
-                datasets: [{ data: intHours, backgroundColor: 'rgba(8,145,178,0.5)', borderColor: printColors.cyan, borderWidth: 1, borderRadius: 3 }]
-            },
-            options: getPrintBarOptions(false, false)
-        });
-
-        // --- 10. chartReportContrCantidad ---
-        safeCreateReportChart('chartReportContrCantidad', {
-            type: 'bar',
-            data: {
-                labels: contNames.map(n => n.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ')),
-                datasets: [{ data: contCounts, backgroundColor: 'rgba(124,58,237,0.5)', borderColor: printColors.purple, borderWidth: 1, borderRadius: 3 }]
-            },
-            options: getPrintBarOptions(false, false)
-        });
-
-        // --- 11. chartReportContrHoras ---
-        safeCreateReportChart('chartReportContrHoras', {
-            type: 'bar',
-            data: {
-                labels: contNamesByHours.map(n => n.replace('CONTRATISTA ', '').split(' ').slice(0, 2).join(' ')),
-                datasets: [{ data: contHours, backgroundColor: 'rgba(124,58,237,0.5)', borderColor: printColors.purple, borderWidth: 1, borderRadius: 3 }]
-            },
-            options: getPrintBarOptions(false, false)
+            options: getPrintDoughnutOptions(excellentCount + standardCount + delayedCount)
         });
     }
 
     if (activeKeys.includes('quality')) {
-        // --- 12. chartReportPendingReason (Doughnut - 2 segments) ---
-        const pendingOTs = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre') && o.programadoStatus !== 'Programado');
+        // --- 7. chartReportPendingReason (Doughnut) ---
+        const pendingOTs = filteredData.filter(o => o.estado !== 'Finalizado' && !(o.estado === 'Cierre' || o.programadoStatus === 'Cierre' || o.tipo === 'Cierre'));
         const rqPending = pendingOTs.filter(o => o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))).length;
-        const sinRqPending = pendingOTs.length - rqPending;
+        const porRevisarPending = pendingOTs.length - rqPending;
 
-        const doughnutOpts = getPrintDoughnutOptions(rqPending + sinRqPending);
         safeCreateReportChart('chartReportPendingReason', {
             type: 'doughnut',
             data: {
-                labels: ['Con RQ', 'Sin RQ'],
+                labels: ['Con RQ', 'Por revisar'],
                 datasets: [{
-                    data: [rqPending, sinRqPending],
-                    backgroundColor: [printColors.purple, printColors.amber],
+                    data: [rqPending, porRevisarPending],
+                    backgroundColor: [printColors.orange, printColors.burgundy],
                     borderWidth: 1,
                     borderColor: '#ffffff'
                 }]
             },
             options: {
-                ...doughnutOpts,
-                rotation: 45,
-                layout: { padding: { top: 10, bottom: 35, left: 10, right: 10 } },
-                plugins: {
-                    ...doughnutOpts.plugins,
-                    legend: {
-                        ...doughnutOpts.plugins.legend,
-                        labels: {
-                            ...doughnutOpts.plugins.legend.labels,
-                            padding: 25
-                        }
-                    }
-                }
+                ...getPrintDoughnutOptions(rqPending + porRevisarPending),
+                rotation: 45
             }
         });
 
-        // --- 13. chartReportPendingSpecialty (Stacked Bar - RQ vs Sin RQ) ---
+        // --- 8. chartReportPendingSpecialty (Stacked Bar) ---
         const pendEspLabels = ['Carpintería', 'Electricidad', 'Gasfitería', 'Albañilería', 'Pintura', 'Otros'];
         const totals = {};
         pendEspLabels.forEach(esp => {
@@ -4928,16 +4999,16 @@ function renderReportCharts(filteredData, activeSections) {
                     {
                         label: 'Con RQ',
                         data: rqData,
-                        backgroundColor: 'rgba(147, 51, 234, 0.75)', // Purple
-                        borderColor: printColors.purple,
+                        backgroundColor: 'rgba(248, 161, 104, 0.75)',
+                        borderColor: printColors.orange,
                         borderWidth: 1,
                         borderRadius: 3
                     },
                     {
                         label: 'Por revisar',
                         data: sinRqData,
-                        backgroundColor: 'rgba(52, 211, 153, 0.75)', // Green
-                        borderColor: printColors.green || '#34d399',
+                        backgroundColor: 'rgba(192, 108, 132, 0.75)',
+                        borderColor: printColors.burgundy,
                         borderWidth: 1,
                         borderRadius: 3
                     }
@@ -4962,6 +5033,7 @@ function renderReportCharts(filteredData, activeSections) {
         });
     }
 }
+
 
 function safeCreateReportChart(id, config) {
     const canvas = document.getElementById(id);

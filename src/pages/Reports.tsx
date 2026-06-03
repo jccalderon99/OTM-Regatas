@@ -182,7 +182,7 @@ export default function Reports() {
     };
 
     localStorage.setItem('internal_report_data', JSON.stringify(internalData));
-    window.open('/reports/dashboard-interno.html', '_blank');
+    window.open('/reports/dashboard-interno.html?v=' + Date.now(), '_blank');
   };
 
   // 2. EXCEL BITÁCORA PARSER LOGIC (SheetJS)
@@ -894,8 +894,8 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Grid horizontal de 3 tarjetas */}
-      <div className="grid-3" style={{ gap: '24px', alignItems: 'stretch' }}>
+      {/* Grid horizontal de 2 tarjetas */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'stretch' }}>
         
         {/* Tarjeta 1: Dashboard de Gestión Interna (Supabase / En Vivo) */}
         <div 
@@ -963,57 +963,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Tarjeta 2: Dashboard Mayo 2026 (Data Externa / Histórico) */}
-        <div 
-          className="glass-card" 
-          style={{ 
-            cursor: 'pointer', 
-            position: 'relative', 
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            minHeight: '280px',
-            border: '1px solid rgba(255,255,255,0.08)'
-          }}
-          onClick={() => window.open('/reports/dashboard-mayo-2026.html', '_blank')}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-6px)';
-            e.currentTarget.style.boxShadow = '0 12px 30px rgba(99,102,241,0.2)';
-            e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = 'none';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-          }}
-        >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'var(--accent-blue)' }}></div>
-          
-          <div>
-            <div className="flex justify-between items-center" style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '2.5rem', opacity: 0.9 }}>📊</div>
-              <span className="status-badge status-awaiting_conformity" style={{ fontWeight: 800 }}>HISTÓRICO</span>
-            </div>
-            
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '8px', color: 'var(--text-primary)' }}>
-              Dashboard Mayo 2026
-            </h3>
-            
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px', lineHeight: 1.5 }}>
-              Visor estático del análisis de la Bitácora de Actividades original del club (4 - 25 mayo). Útil para auditorías, SLAs históricos y comparación de rendimiento en el periodo.
-            </p>
-          </div>
-          
-          <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-            <span style={{ color: 'var(--accent-blue)', fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              Abrir dashboard original <span style={{ fontSize: '1.2rem' }}>→</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Tarjeta 3: Cargar Reporte Externo (Importador Excel) */}
+        {/* Tarjeta 2: Cargar Reporte Externo (Importador Excel) */}
         <div 
           className="glass-card" 
           style={{ 
