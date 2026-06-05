@@ -12,6 +12,29 @@
     <!-- Google Identity Services & Google APIs for Google Drive uploads -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script>
+      // Self-healing bypass for PWA service worker interception of report static pages inside iframe
+      if (window.self !== window.top && window.location.pathname.startsWith('/reports/')) {
+        console.warn('React app loaded inside iframe for static report route. Unregistering service worker to force network load.');
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            var promises = [];
+            for (var i = 0; i < registrations.length; i++) {
+              promises.push(registrations[i].unregister());
+            }
+            Promise.all(promises).then(function() {
+              console.log('Service worker unregistered. Reloading iframe...');
+              window.location.reload(true);
+            });
+          }).catch(function(err) {
+            console.error('Failed to unregister service worker:', err);
+            window.location.reload(true);
+          });
+        } else {
+          window.location.reload(true);
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
