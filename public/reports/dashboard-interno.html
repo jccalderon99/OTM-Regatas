@@ -2801,9 +2801,27 @@ function renderTechniciansTab(globalFilteredData) {
 
             // Add technicians in this specialty
             sortedTechs.forEach((name, idx) => {
-                let baseColor = isInternal ? techColors[idx % techColors.length] : colors.purple;
-                if (!isInternal && isQty) {
-                    baseColor = techColors[(idx + 4) % techColors.length];
+                let baseColor;
+                if (isInternal) {
+                    if (!window._internalTechColors) {
+                        window._internalTechColors = {};
+                        window._internalTechColorIdx = 0;
+                    }
+                    if (!window._internalTechColors[name]) {
+                        window._internalTechColors[name] = techColors[window._internalTechColorIdx % techColors.length];
+                        window._internalTechColorIdx++;
+                    }
+                    baseColor = window._internalTechColors[name];
+                } else {
+                    if (!window._contractorTechColors) {
+                        window._contractorTechColors = {};
+                        window._contractorTechColorIdx = 0;
+                    }
+                    if (!window._contractorTechColors[name]) {
+                        window._contractorTechColors[name] = techColors[(window._contractorTechColorIdx + 4) % techColors.length];
+                        window._contractorTechColorIdx++;
+                    }
+                    baseColor = window._contractorTechColors[name];
                 }
 
                 const shortName = isInternal ? name.trim().split(/\s+/).slice(0, 2).join(' ') : name.replace('CONTRATISTA ', '').trim().split(/\s+/).slice(0, 2).join(' ');
