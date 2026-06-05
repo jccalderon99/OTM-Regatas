@@ -82,6 +82,7 @@ interface Props {
 export default function DashboardLayout({ currentView, onNavigate, children }: Props) {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isEmbeddedDashboard = currentView === 'dashboard' && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'jefatura');
 
   if (!user) return null;
 
@@ -153,32 +154,63 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
       </aside>
 
       {/* Main */}
-      <div className="main-content">
-        <header className="topbar">
-          <div className="flex items-center gap-3">
-            <button 
-              className="btn btn-icon btn-ghost" 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              id="mobile-menu-btn"
-            >
-              {sidebarOpen ? '✕' : '☰'}
-            </button>
-            <span className="topbar-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span>
-                {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.icon} {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.label || 'Plataforma Mantenimiento'}
-              </span>
-              {(user.role === 'admin' || user.role === 'supervisor') && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400, borderLeft: '1px solid var(--border)', paddingLeft: 10, display: 'inline-block' }}>
-                  Centro de control - Mantenimiento
+      <div className="main-content" style={isEmbeddedDashboard ? { marginLeft: sidebarOpen ? '0' : undefined } : undefined}>
+        {isEmbeddedDashboard && (
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{
+              position: 'fixed',
+              left: 16,
+              top: 16,
+              zIndex: 9999,
+              background: 'rgba(15, 23, 42, 0.85)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '8px',
+              color: 'white',
+              width: '40px',
+              height: '40px',
+              display: 'none',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '1.25rem',
+              backdropFilter: 'blur(4px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+            }}
+            className="mobile-sidebar-toggle-btn"
+          >
+            {sidebarOpen ? '✕' : '☰'}
+          </button>
+        )}
+
+        {!isEmbeddedDashboard && (
+          <header className="topbar">
+            <div className="flex items-center gap-3">
+              <button 
+                className="btn btn-icon btn-ghost" 
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                id="mobile-menu-btn"
+              >
+                {sidebarOpen ? '✕' : '☰'}
+              </button>
+              <span className="topbar-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span>
+                  {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.icon} {NAV_GROUPS.flatMap(g => g.items).find(n => n.id === currentView)?.label || 'Plataforma Mantenimiento'}
                 </span>
-              )}
-            </span>
-          </div>
-          <div className="topbar-actions">
-            <NotificationBell />
-          </div>
-        </header>
-        <main className="page-content fade-in">
+                {(user.role === 'admin' || user.role === 'supervisor') && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400, borderLeft: '1px solid var(--border)', paddingLeft: 10, display: 'inline-block' }}>
+                    Centro de control - Mantenimiento
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="topbar-actions">
+              <NotificationBell />
+            </div>
+          </header>
+        )}
+
+        <main className="page-content fade-in" style={isEmbeddedDashboard ? { padding: 0, margin: 0, maxWidth: 'none', width: '100%' } : undefined}>
           {children}
         </main>
       </div>
@@ -187,6 +219,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
         #mobile-menu-btn { display: none; }
         @media(max-width:1024px) {
           #mobile-menu-btn { display: flex !important; }
+          .mobile-sidebar-toggle-btn { display: flex !important; }
         }
       `}</style>
     </div>

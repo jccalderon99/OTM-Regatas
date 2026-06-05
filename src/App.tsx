@@ -19,6 +19,7 @@ import WelcomePortal from './pages/WelcomePortal';
 import Reports from './pages/Reports';
 import NewOTI from './pages/supervisor/NewOTI';
 import GanttChart from './pages/supervisor/GanttChart';
+import LiveDashboardViewer from './pages/LiveDashboardViewer';
 
 function AppContent() {
   useRealtimeOTM();
@@ -35,10 +36,10 @@ function AppContent() {
   const defaultView = () => {
     switch (user.role) {
       case 'requester': return <MyDashboard />;
-      case 'supervisor': return <CommandCenter />;
+      case 'supervisor': return <LiveDashboardViewer />;
       case 'technician': return <MyTasks />;
-      case 'jefatura': return <MyDashboard />;
-      case 'admin': return <CommandCenter />;
+      case 'jefatura': return <LiveDashboardViewer />;
+      case 'admin': return <LiveDashboardViewer />;
     }
   };
 
