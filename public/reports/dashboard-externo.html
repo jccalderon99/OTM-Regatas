@@ -2636,11 +2636,14 @@ function renderTechniciansTab(globalFilteredData) {
             specMap[esp][name].hours += (o.tiempoMin || 0) / 60;
         });
 
-        // 2. Sort specialties by total volume/hours descending
+        // 2. Sort specialties by total completed OTs descending (always match quantity chart)
         const sortedSpecs = Object.keys(specMap).sort((a, b) => {
-            const sumA = Object.values(specMap[a]).reduce((sum, t) => sum + (isQty ? t.completed : t.hours), 0);
-            const sumB = Object.values(specMap[b]).reduce((sum, t) => sum + (isQty ? t.completed : t.hours), 0);
-            return sumB - sumA;
+            const sumA = Object.values(specMap[a]).reduce((sum, t) => sum + t.completed, 0);
+            const sumB = Object.values(specMap[b]).reduce((sum, t) => sum + t.completed, 0);
+            if (sumB !== sumA) return sumB - sumA;
+            const hrsA = Object.values(specMap[a]).reduce((sum, t) => sum + t.hours, 0);
+            const hrsB = Object.values(specMap[b]).reduce((sum, t) => sum + t.hours, 0);
+            return hrsB - hrsA;
         });
 
         // 3. Build hierarchical labels and data
@@ -2684,9 +2687,11 @@ function renderTechniciansTab(globalFilteredData) {
 
         sortedSpecs.forEach(esp => {
             const sortedTechs = Object.keys(specMap[esp]).sort((a, b) => {
-                const valA = isQty ? specMap[esp][a].completed : specMap[esp][a].hours;
-                const valB = isQty ? specMap[esp][b].completed : specMap[esp][b].hours;
-                return valB - valA;
+                // Always sort technicians by completed OTs descending (match quantity chart)
+                const valA = specMap[esp][a].completed;
+                const valB = specMap[esp][b].completed;
+                if (valB !== valA) return valB - valA;
+                return specMap[esp][b].hours - specMap[esp][a].hours;
             });
 
             if (sortedTechs.length === 0) return;
