@@ -20,6 +20,7 @@ import Reports from './pages/Reports';
 import NewOTI from './pages/supervisor/NewOTI';
 import GanttChart from './pages/supervisor/GanttChart';
 import LiveDashboardViewer from './pages/LiveDashboardViewer';
+import DocumentScanner from './pages/DocumentScanner';
 
 function AppContent() {
   useRealtimeOTM();
@@ -55,6 +56,7 @@ function AppContent() {
       case 'routine-admin': return <RoutineActivitiesAdmin />;
       case 'routine-register': return <RoutineRegister />;
       case 'reports': return <Reports />;
+      case 'scanner': return <DocumentScanner />;
       case 'gantt': return user.role === 'technician' ? defaultView() : <GanttChart />;
       default: return defaultView();
     }
