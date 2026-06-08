@@ -135,7 +135,11 @@ export default function DocumentScanner() {
     stopCamera();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        video: {
+          facingMode,
+          width: { ideal: 2480, min: 1280 },
+          height: { ideal: 3508, min: 720 },
+        }
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -383,12 +387,14 @@ export default function DocumentScanner() {
   // ── Styles ─────────────────────────────────────────────────────────
   const S = {
     container: {
-      minHeight: '100vh',
+      minHeight: '0',
       background: 'linear-gradient(145deg, #0c1222 0%, #111b30 40%, #0d1526 100%)',
       color: '#e2e8f0',
       fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
       position: 'relative' as const,
-      overflow: 'hidden' as const,
+      borderRadius: '16px',
+      margin: '-8px',
+      paddingBottom: '24px',
     },
     header: {
       display: 'flex',
@@ -398,9 +404,7 @@ export default function DocumentScanner() {
       borderBottom: '1px solid rgba(78,181,230,0.1)',
       background: 'rgba(15,23,42,0.6)',
       backdropFilter: 'blur(12px)',
-      position: 'sticky' as const,
-      top: 0,
-      zIndex: 100,
+      borderRadius: '16px 16px 0 0',
     },
     headerTitle: {
       fontSize: '1.2rem',
@@ -482,8 +486,9 @@ export default function DocumentScanner() {
       borderRadius: '20px',
       overflow: 'hidden',
       background: '#000',
-      aspectRatio: '4/3',
+      aspectRatio: '3/4',
       width: '100%',
+      maxHeight: '70vh',
     },
     thumbnail: (active: boolean) => ({
       width: '64px',
@@ -599,26 +604,44 @@ export default function DocumentScanner() {
             {cameraActive ? (
               <div style={{ ...S.card, padding: 0, overflow: 'hidden' }}>
                 <div style={S.videoContainer}>
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    // @ts-ignore webkit attribute for iOS
+                    webkit-playsinline="true"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
-                  {/* Scan guide overlay */}
+                  {/* A4 guide overlay (210:297 ratio) */}
                   <div style={{
-                    position: 'absolute', inset: '10%',
-                    border: '2px dashed rgba(59,130,246,0.5)',
-                    borderRadius: '12px',
+                    position: 'absolute',
+                    top: '50%', left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '75%',
+                    aspectRatio: '210/297',
+                    maxHeight: '85%',
+                    border: '2px solid rgba(59,130,246,0.6)',
+                    borderRadius: '8px',
                     pointerEvents: 'none',
+                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)',
                   }}>
+                    {/* A4 label */}
+                    <div style={{
+                      position: 'absolute', top: '-28px', left: '50%', transform: 'translateX(-50%)',
+                      background: 'rgba(59,130,246,0.85)', color: '#fff',
+                      padding: '2px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      📄 Formato A4
+                    </div>
                     {/* Corner markers */}
                     {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map(pos => (
                       <div key={pos} style={{
                         position: 'absolute',
-                        width: '24px', height: '24px',
-                        borderColor: '#3b82f6',
+                        width: '28px', height: '28px',
+                        borderColor: '#60a5fa',
                         borderWidth: '3px',
                         borderStyle: 'solid',
                         ...(pos.includes('top') ? { top: -2 } : { bottom: -2 }),
