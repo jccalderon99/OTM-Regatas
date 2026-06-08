@@ -125,37 +125,65 @@ export default function DocumentScanner() {
   const currentPage = currentPageIndex >= 0 ? pages[currentPageIndex] : null;
 
   // ── Camera management ────────────────────────────────────────────────
+  const [cameraError, setCameraError] = useState('');
+
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
     setCameraActive(false);
+    setCameraError('');
   }, []);
 
   const startCamera = useCallback(async () => {
     stopCamera();
+    setCameraError('');
     try {
+      // Check if getUserMedia is available (requires HTTPS on mobile)
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError('⚠️ La cámara requiere conexión HTTPS. Usa "Subir Imagen" como alternativa.');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode,
-          width: { ideal: 2480, min: 1280 },
-          height: { ideal: 3508, min: 720 },
+          width: { ideal: 2480, min: 640 },
+          height: { ideal: 3508, min: 480 },
         }
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      // Set cameraActive FIRST so React renders the <video> element
       setCameraActive(true);
 
       // Enumerate devices
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       setDevices(allDevices.filter(d => d.kind === 'videoinput'));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera error:', err);
       setCameraActive(false);
+      if (err.name === 'NotAllowedError') {
+        setCameraError('❌ Permiso de cámara denegado. Habilítalo en la configuración del navegador.');
+      } else if (err.name === 'NotFoundError') {
+        setCameraError('❌ No se detectó ninguna cámara en este dispositivo.');
+      } else if (err.name === 'NotReadableError') {
+        setCameraError('❌ La cámara está siendo usada por otra aplicación.');
+      } else {
+        setCameraError(`❌ Error al acceder a la cámara: ${err.message || 'desconocido'}`);
+      }
     }
   }, [facingMode, stopCamera]);
+
+  // Attach stream to video element AFTER React renders it
+  useEffect(() => {
+    if (cameraActive && streamRef.current && videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = streamRef.current;
+      video.play().catch(err => {
+        console.error('Video play error:', err);
+        setCameraError('❌ No se pudo reproducir el video de la cámara.');
+      });
+    }
+  }, [cameraActive]);
 
   useEffect(() => {
     return () => { stopCamera(); };
@@ -691,6 +719,22 @@ export default function DocumentScanner() {
             ) : (
               /* Capture options */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Camera error message */}
+                {cameraError && (
+                  <div style={{
+                    background: 'rgba(239,68,68,0.12)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: '14px',
+                    padding: '16px 20px',
+                    color: '#fca5a5',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    lineHeight: 1.5,
+                  }}>
+                    {cameraError}
+                  </div>
+                )}
                 <div style={{
                   ...S.card,
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
