@@ -56,14 +56,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
-    id: 'utilities',
-    title: 'Utilidades',
-    roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'],
-    items: [
-      { id: 'scanner', label: 'Escáner de Documentos', icon: '📸', roles: ['requester', 'supervisor', 'technician', 'jefatura', 'admin'] },
-    ]
-  },
-  {
     id: 'personnel',
     title: 'Configuración',
     roles: ['supervisor', 'admin'],
