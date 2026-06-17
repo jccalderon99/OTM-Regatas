@@ -706,7 +706,8 @@ export default function RQLog({ onNavigate }: RQLogProps) {
 
       </div>
 
-      {/* Side Panel slide-ov      {currentSelectedRQ && (
+      {/* Side Panel slide-over drawer (Detail View & Update Actions) */}
+      {currentSelectedRQ && (
         <>
           <div className="slide-panel-overlay" onClick={() => setSelectedRQ(null)} />
           <div className="slide-panel">
