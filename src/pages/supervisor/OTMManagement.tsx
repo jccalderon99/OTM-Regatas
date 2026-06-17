@@ -560,8 +560,14 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
                             <span className="badge" style={{ 
                               fontSize: '0.7rem', 
                               padding: '2px 6px',
-                              backgroundColor: linkedRQ.status === 'attended' ? 'var(--accent-emerald-light)' : linkedRQ.status === 'rejected' ? 'var(--accent-rose-light)' : 'var(--accent-gold-light)',
-                              color: linkedRQ.status === 'attended' ? 'var(--accent-emerald)' : linkedRQ.status === 'rejected' ? 'var(--accent-rose)' : 'var(--accent-gold)'
+                              backgroundColor: linkedRQ.status === 'attended' ? 'rgba(16, 185, 129, 0.12)' : linkedRQ.status === 'rejected' ? 'rgba(244, 63, 94, 0.12)' : linkedRQ.status === 'in_logistics' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                              color: linkedRQ.status === 'attended' ? '#34d399' : linkedRQ.status === 'rejected' ? '#fb7185' : linkedRQ.status === 'in_logistics' ? '#a78bfa' : '#f59e0b',
+                              border: `1px solid ${
+                                linkedRQ.status === 'attended' ? 'rgba(52, 211, 153, 0.3)' : 
+                                linkedRQ.status === 'rejected' ? 'rgba(251, 113, 133, 0.3)' : 
+                                linkedRQ.status === 'in_logistics' ? 'rgba(167, 139, 250, 0.3)' : 
+                                'rgba(245, 158, 11, 0.3)'
+                              }`
                             }}>
                               {RQ_STATUS_LABELS[linkedRQ.status]}
                             </span>

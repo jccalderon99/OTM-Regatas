@@ -364,8 +364,8 @@ export default function MyDashboard() {
                         if (!hasRQ) return null;
 
                         const rqType = linkedRQ ? linkedRQ.type : otm.rq_type;
-                        const rqStatus = linkedRQ ? linkedRQ.status : 'review';
-                        const rqStatusLabel = linkedRQ ? RQ_STATUS_LABELS[linkedRQ.status] : 'En Revisión';
+                        const rqStatus = linkedRQ ? linkedRQ.status : 'in_approval';
+                        const rqStatusLabel = linkedRQ ? RQ_STATUS_LABELS[linkedRQ.status] : 'En Aprobación';
                         const rqNumber = linkedRQ ? linkedRQ.rq_number : null;
                         const sapNumber = linkedRQ ? linkedRQ.sap_number : null;
                         const dateString = linkedRQ ? new Date(linkedRQ.created_at).toLocaleDateString('es') : (otm.rq_date ? new Date(otm.rq_date).toLocaleDateString('es') : null);
@@ -381,8 +381,14 @@ export default function MyDashboard() {
                                 fontWeight: 700, 
                                 padding: '2px 8px', 
                                 borderRadius: '4px',
-                                backgroundColor: rqStatus === 'attended' ? 'var(--accent-emerald-light)' : rqStatus === 'rejected' ? 'var(--accent-rose-light)' : 'var(--accent-gold-light)',
-                                color: rqStatus === 'attended' ? 'var(--accent-emerald)' : rqStatus === 'rejected' ? 'var(--accent-rose)' : 'var(--accent-gold)'
+                                backgroundColor: rqStatus === 'attended' ? 'rgba(16, 185, 129, 0.12)' : rqStatus === 'rejected' ? 'rgba(244, 63, 94, 0.12)' : rqStatus === 'in_logistics' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                                color: rqStatus === 'attended' ? '#34d399' : rqStatus === 'rejected' ? '#fb7185' : rqStatus === 'in_logistics' ? '#a78bfa' : '#f59e0b',
+                                border: `1px solid ${
+                                  rqStatus === 'attended' ? 'rgba(52, 211, 153, 0.3)' : 
+                                  rqStatus === 'rejected' ? 'rgba(251, 113, 133, 0.3)' : 
+                                  rqStatus === 'in_logistics' ? 'rgba(167, 139, 250, 0.3)' : 
+                                  'rgba(245, 158, 11, 0.3)'
+                                }`
                               }}>
                                 {rqStatusLabel}
                               </span>
@@ -416,9 +422,9 @@ export default function MyDashboard() {
                                 </div>
                               )}
                               
-                              {linkedRQ?.observations && (
+                              {linkedRQ?.observations && linkedRQ.observations.length > 0 && (
                                 <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                  Obs: {linkedRQ.observations}
+                                  Obs: {linkedRQ.observations[linkedRQ.observations.length - 1].text}
                                 </div>
                               )}
                             </div>

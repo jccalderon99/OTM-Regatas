@@ -444,7 +444,13 @@ export interface RescheduleRecord {
   reason: string;
 }
 
-export type RQStatus = 'review' | 'approved' | 'in_logistics' | 'attended' | 'rejected';
+export interface RQObservation {
+  id: string;
+  text: string;
+  date: string;
+}
+
+export type RQStatus = 'in_approval' | 'in_logistics' | 'attended' | 'rejected';
 
 export interface RQMaterial {
   name: string;
@@ -467,12 +473,11 @@ export interface RQRecord {
   sap_number: string | null;
   status: RQStatus;
   status_dates: Partial<Record<RQStatus, string>>;
-  observations: string | null;
+  observations: RQObservation[];
 }
 
 export const RQ_STATUS_LABELS: Record<RQStatus, string> = {
-  review: 'En Revisión',
-  approved: 'Aprobado/Con SAP',
+  in_approval: 'En Aprobación',
   in_logistics: 'En Proceso Logístico',
   attended: 'Atendido/Entregado',
   rejected: 'Rechazado',

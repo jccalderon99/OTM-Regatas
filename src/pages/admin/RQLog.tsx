@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRQ } from '../../context/RQContext';
 import { useOTM } from '../../context/OTMContext';
 import { useAuth } from '../../context/AuthContext';
-import { RQRecord, RQStatus, RQ_STATUS_LABELS, RQMaterial } from '../../types';
+import { RQRecord, RQStatus, RQ_STATUS_LABELS, RQMaterial, RQObservation } from '../../types';
 
 interface RQLogProps {
   onNavigate?: (view: string) => void;
@@ -86,23 +86,11 @@ function EditableCell({
 // Function to render RQ status badges with styled borders and shadows
 function getStatusBadgeStyle(status: RQStatus): React.CSSProperties {
   switch (status) {
-    case 'review':
+    case 'in_approval':
       return {
         background: 'rgba(217, 119, 6, 0.12)',
         color: '#f59e0b',
         border: '1px solid rgba(245, 158, 11, 0.3)',
-        padding: '4px 10px',
-        borderRadius: '12px',
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        display: 'inline-block',
-        whiteSpace: 'nowrap'
-      };
-    case 'approved':
-      return {
-        background: 'rgba(14, 165, 233, 0.12)',
-        color: '#38bdf8',
-        border: '1px solid rgba(56, 189, 248, 0.3)',
         padding: '4px 10px',
         borderRadius: '12px',
         fontSize: '0.75rem',
@@ -151,6 +139,109 @@ function getStatusBadgeStyle(status: RQStatus): React.CSSProperties {
   }
 }
 
+// Inline editable observation component
+function EditableObservationItem({
+  observation,
+  onUpdate,
+  onDelete
+}: {
+  observation: RQObservation;
+  onUpdate: (id: string, text: string, date: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [text, setText] = useState(observation.text);
+  const [date, setDate] = useState(() => {
+    if (!observation.date) return '';
+    const d = new Date(observation.date);
+    const tzoffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzoffset).toISOString().slice(0, 16);
+  });
+
+  useEffect(() => {
+    setText(observation.text);
+    if (observation.date) {
+      const d = new Date(observation.date);
+      const tzoffset = d.getTimezoneOffset() * 60000;
+      setDate(new Date(d.getTime() - tzoffset).toISOString().slice(0, 16));
+    }
+  }, [observation]);
+
+  const handleTextBlur = () => {
+    if (text.trim() !== observation.text) {
+      onUpdate(observation.id, text.trim(), observation.date);
+    }
+  };
+
+  const handleDateChange = (newDateStr: string) => {
+    setDate(newDateStr);
+    const isoDate = newDateStr ? new Date(newDateStr).toISOString() : new Date().toISOString();
+    onUpdate(observation.id, text, isoDate);
+  };
+
+  return (
+    <div style={{ 
+      padding: '10px 12px', 
+      background: 'rgba(255, 255, 255, 0.02)', 
+      border: '1px solid var(--border)', 
+      borderRadius: '8px',
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: 6 
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <input 
+          type="datetime-local" 
+          value={date}
+          onChange={(e) => handleDateChange(e.target.value)}
+          style={{ 
+            fontSize: '0.7rem', 
+            padding: '2px 4px', 
+            width: '145px', 
+            background: 'rgba(0,0,0,0.2)', 
+            border: '1px solid var(--border)', 
+            color: 'var(--text-secondary)',
+            borderRadius: '4px',
+            height: '24px',
+            outline: 'none'
+          }}
+        />
+        <button 
+          type="button" 
+          onClick={() => onDelete(observation.id)}
+          style={{ 
+            color: '#fb7185', 
+            background: 'transparent',
+            border: 'none',
+            fontSize: '0.7rem',
+            cursor: 'pointer',
+            padding: '2px 4px',
+            fontWeight: 600
+          }}
+        >
+          ✕ Eliminar
+        </button>
+      </div>
+      <textarea 
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={handleTextBlur}
+        placeholder="Comentario de la observación..."
+        style={{ 
+          fontSize: '0.75rem', 
+          minHeight: '40px', 
+          padding: '6px 8px', 
+          background: 'rgba(0,0,0,0.1)', 
+          border: '1px solid var(--border)', 
+          borderRadius: '4px',
+          color: 'var(--text-primary)',
+          resize: 'vertical',
+          outline: 'none'
+        }}
+      />
+    </div>
+  );
+}
+
 export default function RQLog({ onNavigate }: RQLogProps) {
   const { rqs, createRQRecord, updateRQRecord, updateRQStatus } = useRQ();
   const { users } = useOTM();
@@ -165,76 +256,69 @@ export default function RQLog({ onNavigate }: RQLogProps) {
 
   // Selected/Managing RQ Panel
   const [selectedRQ, setSelectedRQ] = useState<RQRecord | null>(null);
-  const [manageNotes, setManageNotes] = useState<string>('');
-  const [manageStatus, setManageStatus] = useState<RQStatus>('review');
+  const [manageStatus, setManageStatus] = useState<RQStatus>('in_approval');
   const [manageRQNumber, setManageRQNumber] = useState<string>('');
   const [manageSAPNumber, setManageSAPNumber] = useState<string>('');
 
-  // Modal State for Independent RQ
-  const [showNewRQModal, setShowNewRQModal] = useState<boolean>(false);
-  const [newRQType, setNewRQType] = useState<'supply' | 'service'>('supply');
-  const [newDescription, setNewDescription] = useState<string>('');
-  const [newRQNumber, setNewRQNumber] = useState<string>('');
-  const [newMagnitude, setNewMagnitude] = useState<'puntual' | 'integral'>('puntual');
-  
-  // Materials List for New RQ
-  const [materialsList, setMaterialsList] = useState<{ name: string; unit: string; quantity: number }[]>([]);
-  const [matName, setMatName] = useState<string>('');
-  const [matUnit, setMatUnit] = useState<string>('Unidades');
-  const [matQty, setMatQty] = useState<number>(1);
+  // Observation editable timeline state
+  const [newObsText, setNewObsText] = useState('');
+  const [newObsDate, setNewObsDate] = useState(() => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tzoffset).toISOString().slice(0, 16);
+  });
 
-  // List of unique supervisors in RQs
-  const supervisorsList = useMemo(() => {
-    const uniq = new Set<string>();
-    rqs.forEach(r => {
-      if (r.supervisor_name) uniq.add(r.supervisor_name);
-    });
-    return Array.from(uniq).sort();
-  }, [rqs]);
+  // Keep selectedRQ in sync with context data
+  const currentSelectedRQ = useMemo(() => {
+    if (!selectedRQ) return null;
+    return rqs.find(r => r.id === selectedRQ.id) || null;
+  }, [rqs, selectedRQ]);
 
-  // Filter & Sort RQs
-  const filteredRQs = useMemo(() => {
-    let result = [...rqs];
+  useEffect(() => {
+    if (currentSelectedRQ) {
+      setManageStatus(currentSelectedRQ.status);
+      setManageRQNumber(currentSelectedRQ.rq_number || '');
+      setManageSAPNumber(currentSelectedRQ.sap_number || '');
+    }
+  }, [currentSelectedRQ]);
 
-    if (statusFilter) {
-      result = result.filter(r => r.status === statusFilter);
-    }
-    if (supervisorFilter) {
-      result = result.filter(r => r.supervisor_name === supervisorFilter);
-    }
-    if (fromDate) {
-      result = result.filter(r => {
-        const rqDate = r.created_at.slice(0, 10);
-        return rqDate >= fromDate;
-      });
-    }
-    if (toDate) {
-      result = result.filter(r => {
-        const rqDate = r.created_at.slice(0, 10);
-        return rqDate <= toDate;
-      });
-    }
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      result = result.filter(r => 
-        (r.rq_number && r.rq_number.toLowerCase().includes(q)) ||
-        (r.sap_number && r.sap_number.toLowerCase().includes(q)) ||
-        (r.otm_code && r.otm_code.toLowerCase().includes(q)) ||
-        r.description.toLowerCase().includes(q)
-      );
-    }
+  const handleUpdateObservation = (obsId: string, text: string, date: string) => {
+    if (!currentSelectedRQ) return;
+    const updatedObs = currentSelectedRQ.observations.map(o => 
+      o.id === obsId ? { ...o, text, date } : o
+    );
+    updateRQRecord(currentSelectedRQ.id, { observations: updatedObs });
+  };
 
-    // Newest first (by item_number descending)
-    return result.sort((a, b) => b.item_number - a.item_number);
-  }, [rqs, statusFilter, supervisorFilter, fromDate, toDate, searchText]);
+  const handleDeleteObservation = (obsId: string) => {
+    if (!currentSelectedRQ) return;
+    const updatedObs = currentSelectedRQ.observations.filter(o => o.id !== obsId);
+    updateRQRecord(currentSelectedRQ.id, { observations: updatedObs });
+  };
+
+  const handleAddObservation = () => {
+    if (!currentSelectedRQ || !newObsText.trim()) return;
+    const dateToUse = newObsDate ? new Date(newObsDate).toISOString() : new Date().toISOString();
+    const newObsItem = {
+      id: `obs-${Date.now()}`,
+      text: newObsText.trim(),
+      date: dateToUse
+    };
+    const updatedObs = [...(currentSelectedRQ.observations || []), newObsItem];
+    updateRQRecord(currentSelectedRQ.id, { observations: updatedObs });
+    setNewObsText('');
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    setNewObsDate(new Date(Date.now() - tzoffset).toISOString().slice(0, 16));
+  };
 
   // Open Details Panel
   const handleOpenManage = (rq: RQRecord) => {
     setSelectedRQ(rq);
-    setManageNotes(rq.observations || '');
     setManageStatus(rq.status);
     setManageRQNumber(rq.rq_number || '');
     setManageSAPNumber(rq.sap_number || '');
+    setNewObsText('');
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    setNewObsDate(new Date(Date.now() - tzoffset).toISOString().slice(0, 16));
   };
 
   useEffect(() => {
@@ -250,35 +334,18 @@ export default function RQLog({ onNavigate }: RQLogProps) {
 
   // Save changes from details panel
   const handleSaveManage = () => {
-    if (!selectedRQ) return;
+    if (!currentSelectedRQ) return;
     
-    // Save numbers & observations
-    updateRQRecord(selectedRQ.id, {
+    // Save numbers
+    updateRQRecord(currentSelectedRQ.id, {
       rq_number: manageRQNumber.trim() || null,
       sap_number: manageSAPNumber.trim() || null,
     });
 
     // Update status if it changed
-    if (manageStatus !== selectedRQ.status) {
-      updateRQStatus(selectedRQ.id, manageStatus, manageNotes.trim());
-    } else {
-      updateRQRecord(selectedRQ.id, {
-        observations: manageNotes.trim() || null
-      });
+    if (manageStatus !== currentSelectedRQ.status) {
+      updateRQStatus(currentSelectedRQ.id, manageStatus);
     }
-
-    // Refresh selected state
-    setSelectedRQ(prev => prev ? {
-      ...prev,
-      rq_number: manageRQNumber.trim() || null,
-      sap_number: manageSAPNumber.trim() || null,
-      status: manageStatus,
-      observations: manageNotes.trim() || null,
-      status_dates: {
-        ...prev.status_dates,
-        [manageStatus]: prev.status_dates[manageStatus] || new Date().toISOString()
-      }
-    } : null);
   };
 
   // Add material to temp list
@@ -313,7 +380,13 @@ export default function RQLog({ onNavigate }: RQLogProps) {
       materials: newRQType === 'supply' ? materialsList : undefined,
       rq_number: newRQNumber.trim() || null,
       sap_number: null,
-      observations: 'Requerimiento independiente creado directamente en la bitácora.'
+      observations: [
+        {
+          id: `obs-${Date.now()}`,
+          text: 'Requerimiento independiente creado directamente en la bitácora.',
+          date: new Date().toISOString()
+        }
+      ]
     });
 
     // Reset Form & Close Modal
@@ -338,6 +411,14 @@ export default function RQLog({ onNavigate }: RQLogProps) {
     setToDate('');
     setSearchText('');
   };
+
+  const kpis = useMemo(() => {
+    const total = filteredRQs.length;
+    const inApproval = filteredRQs.filter(r => r.status === 'in_approval').length;
+    const inLogistics = filteredRQs.filter(r => r.status === 'in_logistics').length;
+    const attended = filteredRQs.filter(r => r.status === 'attended').length;
+    return { total, inApproval, inLogistics, attended };
+  }, [filteredRQs]);
 
   return (
     <div className="rq-log-page" style={{ padding: '24px 0', maxWidth: '1400px', margin: '0 auto' }}>
@@ -367,6 +448,38 @@ export default function RQLog({ onNavigate }: RQLogProps) {
         >
           ➕ Nuevo RQ Independiente
         </button>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+        gap: 16, 
+        marginBottom: 24 
+      }}>
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>📋</div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Requerimientos</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>{kpis.total}</span>
+        </div>
+        
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', borderLeft: '3px solid rgba(245, 158, 11, 0.4)' }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>⏳</div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>En Aprobación</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f59e0b' }}>{kpis.inApproval}</span>
+        </div>
+
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', borderLeft: '3px solid rgba(139, 92, 246, 0.4)' }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>🚚</div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>En Proceso Logístico</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#a78bfa' }}>{kpis.inLogistics}</span>
+        </div>
+
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', borderLeft: '3px solid rgba(52, 211, 153, 0.4)' }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>✅</div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Atendido/Entregado</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#34d399' }}>{kpis.attended}</span>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -463,6 +576,7 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                     <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', width: '120px' }}>Supervisor</th>
                     <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', width: '110px' }}>Tipo RQ</th>
                     <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Descripción / Materiales</th>
+                    <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', width: '220px' }}>Última Observación</th>
                     <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center', width: '120px' }}>N° RQ</th>
                     <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center', width: '120px' }}>N° SAP/Solped</th>
                     <th style={{ padding: '14px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center', width: '150px' }}>Estado</th>
@@ -554,6 +668,16 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                             </div>
                           )}
                         </td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {(() => {
+                            if (!rq.observations || rq.observations.length === 0) return '-';
+                            const latest = rq.observations[rq.observations.length - 1];
+                            const dateObj = new Date(latest.date);
+                            const day = String(dateObj.getDate()).padStart(2, '0');
+                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            return `[${day}/${month}] ${latest.text}`;
+                          })()}
+                        </td>
                         <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
                           <EditableCell 
                             value={rq.rq_number} 
@@ -582,14 +706,13 @@ export default function RQLog({ onNavigate }: RQLogProps) {
 
       </div>
 
-      {/* Side Panel slide-over drawer (Detail View & Update Actions) */}
-      {selectedRQ && (
+      {/* Side Panel slide-ov      {currentSelectedRQ && (
         <>
           <div className="slide-panel-overlay" onClick={() => setSelectedRQ(null)} />
           <div className="slide-panel">
             <div className="slide-panel-header">
               <h3 style={{ margin: 0, fontWeight: 800 }}>
-                Detalle del Item #{selectedRQ.item_number}
+                Detalle del Item #{currentSelectedRQ.item_number}
               </h3>
               <button 
                 className="btn btn-icon btn-ghost" 
@@ -605,21 +728,21 @@ export default function RQLog({ onNavigate }: RQLogProps) {
               <div className="flex-col gap-1" style={{ fontSize: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Tipo:</span>
-                  <span style={{ fontWeight: 700 }}>{selectedRQ.type === 'supply' ? '📦 Suministro' : '🔧 Servicio'}</span>
+                  <span style={{ fontWeight: 700 }}>{currentSelectedRQ.type === 'supply' ? '📦 Suministro' : '🔧 Servicio'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Registrado por:</span>
-                  <span style={{ fontWeight: 600 }}>{selectedRQ.supervisor_name}</span>
+                  <span style={{ fontWeight: 600 }}>{currentSelectedRQ.supervisor_name}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Fecha:</span>
-                  <span>{new Date(selectedRQ.created_at).toLocaleString('es-PE')}</span>
+                  <span>{new Date(currentSelectedRQ.created_at).toLocaleString('es-PE')}</span>
                 </div>
-                {selectedRQ.otm_id && (
+                {currentSelectedRQ.otm_id && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', alignItems: 'center' }}>
                     <span style={{ color: 'var(--text-muted)' }}>OTM Vinculada:</span>
                     <button 
-                      onClick={() => handleNavigateToOTM(selectedRQ.otm_id!)}
+                      onClick={() => handleNavigateToOTM(currentSelectedRQ.otm_id!)}
                       style={{ 
                         background: 'transparent', 
                         border: 'none', 
@@ -630,7 +753,7 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                         padding: 0
                       }}
                     >
-                      {selectedRQ.otm_code}
+                      {currentSelectedRQ.otm_code}
                     </button>
                   </div>
                 )}
@@ -639,13 +762,13 @@ export default function RQLog({ onNavigate }: RQLogProps) {
               {/* Description & Items */}
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>Descripción General:</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>{selectedRQ.description}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>{currentSelectedRQ.description}</div>
 
-                {selectedRQ.type === 'supply' && selectedRQ.materials && selectedRQ.materials.length > 0 && (
+                {currentSelectedRQ.type === 'supply' && currentSelectedRQ.materials && currentSelectedRQ.materials.length > 0 && (
                   <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 6 }}>Materiales Solicitados:</div>
                     <div className="flex-col gap-2">
-                      {selectedRQ.materials.map((m, idx) => (
+                      {currentSelectedRQ.materials.map((m, idx) => (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', background: 'rgba(0,0,0,0.1)', padding: '4px 8px', borderRadius: 4 }}>
                           <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{m.name}</span>
                           <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>{m.quantity} {m.unit}</span>
@@ -696,17 +819,6 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Observaciones / Bitácora</label>
-                  <textarea 
-                    className="form-textarea" 
-                    value={manageNotes} 
-                    onChange={e => setManageNotes(e.target.value)} 
-                    placeholder="Agregar comentarios de compras, logística o estado de despacho..."
-                    style={{ fontSize: '0.8rem', minHeight: '60px' }}
-                  />
-                </div>
-
                 <button 
                   className="btn btn-primary w-full" 
                   onClick={handleSaveManage}
@@ -714,6 +826,68 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                 >
                   💾 Guardar Cambios
                 </button>
+              </div>
+
+              {/* Bitácora / Observaciones Section */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>BITÁCORA / OBSERVACIONES</h4>
+                
+                {/* Timeline of existing observations */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                  {currentSelectedRQ.observations && currentSelectedRQ.observations.length > 0 ? (
+                    currentSelectedRQ.observations.map((obs) => (
+                      <EditableObservationItem 
+                        key={obs.id}
+                        observation={obs}
+                        onUpdate={handleUpdateObservation}
+                        onDelete={handleDeleteObservation}
+                      />
+                    ))
+                  ) : (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      Sin observaciones registradas.
+                    </span>
+                  )}
+                </div>
+
+                {/* Add New Observation form */}
+                <div style={{ background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border)', padding: 12, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <h5 style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    ➕ Nueva Observación
+                  </h5>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Fecha y Hora:</label>
+                    <input 
+                      type="datetime-local"
+                      className="form-input"
+                      value={newObsDate}
+                      onChange={e => setNewObsDate(e.target.value)}
+                      style={{ fontSize: '0.75rem', padding: '4px 8px', height: '32px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Comentario:</label>
+                    <textarea
+                      className="form-textarea"
+                      value={newObsText}
+                      onChange={e => setNewObsText(e.target.value)}
+                      placeholder="Escriba un nuevo comentario..."
+                      style={{ fontSize: '0.75rem', minHeight: '50px', padding: '6px 8px' }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleAddObservation}
+                    disabled={!newObsText.trim()}
+                    style={{ fontSize: '0.75rem', fontWeight: 600, padding: '6px 12px', alignSelf: 'flex-end' }}
+                  >
+                    Agregar Observación
+                  </button>
+                </div>
               </div>
 
               {/* Status Dates Timeline */}
@@ -724,8 +898,8 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                   <div style={{ position: 'absolute', left: 10, top: 6, bottom: 6, width: '1px', background: 'var(--border)' }}></div>
 
                   {Object.entries(RQ_STATUS_LABELS).map(([statusKey, label]) => {
-                    const statusDate = selectedRQ.status_dates[statusKey as RQStatus];
-                    const isActive = selectedRQ.status === statusKey;
+                    const statusDate = currentSelectedRQ.status_dates[statusKey as RQStatus];
+                    const isActive = currentSelectedRQ.status === statusKey;
                     return (
                       <div key={statusKey} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', position: 'relative', zIndex: 2 }}>
                         <div style={{ 

@@ -39,11 +39,17 @@ export function RQProvider({ children }: { children: ReactNode }) {
         ],
         rq_number: null,
         sap_number: null,
-        status: 'review',
+        status: 'in_approval',
         status_dates: {
-          review: new Date(2026, 4, 22, 9, 30).toISOString()
+          in_approval: new Date(2026, 4, 22, 9, 30).toISOString()
         },
-        observations: 'A la espera del ingreso del nro de RQ por logística.'
+        observations: [
+          {
+            id: 'obs-mock-1',
+            text: 'A la espera del ingreso del nro de RQ por logística.',
+            date: new Date(2026, 4, 22, 10, 0).toISOString()
+          }
+        ]
       },
       {
         id: 'rq-mock-2',
@@ -57,12 +63,18 @@ export function RQProvider({ children }: { children: ReactNode }) {
         description: 'Servicio técnico especializado para mantenimiento y calibración de quemadores del caldero principal.',
         rq_number: 'RQ-10042',
         sap_number: '100029348',
-        status: 'approved',
+        status: 'in_logistics',
         status_dates: {
-          review: new Date(2026, 4, 23, 10, 15).toISOString(),
-          approved: new Date(2026, 4, 23, 15, 30).toISOString()
+          in_approval: new Date(2026, 4, 23, 10, 15).toISOString(),
+          in_logistics: new Date(2026, 4, 23, 15, 30).toISOString()
         },
-        observations: 'Cotización aprobada por jefatura. SAP generado.'
+        observations: [
+          {
+            id: 'obs-mock-2',
+            text: 'Cotización aprobada por jefatura. SAP generado.',
+            date: new Date(2026, 4, 23, 16, 0).toISOString()
+          }
+        ]
       },
       {
         id: 'rq-mock-3',
@@ -82,11 +94,16 @@ export function RQProvider({ children }: { children: ReactNode }) {
         sap_number: '100029350',
         status: 'in_logistics',
         status_dates: {
-          review: new Date(2026, 4, 24, 11, 0).toISOString(),
-          approved: new Date(2026, 4, 24, 14, 0).toISOString(),
+          in_approval: new Date(2026, 4, 24, 11, 0).toISOString(),
           in_logistics: new Date(2026, 4, 25, 9, 0).toISOString()
         },
-        observations: 'En proceso de cotización por el área de Logística.'
+        observations: [
+          {
+            id: 'obs-mock-3',
+            text: 'En proceso de cotización por el área de Logística.',
+            date: new Date(2026, 4, 25, 10, 0).toISOString()
+          }
+        ]
       },
       {
         id: 'rq-mock-4',
@@ -102,12 +119,17 @@ export function RQProvider({ children }: { children: ReactNode }) {
         sap_number: '100029351',
         status: 'attended',
         status_dates: {
-          review: new Date(2026, 4, 25, 8, 45).toISOString(),
-          approved: new Date(2026, 4, 25, 12, 0).toISOString(),
+          in_approval: new Date(2026, 4, 25, 8, 45).toISOString(),
           in_logistics: new Date(2026, 4, 26, 10, 0).toISOString(),
           attended: new Date(2026, 5, 2, 16, 0).toISOString()
         },
-        observations: 'Servicio culminado al 100%. Acta de conformidad firmada.'
+        observations: [
+          {
+            id: 'obs-mock-4',
+            text: 'Servicio culminado al 100%. Acta de conformidad firmada.',
+            date: new Date(2026, 5, 2, 16, 30).toISOString()
+          }
+        ]
       },
       {
         id: 'rq-mock-5',
@@ -126,21 +148,27 @@ export function RQProvider({ children }: { children: ReactNode }) {
         sap_number: null,
         status: 'rejected',
         status_dates: {
-          review: new Date(2026, 4, 25, 14, 20).toISOString(),
+          in_approval: new Date(2026, 4, 25, 14, 20).toISOString(),
           rejected: new Date(2026, 4, 26, 11, 15).toISOString()
         },
-        observations: 'Rechazado debido a que se utilizará el stock excedente de la sede Chorrillos.'
+        observations: [
+          {
+            id: 'obs-mock-5',
+            text: 'Rechazado debido a que se utilizará el stock excedente de la sede Chorrillos.',
+            date: new Date(2026, 4, 26, 12, 0).toISOString()
+          }
+        ]
       }
     ];
   };
 
   const [rqs, setRqs] = useState<RQRecord[]>(() => {
-    const saved = localStorage.getItem('demo_rqs_v1');
+    const saved = localStorage.getItem('demo_rqs_v2');
     return saved ? JSON.parse(saved) : getInitialRqs();
   });
 
   useEffect(() => {
-    localStorage.setItem('demo_rqs_v1', JSON.stringify(rqs));
+    localStorage.setItem('demo_rqs_v2', JSON.stringify(rqs));
   }, [rqs]);
 
   const getRQById = useCallback((id: string) => {
@@ -160,10 +188,11 @@ export function RQProvider({ children }: { children: ReactNode }) {
       id: newId,
       item_number: nextNumber,
       created_at: new Date().toISOString(),
-      status: 'review',
+      status: 'in_approval',
       status_dates: {
-        review: new Date().toISOString()
-      }
+        in_approval: new Date().toISOString()
+      },
+      observations: data.observations || []
     };
 
     setRqs(prev => [newRecord, ...prev]);
@@ -190,14 +219,35 @@ export function RQProvider({ children }: { children: ReactNode }) {
     setRqs(prev => prev.map(r => {
       if (r.id !== id) return r;
       
-      const updated = { ...r, ...fields };
+      let updatedStatus = r.status;
+      let updatedDates = { ...r.status_dates };
+      let updatedObservations = r.observations ? [...r.observations] : [];
+
+      // Auto-transition to in_logistics if sap_number is set
+      if (fields.sap_number !== undefined && fields.sap_number !== null) {
+        const hasSap = fields.sap_number.trim() !== '';
+        if (hasSap && r.status === 'in_approval') {
+          updatedStatus = 'in_logistics';
+          updatedDates = { ...updatedDates, in_logistics: new Date().toISOString() };
+          updatedObservations.push({
+            id: `obs-sys-${Date.now()}`,
+            text: `N° SAP registrado: ${fields.sap_number.trim()}. Requerimiento derivado a logística.`,
+            date: new Date().toISOString()
+          });
+        }
+      }
+
+      const updated = { 
+        ...r, 
+        ...fields,
+        status: updatedStatus,
+        status_dates: updatedDates,
+        observations: updatedObservations
+      };
       
       // Sync fields to linked OTM if relevant
       if (updated.otm_id) {
         const syncFields: any = {};
-        if (fields.rq_number !== undefined) {
-          // If we have an RQ number, we can add it to the OTM details if we want
-        }
         if (Object.keys(syncFields).length > 0) {
           updateOTMFields(updated.otm_id, syncFields);
         }
@@ -212,24 +262,26 @@ export function RQProvider({ children }: { children: ReactNode }) {
       if (r.id !== id) return r;
 
       const updatedDates = { ...r.status_dates, [status]: new Date().toISOString() };
+      const updatedObservations = r.observations ? [...r.observations] : [];
+      if (observations && observations.trim()) {
+        updatedObservations.push({
+          id: `obs-${Date.now()}`,
+          text: observations.trim(),
+          date: new Date().toISOString()
+        });
+      }
+
       const updated: RQRecord = {
         ...r,
         status,
         status_dates: updatedDates,
-        observations: observations !== undefined ? observations : r.observations
+        observations: updatedObservations
       };
 
       // Bidirectional sync with OTM status if linked
       if (r.otm_id) {
         if (status === 'rejected') {
-          // If the requirement is rejected, what happens to OTM?
-          // It might go back to 'pending' or stay in 'rq' depending on supervisor decision.
-          // Let's keep it linked but let the user know. Or we can reset OTM status to pending so it can be re-assigned.
           updateOTMStatus(r.otm_id, 'pending', `RQ Rechazado: ${observations || ''}`);
-        } else if (status === 'attended') {
-          // If attended, the materials are ready, the OTM can go back to 'scheduled' or 'pending' for work execution.
-          // Let's put OTM in 'pending' or 'scheduled' so they can execute.
-          // Actually, let's keep status 'rq' but log that it was attended, or supervisor can re-assign.
         }
       }
 
