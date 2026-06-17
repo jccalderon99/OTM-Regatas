@@ -208,7 +208,13 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
       materials: materialsData,
       rq_number: rqNumberInput || null,
       sap_number: null,
-      observations: 'Requerimiento creado desde el panel de gestión.'
+      observations: [
+        {
+          id: `obs-${Date.now()}`,
+          text: 'Requerimiento creado desde el panel de gestión.',
+          date: new Date().toISOString()
+        }
+      ]
     });
 
     setAction('none');
@@ -591,17 +597,7 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
                               <div>{manageOTM.rq_service_desc}</div>
                             )
                           )}
-                          {linkedRQ ? (
-                            <>
-                              {linkedRQ.rq_number && <div style={{ marginTop: 6 }}><strong>N° RQ:</strong> {linkedRQ.rq_number}</div>}
-                              {linkedRQ.sap_number && <div style={{ marginTop: 4 }}><strong>N° SAP:</strong> {linkedRQ.sap_number}</div>}
-                            </>
-                          ) : (
-                            <>
-                              {manageOTM.rq_number && <div style={{ marginTop: 6 }}><strong>N° RQ:</strong> {manageOTM.rq_number}</div>}
-                              {manageOTM.sap_number && <div style={{ marginTop: 4 }}><strong>N° SAP:</strong> {manageOTM.sap_number}</div>}
-                            </>
-                          )}
+
                         </div>
                         {onNavigate && linkedRQ && (
                           <button 

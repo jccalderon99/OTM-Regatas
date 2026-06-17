@@ -412,7 +412,7 @@ export interface CapexBudgetItem {
 
 export interface PreventivePlanItem {
   id: string;
-  num: number;
+  num: number | string;
   prio: 'ALTO' | 'MEDIO';
   actividad: string;
   ubicacion: string;

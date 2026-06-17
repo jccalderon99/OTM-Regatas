@@ -278,6 +278,63 @@ export default function RQLog({ onNavigate }: RQLogProps) {
     return new Date(Date.now() - tzoffset).toISOString().slice(0, 16);
   });
 
+  // New RQ Form State
+  const [showNewRQModal, setShowNewRQModal] = useState(false);
+  const [newRQType, setNewRQType] = useState<'supply' | 'service'>('supply');
+  const [newMagnitude, setNewMagnitude] = useState<'puntual' | 'integral'>('puntual');
+  const [newDescription, setNewDescription] = useState('');
+  const [newRQNumber, setNewRQNumber] = useState('');
+  
+  // Materials list for new supply RQ
+  const [materialsList, setMaterialsList] = useState<RQMaterial[]>([]);
+  const [matName, setMatName] = useState('');
+  const [matUnit, setMatUnit] = useState('Unidades');
+  const [matQty, setMatQty] = useState(1);
+
+  // List of unique supervisors in RQs
+  const supervisorsList = useMemo(() => {
+    const uniq = new Set<string>();
+    rqs.forEach(r => {
+      if (r.supervisor_name) uniq.add(r.supervisor_name);
+    });
+    return Array.from(uniq).sort();
+  }, [rqs]);
+
+  // Filter & Sort RQs
+  const filteredRQs = useMemo(() => {
+    let result = [...rqs];
+
+    if (statusFilter) {
+      result = result.filter(r => r.status === statusFilter);
+    }
+    if (supervisorFilter) {
+      result = result.filter(r => r.supervisor_name === supervisorFilter);
+    }
+    if (fromDate) {
+      result = result.filter(r => {
+        const rqDate = r.created_at.slice(0, 10);
+        return rqDate >= fromDate;
+      });
+    }
+    if (toDate) {
+      result = result.filter(r => {
+        const rqDate = r.created_at.slice(0, 10);
+        return rqDate <= toDate;
+      });
+    }
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase().trim();
+      result = result.filter(r => 
+        (r.rq_number && r.rq_number.toLowerCase().includes(q)) ||
+        (r.sap_number && r.sap_number.toLowerCase().includes(q)) ||
+        (r.otm_code && r.otm_code.toLowerCase().includes(q)) ||
+        r.description.toLowerCase().includes(q) ||
+        r.supervisor_name.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [rqs, statusFilter, supervisorFilter, fromDate, toDate, searchText]);
+
   // Keep selectedRQ in sync with context data
   const currentSelectedRQ = useMemo(() => {
     if (!selectedRQ) return null;
@@ -601,7 +658,7 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                       </td>
                     </tr>
                   ) : (
-                    filteredRQs.map((rq) => (
+                    filteredRQs.map((rq: RQRecord) => (
                       <tr 
                         key={rq.id} 
                         onClick={() => handleOpenManage(rq)}
@@ -666,7 +723,7 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                           {/* List preview of materials if supply */}
                           {rq.type === 'supply' && rq.materials && rq.materials.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                              {rq.materials.slice(0, 3).map((m, i) => (
+                              {rq.materials.slice(0, 3).map((m: RQMaterial, i: number) => (
                                 <span key={i} style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '4px', padding: '1px 4px', color: 'var(--text-muted)' }}>
                                   {m.name} ({m.quantity} {m.unit.slice(0, 3)}.)
                                 </span>
@@ -1111,7 +1168,7 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                   {/* Temp materials list render */}
                   {materialsList.length > 0 && (
                     <div style={{ marginTop: 10, maxHeight: '100px', overflowY: 'auto', background: 'var(--bg-secondary)', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)' }}>
-                      {materialsList.map((m, index) => (
+                      {materialsList.map((m: RQMaterial, index: number) => (
                         <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <span>{m.name} ({m.quantity} {m.unit})</span>
                           <button 

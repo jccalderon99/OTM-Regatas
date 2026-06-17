@@ -115,7 +115,7 @@ export default function GanttChart() {
 
       // Type mapping
       let typeLabel: GanttItem['type'] = 'Correctivo';
-      if (o.maintenance_type === 'preventive') typeLabel = 'Preventivo';
+      if ((o.maintenance_type as any) === 'preventive') typeLabel = 'Preventivo';
       else if (o.maintenance_type === 'support') typeLabel = 'Soporte';
       else if (o.maintenance_type === 'emergency') typeLabel = 'Emergencia';
 
