@@ -191,13 +191,16 @@ function EditableObservationItem({
 
   return (
     <div style={{ 
-      padding: '10px 12px', 
-      background: 'rgba(255, 255, 255, 0.02)', 
-      border: '1px solid var(--border)', 
-      borderRadius: '8px',
+      padding: '12px 14px', 
+      background: 'rgba(255, 255, 255, 0.45)', 
+      backdropFilter: 'blur(8px)',
+      border: '1px solid rgba(255, 255, 255, 0.5)',
+      borderRadius: '12px',
+      boxShadow: 'var(--shadow-sm)',
       display: 'flex', 
       flexDirection: 'column', 
-      gap: 6 
+      gap: 8,
+      transition: 'all 0.2s'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <input 
@@ -205,29 +208,35 @@ function EditableObservationItem({
           value={date}
           onChange={(e) => handleDateChange(e.target.value)}
           style={{ 
-            fontSize: '0.7rem', 
-            padding: '2px 4px', 
+            fontSize: '0.72rem', 
+            padding: '4px 8px', 
             width: '145px', 
-            background: 'rgba(0,0,0,0.2)', 
+            background: '#ffffff', 
             border: '1px solid var(--border)', 
             color: 'var(--text-secondary)',
-            borderRadius: '4px',
-            height: '24px',
-            outline: 'none'
+            borderRadius: '6px',
+            height: '26px',
+            outline: 'none',
+            fontFamily: 'inherit',
+            fontWeight: 600
           }}
         />
         <button 
           type="button" 
           onClick={() => onDelete(observation.id)}
           style={{ 
-            color: '#fb7185', 
+            color: 'var(--accent-rose)', 
             background: 'transparent',
             border: 'none',
             fontSize: '0.7rem',
             cursor: 'pointer',
             padding: '2px 4px',
-            fontWeight: 600
+            fontWeight: 700,
+            opacity: 0.8,
+            transition: 'opacity 0.2s'
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
         >
           ✕ Eliminar
         </button>
@@ -235,18 +244,31 @@ function EditableObservationItem({
       <textarea 
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onBlur={handleTextBlur}
         placeholder="Comentario de la observación..."
         style={{ 
-          fontSize: '0.75rem', 
-          minHeight: '40px', 
-          padding: '6px 8px', 
-          background: 'rgba(0,0,0,0.1)', 
+          fontSize: '0.78rem', 
+          minHeight: '44px', 
+          padding: '6px 10px', 
+          background: 'rgba(255, 255, 255, 0.7)', 
           border: '1px solid var(--border)', 
-          borderRadius: '4px',
+          borderRadius: '6px',
           color: 'var(--text-primary)',
           resize: 'vertical',
-          outline: 'none'
+          outline: 'none',
+          fontFamily: 'inherit',
+          lineHeight: 1.4,
+          transition: 'all 0.2s'
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'var(--accent-blue)';
+          e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-blue-glow)';
+          e.currentTarget.style.background = '#ffffff';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.boxShadow = 'none';
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.7)';
+          handleTextBlur();
         }}
       />
     </div>
@@ -920,43 +942,83 @@ export default function RQLog({ onNavigate }: RQLogProps) {
                 </div>
 
                 {/* Add New Observation form */}
-                <div style={{ background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border)', padding: 12, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <h5 style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    ➕ Nueva Observación
-                  </h5>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Fecha y Hora:</label>
-                    <input 
-                      type="datetime-local"
-                      className="form-input"
-                      value={newObsDate}
-                      onChange={e => setNewObsDate(e.target.value)}
-                      style={{ fontSize: '0.75rem', padding: '4px 8px', height: '32px' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Comentario:</label>
-                    <textarea
-                      className="form-textarea"
-                      value={newObsText}
-                      onChange={e => setNewObsText(e.target.value)}
-                      placeholder="Escriba un nuevo comentario..."
-                      style={{ fontSize: '0.75rem', minHeight: '50px', padding: '6px 8px' }}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleAddObservation}
-                    disabled={!newObsText.trim()}
-                    style={{ fontSize: '0.75rem', fontWeight: 600, padding: '6px 12px', alignSelf: 'flex-end' }}
-                  >
-                    Agregar Observación
-                  </button>
-                </div>
+                 <div style={{ 
+                   background: 'linear-gradient(135deg, rgba(78, 181, 230, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)', 
+                   border: '1px solid rgba(78, 181, 230, 0.15)', 
+                   padding: 16, 
+                   borderRadius: 12, 
+                   display: 'flex', 
+                   flexDirection: 'column', 
+                   gap: 12,
+                   boxShadow: 'var(--shadow-sm)'
+                 }}>
+                   <h5 style={{ margin: 0, fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                     ➕ Nueva Observación
+                   </h5>
+                   
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                     <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)' }}>Fecha y Hora:</label>
+                     <input 
+                       type="datetime-local"
+                       className="form-input"
+                       value={newObsDate}
+                       onChange={e => setNewObsDate(e.target.value)}
+                       style={{ 
+                         fontSize: '0.78rem', 
+                         padding: '6px 10px', 
+                         height: '34px',
+                         fontFamily: 'inherit',
+                         borderRadius: '8px',
+                         background: '#ffffff',
+                         border: '1px solid var(--border)'
+                       }}
+                     />
+                   </div>
+ 
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                     <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)' }}>Comentario:</label>
+                     <textarea
+                       className="form-textarea"
+                       value={newObsText}
+                       onChange={e => setNewObsText(e.target.value)}
+                       placeholder="Escriba un nuevo comentario..."
+                       style={{ 
+                         fontSize: '0.78rem', 
+                         minHeight: '54px', 
+                         padding: '8px 12px',
+                         fontFamily: 'inherit',
+                         borderRadius: '8px',
+                         background: '#ffffff',
+                         border: '1px solid var(--border)',
+                         resize: 'vertical',
+                         lineHeight: 1.4
+                       }}
+                     />
+                   </div>
+ 
+                   <button
+                     type="button"
+                     className="btn btn-primary btn-sm"
+                     onClick={handleAddObservation}
+                     disabled={!newObsText.trim()}
+                     style={{ 
+                       fontSize: '0.75rem', 
+                       fontWeight: 700, 
+                       padding: '8px 16px', 
+                       alignSelf: 'flex-end',
+                       borderRadius: '8px',
+                       opacity: !newObsText.trim() ? 0.5 : 1,
+                       cursor: !newObsText.trim() ? 'not-allowed' : 'pointer',
+                       background: 'var(--accent-blue)',
+                       color: '#ffffff',
+                       border: 'none',
+                       boxShadow: !newObsText.trim() ? 'none' : '0 2px 6px rgba(78, 181, 230, 0.3)',
+                       transition: 'all 0.2s'
+                     }}
+                   >
+                     Agregar Observación
+                   </button>
+                 </div>
               </div>
 
               {/* Status Dates Timeline */}

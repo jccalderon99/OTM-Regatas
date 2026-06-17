@@ -251,7 +251,7 @@ export function RQProvider({ children }: { children: ReactNode }) {
       
       let updatedStatus = r.status;
       let updatedDates = { ...r.status_dates };
-      let updatedObservations = r.observations ? [...r.observations] : [];
+      let updatedObservations = fields.observations !== undefined ? [...fields.observations] : (r.observations ? [...r.observations] : []);
 
       // Auto-transition to in_logistics if sap_number is set
       if (fields.sap_number !== undefined && fields.sap_number !== null) {
