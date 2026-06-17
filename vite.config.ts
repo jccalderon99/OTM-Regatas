@@ -9,6 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         navigateFallbackDenylist: [/^\/reports/],
+        maximumFileSizeToCacheInBytes: 5000000, // 5MB limit
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {

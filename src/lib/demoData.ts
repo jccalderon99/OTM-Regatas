@@ -77,25 +77,27 @@ const rawUsersData = [
   { em: 'jbernuy@clubregatas.org.pe', nm: 'Joan Bernuy', cg: 'Encargado de Concesiones', ar: '10. CONCESIONES', jnm: 'Joan Bernuy', jcg: 'Encargado de Concesiones', jem: 'jbernuy@clubregatas.org.pe' }
 ];
 
-const generalUsers: Profile[] = rawUsersData.map((d, i) => {
-  const isJefatura = d.nm === d.jnm;
-  
-  return {
-    id: `usr-${i + 1}`,
-    full_name: d.nm,
-    email: d.em,
-    role: isJefatura ? 'jefatura' : 'requester',
-    area_sector: d.ar,
-    position: d.cg,
-    jefatura_name: d.jnm,
-    jefatura_position: d.jcg,
-    jefatura_email: d.jem,
-    phone: null,
-    avatar_url: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-});
+const generalUsers: Profile[] = rawUsersData
+  .filter(d => d.em !== 'cpulache@clubregatas.org.pe')
+  .map((d, i) => {
+    const isJefatura = d.nm === d.jnm;
+    
+    return {
+      id: `usr-${i + 1}`,
+      full_name: d.nm,
+      email: d.em,
+      role: isJefatura ? 'jefatura' : 'requester',
+      area_sector: d.ar,
+      position: d.cg,
+      jefatura_name: d.jnm,
+      jefatura_position: d.jcg,
+      jefatura_email: d.jem,
+      phone: null,
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  });
 
 export let DEMO_USERS: Profile[] = [
   {
@@ -105,6 +107,21 @@ export let DEMO_USERS: Profile[] = [
     role: 'admin',
     area_sector: '22. MANTENIMIENTO',
     position: 'Apoyo de Mantenimiento / Administrador',
+    jefatura_name: 'Marco Alvarez',
+    jefatura_position: 'Coordinador de Mantenimiento',
+    jefatura_email: 'malvarez@clubregatas.org.pe',
+    phone: '999000000',
+    avatar_url: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'admin-2',
+    full_name: 'Claudia Pulache',
+    email: 'cpulache@clubregatas.org.pe',
+    role: 'admin',
+    area_sector: '22. MANTENIMIENTO',
+    position: 'Asistente Mantenimiento / Administradora',
     jefatura_name: 'Marco Alvarez',
     jefatura_position: 'Coordinador de Mantenimiento',
     jefatura_email: 'malvarez@clubregatas.org.pe',

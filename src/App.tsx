@@ -20,6 +20,11 @@ import Reports from './pages/Reports';
 import NewOTI from './pages/supervisor/NewOTI';
 import GanttChart from './pages/supervisor/GanttChart';
 import LiveDashboardViewer from './pages/LiveDashboardViewer';
+import PreventiveMaintenancePlan from './pages/admin/PreventiveMaintenancePlan';
+import BudgetDashboard from './pages/admin/BudgetDashboard';
+import { RQProvider } from './context/RQContext';
+import RQLog from './pages/admin/RQLog';
+
 
 function AppContent() {
   useRealtimeOTM();
@@ -38,7 +43,7 @@ function AppContent() {
       case 'requester': return <MyDashboard />;
       case 'supervisor': return <LiveDashboardViewer />;
       case 'technician': return <MyTasks />;
-      case 'jefatura': return <LiveDashboardViewer />;
+      case 'jefatura': return <MyDashboard />;
       case 'admin': return <LiveDashboardViewer />;
     }
   };
@@ -48,7 +53,7 @@ function AppContent() {
       case 'dashboard': return defaultView();
       case 'new-otm': return <NewOTM onCreated={() => setCurrentView('dashboard')} />;
       case 'new-oti': return <NewOTI onCreated={() => setCurrentView('dashboard')} />;
-      case 'management': return <OTMManagement />;
+      case 'management': return <OTMManagement onNavigate={setCurrentView} />;
       case 'my-tasks': return <MyTasks />;
       case 'users': return <UserManagement />;
       case 'calendar': return user.role === 'technician' ? <TechnicianCalendar onNavigate={setCurrentView} /> : <SupervisorCalendar onNavigate={setCurrentView} />;
@@ -56,6 +61,9 @@ function AppContent() {
       case 'routine-register': return <RoutineRegister />;
       case 'reports': return <Reports />;
       case 'gantt': return user.role === 'technician' ? defaultView() : <GanttChart />;
+      case 'preventive-plan': return <PreventiveMaintenancePlan />;
+      case 'budget': return <BudgetDashboard />;
+      case 'rq-log': return <RQLog onNavigate={setCurrentView} />;
       default: return defaultView();
     }
   };
@@ -75,9 +83,11 @@ export default function App() {
   return (
     <AuthProvider>
       <OTMProvider>
-        <RoutineActivityProvider>
-          <AppContent />
-        </RoutineActivityProvider>
+        <RQProvider>
+          <RoutineActivityProvider>
+            <AppContent />
+          </RoutineActivityProvider>
+        </RQProvider>
       </OTMProvider>
     </AuthProvider>
   );

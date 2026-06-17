@@ -289,9 +289,9 @@ export default function ReportModal({
       pending: { label: 'Pendiente', color: '#ea580c' },
       scheduled: { label: 'Programado', color: '#0284c7' },
       in_progress: { label: 'En Proceso', color: '#9333ea' },
-      rq: { label: 'Requerimiento', color: '#e11d48' },
+      rq: { label: 'Con requerimiento', color: '#e11d48' },
       awaiting_supervisor: { label: 'Espera Sup.', color: '#475569' },
-      awaiting_conformity: { label: 'Espera Conf.', color: '#16a34a' },
+      awaiting_conformity: { label: 'Para conformidad', color: '#16a34a' },
       closed: { label: 'Cerrado', color: '#16a34a' },
       cancelled: { label: 'Cancelado', color: '#475569' }
     };
@@ -609,7 +609,7 @@ export default function ReportModal({
                     { label: 'En Cola', count: otms.filter(o => o.status === 'pending').length, color: '#ea580c' },
                     { label: 'Programadas', count: otms.filter(o => o.status === 'scheduled').length, color: '#0284c7' },
                     { label: 'En Proceso', count: otms.filter(o => o.status === 'in_progress').length, color: '#9333ea' },
-                    { label: 'Requerimientos (RQ)', count: otms.filter(o => o.status === 'rq').length, color: '#e11d48' },
+                    { label: 'Con requerimiento', count: otms.filter(o => o.status === 'rq').length, color: '#e11d48' },
                   ].map((p, idx) => (
                     <div key={idx} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -650,7 +650,7 @@ export default function Reports() {
               estado = 'Programado';
             }
 
-            // Check if there is a helper column or status string for RQ or Por Revisar
+            // Check if there is a helper column or status string for RQ or En evaluación
             let hasRQ = false;
             if (colConRQ !== -1) {
               const val = getVal(colConRQ).toLowerCase();
@@ -679,7 +679,7 @@ export default function Reports() {
             if (hasRQ) {
               programadoStatus = 'RQ';
             } else if (hasPorRevisar) {
-              programadoStatus = 'Por revisar';
+              programadoStatus = 'En evaluación';
             } else if (programadoStatus.toLowerCase().includes('program')) {
               programadoStatus = 'Programado';
             }
@@ -714,7 +714,7 @@ export default function Reports() {
             if (hasRQ) {
               riesgo = '⚠️ Requiere Suministro';
             } else if (hasPorRevisar) {
-              riesgo = '🔍 Por revisar';
+              riesgo = '🔍 En evaluación';
             } else if (prio === 'Emergencia') {
               riesgo = '🚨 Emergencia';
             } else if (prio === 'Alto' && estado !== 'Finalizado') {

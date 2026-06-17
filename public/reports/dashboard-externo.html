@@ -1493,7 +1493,7 @@
                 </div>
                 <div class="kpi-card" style="padding: 16px; border-color: rgba(52,211,153,0.5);">
                     <div class="kpi-icon" style="top:10px;right:10px;font-size:20px;">🔍</div>
-                    <div class="kpi-label" style="font-size:10px;">Por Revisar</div>
+                    <div class="kpi-label" style="font-size:10px;">En evaluación</div>
                     <div class="kpi-value" style="color: var(--accent-green); font-size: 26px;" id="kpiPendingPorRevisar">0</div>
                 </div>
 
@@ -1501,7 +1501,7 @@
 
             <div class="charts-grid" style="margin-bottom: 24px;">
                 <div class="chart-card">
-                    <h3><span>📦</span> Pendientes: Con RQ vs Por revisar</h3>
+                    <h3><span>📦</span> Pendientes: Con RQ vs En evaluación</h3>
                     <div class="chart-wrapper pie-chart" style="height: 320px;">
                         <canvas id="chartPendingReason"></canvas>
                     </div>
@@ -1521,10 +1521,10 @@
                 <button class="filter-btn" data-filter="bajo">🟢 Baja</button>
             </div>
 
-            <!-- Observations Board for "Por revisar" (Replaces the old squished priority table) -->
+            <!-- Observations Board for "En evaluación" (Replaces the old squished priority table) -->
             <div class="obs-board-card no-print">
                 <div class="obs-board-header">
-                    <h3><span>📋</span> Detalle de Observaciones (En "Por revisar")</h3>
+                    <h3><span>📋</span> Detalle de Observaciones (En "En evaluación")</h3>
                     <span class="badge badge-green" id="obsCount">0 observaciones</span>
                 </div>
                 
@@ -2158,7 +2158,7 @@ function renderOverviewTab(data) {
                 <p style="margin: 0 0 8px 0; font-weight: 700; color: #f8fafc; font-size: 13.5px;">🛒 Bloqueos: Logística vs Capacidad</p>
                 <ul style="margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 12.5px;">
                     <li style="margin-bottom: 6px;">El <strong>${pctRq}% (${rqPending} OTs)</strong> de la cola pendiente está detenido por adquisición de materiales (<strong>Con RQ</strong>).</li>
-                    <li style="margin-bottom: 6px;">El <strong>${pctPorRevisar}% (${porRevisarPending} OTs)</strong> restante no presenta bloqueos de suministros (<strong>Por revisar</strong>) y espera únicamente asignación de capacidad horaria técnica.</li>
+                    <li style="margin-bottom: 6px;">El <strong>${pctPorRevisar}% (${porRevisarPending} OTs)</strong> restante no presenta bloqueos de suministros (<strong>En evaluación</strong>) y espera únicamente asignación de capacidad horaria técnica.</li>
                 </ul>
             </div>
         </div>
@@ -3067,7 +3067,7 @@ function renderPendingTab(data) {
     safeCreateChart('chartPendingReason', {
         type: 'doughnut',
         data: {
-            labels: ['Con RQ', 'Por revisar'],
+            labels: ['Con RQ', 'En evaluación'],
             datasets: [{
                 data: [rqPending, porRevisarPending],
                 backgroundColor: [colors.orange, colors.burgundy],
@@ -3119,7 +3119,7 @@ function renderPendingTab(data) {
                     borderRadius: 4
                 },
                 {
-                    label: 'Por revisar',
+                    label: 'En evaluación',
                     data: sinRqData,
                     backgroundColor: 'rgba(192, 108, 132, 0.75)', // Soft Burgundy
                     borderRadius: 4
@@ -3153,7 +3153,7 @@ function renderPendingTab(data) {
         }
     });
 
-    // 3. Observations in 'Por revisar' by Specialty (Helpers & Data Store)
+    // 3. Observations in 'En evaluación' by Specialty (Helpers & Data Store)
     const porRevisarOTs = pendingOTs.filter(o => !(o.programadoStatus === 'RQ' || o.tipo === 'RQ' || (o.riesgo && o.riesgo.includes('Suministro'))));
     const hasRealObs = (o) => {
         if (!o.observaciones) return false;
@@ -3161,7 +3161,7 @@ function renderPendingTab(data) {
         return txt !== '' && txt !== '-' && txt !== 'ninguna' && txt !== 'sin observaciones' && txt !== 'no' && txt !== 'sin novedad';
     };
 
-    // 4. Render/Update Observations Board for 'Por revisar'
+    // 4. Render/Update Observations Board for 'En evaluación'
     window.porRevisarOTsRef = porRevisarOTs;
     
     // Maintain state across renders (active specialty filter & active search text)
@@ -4603,7 +4603,7 @@ function updateReportPreview() {
                         <div>
                             <span style="font-weight: 700; color: #1e293b;">⏱️ MTTR y Albañilería:</span> Albañilería presenta el mayor MTTR con <strong>${albanileriaMttrHours.toFixed(2)} horas</strong> promedio. Con <strong>${albanileriaPending} OTs pendientes</strong>, requiere aproximadamente <strong>${albanileriaWorkloadHours.toFixed(1)} horas-hombre</strong> de dedicación exclusiva para resolver su backlog.
                             <br><br>
-                            <span style="font-weight: 700; color: #1e293b;">🛒 Bloqueo Logístico vs Capacidad:</span> El <strong>${pctRq}% (${rqPending} OTs)</strong> está bloqueado por materiales (Con RQ). El <strong>${pctPorRevisar}% (${porRevisarPending} OTs)</strong> restante está bloqueado únicamente por capacidad técnica de mano de obra (Por revisar).
+                            <span style="font-weight: 700; color: #1e293b;">🛒 Bloqueo Logístico vs Capacidad:</span> El <strong>${pctRq}% (${rqPending} OTs)</strong> está bloqueado por materiales (Con RQ). El <strong>${pctPorRevisar}% (${porRevisarPending} OTs)</strong> restante está bloqueado únicamente por capacidad técnica de mano de obra (En evaluación).
                         </div>
                     </div>
                 </div>
@@ -4989,7 +4989,7 @@ function renderReportCharts(filteredData, activeSections) {
         safeCreateReportChart('chartReportPendingReason', {
             type: 'doughnut',
             data: {
-                labels: ['Con RQ', 'Por revisar'],
+                labels: ['Con RQ', 'En evaluación'],
                 datasets: [{
                     data: [rqPending, porRevisarPending],
                     backgroundColor: [printColors.orange, printColors.burgundy],
@@ -5028,7 +5028,7 @@ function renderReportCharts(filteredData, activeSections) {
                         borderRadius: 3
                     },
                     {
-                        label: 'Por revisar',
+                        label: 'En evaluación',
                         data: sinRqData,
                         backgroundColor: 'rgba(192, 108, 132, 0.75)',
                         borderColor: printColors.burgundy,

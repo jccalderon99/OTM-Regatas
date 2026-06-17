@@ -3,14 +3,17 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
-import { OTMRequest, URGENCY_LABELS, OTMStatus } from '../../types';
+import { OTMRequest, URGENCY_LABELS, OTMStatus, LOCATIONS, RQ_STATUS_LABELS } from '../../types';
 import ConformityModal from '../../components/ConformityModal';
+import { useRQ } from '../../context/RQContext';
 
 export default function MyDashboard() {
   const { user } = useAuth();
   const { getOTMsForCurrentUser, users: allUsers } = useOTM();
+  const { getRQByOtmId } = useRQ();
   const [selectedOTM, setSelectedOTM] = useState<OTMRequest | null>(null);
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
+  const [locationFilter, setLocationFilter] = useState<string>('');
   const [scopeFilter, setScopeFilter] = useState<'mine' | 'area'>(user?.role === 'jefatura' ? 'area' : 'mine');
   const [dateRange, setDateRange] = useState<'week' | 'month' | '3months' | '6months' | 'year'>('month');
   const [selectedUser, setSelectedUser] = useState<string>('');
@@ -36,10 +39,18 @@ export default function MyDashboard() {
       const matchStatus = !statusFilter || o.status === statusFilter;
       const matchScope = scopeFilter === 'area' ? true : o.requester_id === user?.id;
       const matchUser = !selectedUser || o.requester_id === selectedUser;
+      const matchLocation = !locationFilter || o.location === locationFilter;
       const matchDate = new Date(o.created_at) >= dateLimit;
-      return matchStatus && matchScope && matchUser && matchDate;
+      return matchStatus && matchScope && matchUser && matchLocation && matchDate;
     });
-  }, [otms, statusFilter, scopeFilter, selectedUser, dateLimit, user]);
+  }, [otms, statusFilter, scopeFilter, selectedUser, locationFilter, dateLimit, user]);
+
+  const activeLocations = useMemo(() => {
+    const currentOtmLocations = new Set(otms.map(o => o.location).filter(Boolean) as string[]);
+    const orderedList = LOCATIONS.filter(loc => currentOtmLocations.has(loc));
+    const extraList = Array.from(currentOtmLocations).filter(loc => !LOCATIONS.includes(loc));
+    return [...orderedList, ...extraList];
+  }, [otms]);
 
   const areaPeople = useMemo(() => {
     return allUsers.filter(u => u.area_sector === user?.area_sector && u.role === 'requester');
@@ -114,8 +125,8 @@ export default function MyDashboard() {
           { label: 'Total', value: counts.total, color: vibrant.blue, icon: '📊' },
           { label: 'Pendientes', value: counts.pending, color: vibrant.yellow, icon: '⏳' },
           { label: 'En Curso', value: counts.active, color: vibrant.purple, icon: '⚙️' },
-          { label: 'Suministros (RQ)', value: counts.rq, color: vibrant.orange, icon: '📦' },
-          { label: 'Por Confirmar', value: counts.awaiting, color: vibrant.green, icon: '✅' },
+          { label: 'Con requerimiento', value: counts.rq, color: vibrant.orange, icon: '📦' },
+          { label: 'Para conformidad', value: counts.awaiting, color: vibrant.green, icon: '✅' },
         ].map((c, i) => (
           <div key={i} className="kpi-card" style={{
             '--kpi-color': c.color,
@@ -227,6 +238,14 @@ export default function MyDashboard() {
                 </select>
               </div>
 
+              <div className="form-group" style={{ minWidth: 160 }}>
+                <label className="form-label" style={{ fontSize: '0.75rem' }}>Área (Filtro)</label>
+                <select className="form-select" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}>
+                  <option value="">Todas las áreas</option>
+                  {activeLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                </select>
+              </div>
+
               {user?.role === 'jefatura' && (
                 <div className="form-group" style={{ minWidth: 180 }}>
                   <label className="form-label" style={{ fontSize: '0.75rem' }}>Personal del Área</label>
@@ -242,11 +261,11 @@ export default function MyDashboard() {
                 <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
                   <option value="">Todos los estados</option>
                   <option value="pending">Pendiente</option>
-                  <option value="rq">Requerimiento (RQ)</option>
+                  <option value="rq">Con requerimiento</option>
                   <option value="scheduled">Programado</option>
                   <option value="in_progress">En Progreso</option>
                   <option value="awaiting_supervisor">Finalizado - Visto Bueno</option>
-                  <option value="awaiting_conformity">Esperando Conformidad</option>
+                  <option value="awaiting_conformity">Para conformidad</option>
                   <option value="closed">Cerrado</option>
                 </select>
               </div>
@@ -300,93 +319,184 @@ export default function MyDashboard() {
                   {/* Expanded Details */}
                   {selectedOTM?.id === otm.id && (
                     <div className="slide-up" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>{otm.description}</p>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        Área: {otm.area_sector} | Solicitante: {otm.requester_name}<br />
-                        📍 {otm.location || 'Sede Principal'} — {otm.exact_location}
+                      
+                      {/* 2. Ubicación */}
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>📍</span>
+                        <span>{otm.location || 'Sede Principal'} — {otm.exact_location || 'Ubicación exacta no especificada'}</span>
                       </div>
 
-                      {/* Images */}
-                      {otm.attachments && otm.attachments.length > 0 && (
-                        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          {otm.attachments.map(att => (
-                            <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                              <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Adjunto" />
-                            </a>
-                          ))}
+                      {/* 3. Área / Solicitante */}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                        <strong>Área:</strong> {otm.area_sector} &nbsp;/&nbsp; <strong>Solicitante:</strong> {otm.requester_name}
+                      </div>
+
+                      {/* 4. Descripción */}
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.4 }}>
+                        <strong>Descripción:</strong> {otm.description}
+                      </div>
+
+                      {/* 5. Especialidad / Prioridad */}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12, display: 'flex', gap: 12 }}>
+                        <span><strong>Especialidad:</strong> {otm.failure_type}</span>
+                        <span>•</span>
+                        <span><strong>Prioridad:</strong> <span style={{ color: otm.urgency === 'high' ? 'var(--accent-rose)' : otm.urgency === 'medium' ? 'var(--accent-gold)' : 'var(--accent-emerald)', fontWeight: 700 }}>{URGENCY_LABELS[otm.urgency]}</span></span>
+                      </div>
+
+                      {/* 6. Imágenes Adjuntas */}
+                      {otm.attachments && otm.attachments.some(att => att.phase === 'request' || att.file_type === 'before_photo') && (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>Imágenes de la Solicitud</div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {otm.attachments.filter(att => att.phase === 'request' || att.file_type === 'before_photo').map(att => (
+                              <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                                <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Adjunto solicitud" />
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
 
-                      {/* RQ Progress */}
-                      {otm.rq_type && (
-                        <div style={{ marginTop: 12, padding: 12, background: 'rgba(99,102,241,0.08)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>
-                            📋 {otm.rq_type === 'supply' ? 'RQ SUMINISTRO' : 'RQ SERVICIO'}
-                            {otm.rq_date && <span style={{ float: 'right', fontWeight: 400, fontSize: '0.7rem' }}>📅 {new Date(otm.rq_date).toLocaleDateString('es')}</span>}
-                          </div>
-                          {otm.rq_type === 'supply' && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                              Material: {otm.rq_materials} — Cant: {otm.rq_quantities}
+                      {/* 7. Sección RQ (Requerimientos) */}
+                      {(() => {
+                        const linkedRQ = getRQByOtmId(otm.id);
+                        const hasRQ = linkedRQ || otm.rq_type;
+                        if (!hasRQ) return null;
+
+                        const rqType = linkedRQ ? linkedRQ.type : otm.rq_type;
+                        const rqStatus = linkedRQ ? linkedRQ.status : 'review';
+                        const rqStatusLabel = linkedRQ ? RQ_STATUS_LABELS[linkedRQ.status] : 'En Revisión';
+                        const rqNumber = linkedRQ ? linkedRQ.rq_number : null;
+                        const sapNumber = linkedRQ ? linkedRQ.sap_number : null;
+                        const dateString = linkedRQ ? new Date(linkedRQ.created_at).toLocaleDateString('es') : (otm.rq_date ? new Date(otm.rq_date).toLocaleDateString('es') : null);
+
+                        return (
+                          <div style={{ marginTop: 12, marginBottom: 16, padding: 12, background: 'rgba(124, 58, 237, 0.05)', border: '1px solid rgba(124, 58, 237, 0.15)', borderRadius: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-purple)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                📋 RQ {rqType === 'supply' ? 'SUMINISTRO' : 'SERVICIO'}
+                              </span>
+                              <span className={`badge`} style={{ 
+                                fontSize: '0.7rem', 
+                                fontWeight: 700, 
+                                padding: '2px 8px', 
+                                borderRadius: '4px',
+                                backgroundColor: rqStatus === 'attended' ? 'var(--accent-emerald-light)' : rqStatus === 'rejected' ? 'var(--accent-rose-light)' : 'var(--accent-gold-light)',
+                                color: rqStatus === 'attended' ? 'var(--accent-emerald)' : rqStatus === 'rejected' ? 'var(--accent-rose)' : 'var(--accent-gold)'
+                              }}>
+                                {rqStatusLabel}
+                              </span>
                             </div>
-                          )}
-                          {otm.rq_type === 'service' && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                              Servicio: {otm.rq_service_desc} — Magnitud: {otm.rq_magnitude === 'puntual' ? 'Puntual' : 'Integral'}
+
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {rqNumber && <div><strong>N° RQ:</strong> {rqNumber}</div>}
+                              {sapNumber && <div><strong>N° SAP / Solped:</strong> {sapNumber}</div>}
+                              {dateString && <div><strong>Fecha Solicitud:</strong> {dateString}</div>}
+                              
+                              {rqType === 'supply' ? (
+                                <div style={{ marginTop: 6, padding: '6px 8px', background: '#f8fafc', borderRadius: 4, border: '1px solid #e2e8f0' }}>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Materiales Solicitados:</div>
+                                  {linkedRQ?.materials && linkedRQ.materials.length > 0 ? (
+                                    <ul style={{ paddingLeft: 16, margin: 0, listStyleType: 'disc' }}>
+                                      {linkedRQ.materials.map((m, idx) => (
+                                        <li key={idx} style={{ fontSize: '0.75rem' }}>
+                                          {m.name} — {m.quantity} {m.unit}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <div style={{ fontSize: '0.75rem' }}>{otm.rq_materials || 'No especificados'} — {otm.rq_quantities || ''}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ marginTop: 6, padding: '6px 8px', background: '#f8fafc', borderRadius: 4, border: '1px solid #e2e8f0' }}>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Detalle del Servicio:</div>
+                                  <div style={{ fontSize: '0.75rem' }}>{linkedRQ ? linkedRQ.description : (otm.rq_service_desc || 'No especificado')}</div>
+                                  {otm.rq_magnitude && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 2 }}>Magnitud: {otm.rq_magnitude === 'puntual' ? 'Puntual' : 'Integral'}</div>}
+                                </div>
+                              )}
+                              
+                              {linkedRQ?.observations && (
+                                <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                  Obs: {linkedRQ.observations}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        );
+                      })()}
 
-                      {/* Assignment Progress */}
-                      {otm.assignment_type === 'own' && otm.technician_id && (
-                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(78,181,230,0.08)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)' }}>🔧 ASIGNADO</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                            Técnico: {allUsers.find(u => u.id === otm.technician_id)?.full_name || '—'}
-                            {otm.scheduled_date && ` — 📅 ${new Date(otm.scheduled_date).toLocaleDateString('es')}`}
+                      {/* 8. Sección Asignado */}
+                      {(() => {
+                        const hasRescheduled = otm.reschedule_history && otm.reschedule_history.length > 0;
+                        const originalDate = hasRescheduled ? otm.reschedule_history[0].scheduled_date : otm.scheduled_date;
+                        const originalTechName = hasRescheduled 
+                          ? otm.reschedule_history[0].technician_name 
+                          : (allUsers.find(u => u.id === otm.technician_id)?.full_name || 'Pendiente');
+
+                        const supervisorName = allUsers.find(u => u.id === otm.supervisor_id)?.full_name || 'Pendiente';
+
+                        if (otm.assignment_type === 'contractor') {
+                          return (
+                            <div style={{ marginTop: 8, marginBottom: 12, padding: 12, background: 'rgba(14, 165, 233, 0.05)', border: '1px solid rgba(14, 165, 233, 0.15)', borderRadius: 8 }}>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                                🏗️ Asignado a Contratista (Tercero)
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                <strong>Contratista:</strong> {otm.contractor_name || 'No especificado'}<br />
+                                <strong>Supervisor:</strong> {supervisorName}<br />
+                                {otm.contractor_date && <span>📅 <strong>Fecha Programada:</strong> {new Date(otm.contractor_date).toLocaleDateString('es')}</span>}
+                                {otm.contractor_detail && <p style={{ fontSize: '0.75rem', marginTop: 4, background: '#f8fafc', padding: 6, borderRadius: 4 }}><strong>Detalles:</strong> {otm.contractor_detail}</p>}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (otm.scheduled_date || hasRescheduled) {
+                          return (
+                            <div style={{ marginTop: 8, marginBottom: 12, padding: 12, background: 'rgba(14, 165, 233, 0.05)', border: '1px solid rgba(14, 165, 233, 0.15)', borderRadius: 8 }}>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                                🔧 Asignación Original
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                <strong>Supervisor:</strong> {supervisorName}<br />
+                                <strong>Técnico:</strong> {originalTechName}<br />
+                                {originalDate && <span>📅 <strong>Fecha Programada:</strong> {new Date(originalDate).toLocaleString('es')}</span>}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return null;
+                      })()}
+
+                      {/* 9. Sección Reprogramación */}
+                      {otm.reschedule_history && otm.reschedule_history.length > 0 && (
+                        <div style={{ marginTop: 8, marginBottom: 12, padding: 12, background: 'rgba(249, 115, 22, 0.05)', border: '1px dashed rgba(249, 115, 22, 0.3)', borderRadius: 8 }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-orange)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                            🔄 Solicitud Reprogramada
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <strong>Técnico Actual:</strong> {allUsers.find(u => u.id === otm.technician_id)?.full_name || 'Pendiente'}<br />
+                            <strong>Nueva Fecha:</strong> {otm.scheduled_date ? new Date(otm.scheduled_date).toLocaleString('es') : 'Pendiente'}<br />
+                            <div style={{ marginTop: 4, fontSize: '0.75rem', padding: 6, background: '#fdf8f6', borderRadius: 4, color: '#7c2d12' }}>
+                              <strong>Motivo de Reprogramación:</strong> {otm.reschedule_history[otm.reschedule_history.length - 1].reason}
+                            </div>
                           </div>
                         </div>
                       )}
 
-                      {otm.assignment_type === 'contractor' && (
-                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(78,181,230,0.08)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)' }}>🏗️ ASIGNADO (Tercero)</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                            Contrata: {otm.contractor_name}
-                            {otm.contractor_date && ` — 📅 ${new Date(otm.contractor_date).toLocaleDateString('es')}`}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Cancellation */}
-                      {otm.status === 'cancelled' && otm.cancellation_reason && (
-                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(225,29,72,0.08)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-rose)' }}>❌ CANCELADO</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                            Motivo: {otm.cancellation_reason === 'other' ? otm.cancellation_detail : 
-                              otm.cancellation_reason === 'not_maintenance' ? 'No pertenece a mantenimiento' :
-                              otm.cancellation_reason === 'wrong_request' ? 'Solicitud errónea' :
-                              otm.cancellation_reason === 'duplicate' ? 'Solicitud duplicada' : otm.cancellation_reason}
-                          </div>
-                        </div>
-                      )}
-
-                      {otm.supervisor_notes && (
-                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(139,92,246,0.08)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--accent-purple)', fontWeight: 600 }}>Notas del Supervisor</div>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>{otm.supervisor_notes}</p>
-                        </div>
-                      )}
+                      {/* 10. Notas del Técnico / Supervisor */}
                       {otm.technician_notes && (
-                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(16,185,129,0.08)', borderRadius: 8 }}>
+                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 8, marginBottom: 8 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 600 }}>Notas del Técnico</div>
-                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>{otm.technician_notes}</p>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Notas del Técnico</div>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{otm.technician_notes}</p>
                             </div>
-                            {otm.attachments && otm.attachments.some(a => a.phase === 'execution') && (
+                            {otm.attachments && otm.attachments.some(a => a.phase === 'execution' || a.file_type === 'after_photo') && (
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxWidth: 140, justifyContent: 'flex-end' }}>
-                                {otm.attachments.filter(a => a.phase === 'execution').map(att => (
+                                {otm.attachments.filter(a => a.phase === 'execution' || a.file_type === 'after_photo').map(att => (
                                   <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 44, height: 44, borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(16,185,129,0.2)' }}>
                                     <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Ejecución" />
                                   </a>
@@ -396,19 +506,41 @@ export default function MyDashboard() {
                           </div>
                         </div>
                       )}
+
+                      {otm.supervisor_notes && (
+                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 8, marginBottom: 12 }}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--accent-purple)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Notas del Supervisor</div>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{otm.supervisor_notes}</p>
+                        </div>
+                      )}
+
+                      {otm.status === 'cancelled' && otm.cancellation_reason && (
+                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(225,29,72,0.05)', border: '1px solid rgba(225,29,72,0.15)', borderRadius: 8, marginBottom: 12 }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-rose)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>❌ CANCELADO</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <strong>Motivo:</strong> {otm.cancellation_reason === 'other' ? otm.cancellation_detail : 
+                              otm.cancellation_reason === 'not_maintenance' ? 'No pertenece a mantenimiento' :
+                              otm.cancellation_reason === 'wrong_request' ? 'Solicitud errónea' :
+                              otm.cancellation_reason === 'duplicate' ? 'Solicitud duplicada' : otm.cancellation_reason}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 11. Conformidad */}
                       {otm.status === 'awaiting_conformity' && (
-                        <button className="btn btn-primary" style={{ marginTop: 16 }}
+                        <button className="btn btn-primary w-full" style={{ marginTop: 12 }}
                           onClick={e => { e.stopPropagation(); setShowConformity(otm); }}>
                           ✓ Dar Conformidad
                         </button>
                       )}
                       {otm.status === 'closed' && otm.conformity_rating && (
-                        <div style={{ marginTop: 12, padding: 12, background: 'rgba(100,116,139,0.08)', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Conformidad</div>
-                          <div style={{ marginTop: 4 }}>{'⭐'.repeat(otm.conformity_rating)}{'☆'.repeat(5 - otm.conformity_rating)}</div>
-                          {otm.conformity_notes && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>{otm.conformity_notes}</p>}
+                        <div style={{ marginTop: 8, padding: 12, background: 'rgba(100,116,139,0.05)', border: '1px solid rgba(100,116,139,0.15)', borderRadius: 8 }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Conformidad del Servicio</div>
+                          <div style={{ fontSize: '1rem', marginBottom: 4 }}>{'⭐'.repeat(otm.conformity_rating)}{'☆'.repeat(5 - otm.conformity_rating)}</div>
+                          {otm.conformity_notes && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontStyle: 'italic' }}>"{otm.conformity_notes}"</p>}
                         </div>
                       )}
+
                     </div>
                   )}
                 </div>

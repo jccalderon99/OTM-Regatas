@@ -172,7 +172,7 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
         {step === 2 && (
           <div className="priority-grid">
             {[
-              { key: 'low', label: 'Baja', icon: '🛠️', desc: 'Mantenimiento preventivo / leve' },
+              { key: 'low', label: 'Baja', icon: '🛠️', desc: 'Mantenimiento menor / rutinario' },
               { key: 'medium', label: 'Media', icon: '👷', desc: 'Requiere atención en el día' },
               { key: 'high', label: 'Alta', icon: '💥', desc: 'Urgente / Riesgo inminente' },
             ].map((p) => (

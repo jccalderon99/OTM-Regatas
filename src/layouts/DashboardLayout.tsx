@@ -27,6 +27,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'new-otm', label: 'Nueva Solicitud', icon: '➕', roles: ['requester', 'admin', 'jefatura'] },
       { id: 'new-oti', label: 'Generar OTI', icon: '📝', roles: ['supervisor', 'admin'] },
       { id: 'management', label: 'Gestión OTMs', icon: '📋', roles: ['supervisor', 'admin'] },
+      { id: 'rq-log', label: 'Bitácora RQ', icon: '📋', roles: ['supervisor', 'admin', 'jefatura'] },
     ]
   },
   {
@@ -45,6 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'calendar', label: 'Agenda de actividades', icon: '📅', roles: ['supervisor', 'admin', 'technician'] },
       { id: 'gantt', label: 'Diagrama Gantt', icon: '📊', roles: ['supervisor', 'admin'] },
+      { id: 'preventive-plan', label: 'Plan Preventivo', icon: '🛡️', roles: ['supervisor', 'admin'] },
     ]
   },
   {
@@ -53,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
     roles: ['supervisor', 'admin'],
     items: [
       { id: 'reports', label: 'Reportes', icon: '📈', roles: ['supervisor', 'admin'] },
+      { id: 'budget', label: 'Presupuesto', icon: '💰', roles: ['supervisor', 'admin'] },
     ]
   },
   {
@@ -82,7 +85,7 @@ interface Props {
 export default function DashboardLayout({ currentView, onNavigate, children }: Props) {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isEmbeddedDashboard = currentView === 'dashboard' && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'jefatura');
+  const isEmbeddedDashboard = currentView === 'dashboard' && (user.role === 'admin' || user.role === 'supervisor');
 
   if (!user) return null;
 

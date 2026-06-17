@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useOTM } from '../../context/OTMContext';
+import { useAuth } from '../../context/AuthContext';
+import { useRQ } from '../../context/RQContext';
 import StatusBadge from '../../components/StatusBadge';
-import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS } from '../../types';
+import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS, RQ_STATUS_LABELS } from '../../types';
 import ConformityActa from '../../components/ConformityActa';
 
 type ManageAction = 'none' | 'assign' | 'rq' | 'cancel';
 type AssignSubAction = 'none' | 'own' | 'contractor';
 type RQSubAction = 'none' | 'supply' | 'service';
 
-export default function OTMManagement() {
+interface OTMManagementProps {
+  onNavigate?: (view: string) => void;
+}
+
+export default function OTMManagement({ onNavigate }: OTMManagementProps) {
   const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs } = useOTM();
+  const { user } = useAuth();
+  const { createRQRecord, getRQByOtmId } = useRQ();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | ''>('');
   const [supervisorFilter, setSupervisorFilter] = useState<string>('');
@@ -64,6 +72,24 @@ export default function OTMManagement() {
   const [editTechStart, setEditTechStart] = useState('');
   const [editTechEnd, setEditTechEnd] = useState('');
 
+  // New multi-material RQ states
+  const [rqMaterialsList, setRqMaterialsList] = useState<{ name: string; unit: string; quantity: number }[]>([]);
+  const [currentMatName, setCurrentMatName] = useState('');
+  const [currentMatUnit, setCurrentMatUnit] = useState('Unidades');
+  const [currentMatQty, setCurrentMatQty] = useState(1);
+  const [rqNumberInput, setRqNumberInput] = useState('');
+
+  // Reschedule states
+  const [showRescheduleForm, setShowRescheduleForm] = useState(false);
+  const [rescheduleTech, setRescheduleTech] = useState('');
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+
+  // Contractor execution states
+  const [contractorStartDate, setContractorStartDate] = useState('');
+  const [contractorEndDate, setContractorEndDate] = useState('');
+  const [contractorWorkDesc, setContractorWorkDesc] = useState('');
+
   const technicians = users.filter(u => u.role === 'technician').sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   const urgencyOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -115,7 +141,29 @@ export default function OTMManagement() {
     setEditTechNotes(otm.technician_notes || '');
     setEditTechStart(otm.job_start_time ? new Date(otm.job_start_time).toISOString().slice(0, 16) : '');
     setEditTechEnd(otm.job_end_time ? new Date(otm.job_end_time).toISOString().slice(0, 16) : '');
+    
+    // Reset new states
+    setRqMaterialsList([]);
+    setRqNumberInput('');
+    setShowRescheduleForm(false);
+    setRescheduleTech('');
+    setRescheduleDate('');
+    setRescheduleReason('');
+    setContractorStartDate(otm.job_start_time ? new Date(otm.job_start_time).toISOString().slice(0, 16) : '');
+    setContractorEndDate(otm.job_end_time ? new Date(otm.job_end_time).toISOString().slice(0, 16) : '');
+    setContractorWorkDesc(otm.technician_notes || '');
   };
+
+  useEffect(() => {
+    const pendingOtmId = localStorage.getItem('selected_otm_id_for_management');
+    if (pendingOtmId) {
+      const targetOtm = otms.find(o => o.id === pendingOtmId);
+      if (targetOtm) {
+        openManage(targetOtm);
+      }
+      localStorage.removeItem('selected_otm_id_for_management');
+    }
+  }, [otms]);
 
   const handleAssignOwn = () => {
     if (!manageOTM || selectedTechs.length === 0 || !assignDate) return;
@@ -138,8 +186,114 @@ export default function OTMManagement() {
       createRQ(manageOTM.id, 'service', { serviceDesc: rqServiceDesc, magnitude: rqMagnitude });
     }
     setAction('none');
-    // Refresh the panel OTM
     setManageOTM(prev => prev ? { ...prev, rq_type: rqSub === 'supply' ? 'supply' : 'service', rq_materials: rqMaterials || null, rq_quantities: rqQuantities || null, rq_service_desc: rqServiceDesc || null, rq_magnitude: rqSub === 'service' ? rqMagnitude : null } : null);
+  };
+
+  const handleCreateRQGlobal = () => {
+    if (!manageOTM || !user) return;
+    
+    const descriptionText = rqSub === 'supply'
+      ? `RQ Suministro para OTM ${manageOTM.otm_code}`
+      : rqServiceDesc;
+      
+    const materialsData = rqSub === 'supply' ? rqMaterialsList : undefined;
+
+    createRQRecord({
+      otm_id: manageOTM.id,
+      otm_code: manageOTM.otm_code,
+      supervisor_id: user.id,
+      supervisor_name: user.full_name,
+      type: rqSub === 'supply' ? 'supply' : 'service',
+      description: descriptionText,
+      materials: materialsData,
+      rq_number: rqNumberInput || null,
+      sap_number: null,
+      observations: 'Requerimiento creado desde el panel de gestión.'
+    });
+
+    setAction('none');
+    setRQSub('none');
+    setRqMaterialsList([]);
+    setRqNumberInput('');
+    
+    const matsText = materialsData ? materialsData.map(m => m.name).join(', ') : '';
+    const qtysText = materialsData ? materialsData.map(m => `${m.quantity} ${m.unit}`).join(', ') : '';
+    
+    setManageOTM(prev => prev ? {
+      ...prev,
+      rq_type: rqSub === 'supply' ? 'supply' : 'service',
+      rq_date: new Date().toISOString(),
+      rq_materials: rqSub === 'supply' ? matsText : null,
+      rq_quantities: rqSub === 'supply' ? qtysText : null,
+      rq_service_desc: rqSub === 'service' ? rqServiceDesc : null,
+      status: 'rq'
+    } : null);
+  };
+
+  const handleReschedule = () => {
+    if (!manageOTM || !rescheduleTech || !rescheduleDate || !rescheduleReason.trim()) return;
+
+    const previousSchedule = {
+      id: `resched-${Date.now()}`,
+      technician_id: manageOTM.technician_id,
+      technician_name: users.find(u => u.id === manageOTM.technician_id)?.full_name || 'Desconocido',
+      scheduled_date: manageOTM.scheduled_date || '',
+      rescheduled_at: new Date().toISOString(),
+      reason: rescheduleReason.trim()
+    };
+
+    const newHistory = manageOTM.reschedule_history 
+      ? [...manageOTM.reschedule_history, previousSchedule] 
+      : [previousSchedule];
+
+    const primaryTechId = rescheduleTech;
+    const mappedAssigned = [{
+      technician_id: rescheduleTech,
+      technician: users.find(u => u.id === rescheduleTech)
+    }];
+
+    updateOTMFields(manageOTM.id, {
+      technician_id: primaryTechId,
+      assigned_technicians: mappedAssigned,
+      scheduled_date: rescheduleDate,
+      reschedule_history: newHistory,
+      is_rescheduled: true
+    });
+
+    setShowRescheduleForm(false);
+    setRescheduleReason('');
+    setRescheduleTech('');
+    setRescheduleDate('');
+
+    setManageOTM(prev => prev ? {
+      ...prev,
+      technician_id: primaryTechId,
+      assigned_technicians: mappedAssigned,
+      scheduled_date: rescheduleDate,
+      reschedule_history: newHistory,
+      is_rescheduled: true
+    } : null);
+  };
+
+  const handleContractorClose = () => {
+    if (!manageOTM || !contractorStartDate || !contractorEndDate || !contractorWorkDesc.trim()) return;
+
+    const s = new Date(contractorStartDate).toISOString();
+    const e = new Date(contractorEndDate).toISOString();
+
+    approveWork(manageOTM.id, contractorWorkDesc, s, e);
+
+    setContractorStartDate('');
+    setContractorEndDate('');
+    setContractorWorkDesc('');
+
+    setManageOTM(prev => prev ? {
+      ...prev,
+      status: 'awaiting_conformity',
+      job_start_time: s,
+      job_end_time: e,
+      technician_notes: contractorWorkDesc
+    } : null);
   };
 
   const handleCancel = () => {
@@ -349,499 +503,588 @@ export default function OTMManagement() {
               <button className="btn btn-icon btn-ghost" onClick={() => setManageOTM(null)}>✕</button>
             </div>
 
-            {/* OTM Info */}
-            <div className="glass-card" style={{ marginBottom: 20, padding: 16 }}>
-              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-blue)' }}>{manageOTM.otm_code}</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 6 }}>
-                Área: {manageOTM.area_sector} | Solicitante: {manageOTM.requester_name}
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                📍 {manageOTM.location || 'Sede Principal'} — {manageOTM.exact_location}
-              </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: 10 }}>{manageOTM.description}</p>
-              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <StatusBadge status={manageOTM.status} />
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  Prioridad: {URGENCY_LABELS[manageOTM.urgency]}
-                  <span style={{ fontSize: '1.2rem' }}>{urgencyIcons[manageOTM.urgency]}</span>
-                </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{manageOTM.failure_type}</span>
-              </div>
+            <div className="slide-panel-content" style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 60, overflowY: 'auto', maxHeight: 'calc(100vh - 80px)' }}>
               
-              {/* Images */}
-              {manageOTM.attachments && manageOTM.attachments.length > 0 && (
-                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {manageOTM.attachments.map(att => (
-                    <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                      <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Adjunto" />
-                    </a>
-                  ))}
+              {/* Fase 1: Información de la OTM */}
+              <div className="glass-card" style={{ padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>FASE 1: DETALLES SOLICITUD</span>
+                  <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-blue)' }}>{manageOTM.otm_code}</span>
                 </div>
-              )}
-            </div>
-
-            {/* Existing RQ info */}
-            {manageOTM.rq_type && (
-              <div style={{ marginBottom: 16, padding: 12, background: 'rgba(99,102,241,0.08)', borderRadius: 8 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>
-                  📋 {manageOTM.rq_type === 'supply' ? 'RQ SUMINISTRO' : 'RQ SERVICIO'}
-                  {manageOTM.rq_date && <span style={{ float: 'right', fontWeight: 400, fontSize: '0.7rem' }}>📅 {new Date(manageOTM.rq_date).toLocaleDateString('es')}</span>}
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <strong>Área:</strong> {manageOTM.area_sector} | <strong>Solicitante:</strong> {manageOTM.requester_name}
                 </div>
-                {manageOTM.rq_type === 'supply' && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                    Material: {manageOTM.rq_materials} — Cant: {manageOTM.rq_quantities}
-                  </div>
-                )}
-                {manageOTM.rq_type === 'service' && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                    Servicio: {manageOTM.rq_service_desc} — Magnitud: {manageOTM.rq_magnitude === 'puntual' ? 'Puntual' : 'Integral'}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Existing Assignment Info */}
-            {manageOTM.assignment_type === 'own' && (manageOTM.assigned_technicians?.length || manageOTM.technician_id) && (
-              <div style={{ marginBottom: 16, padding: 12, background: 'rgba(78,181,230,0.08)', borderRadius: 8 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)' }}>🔧 ASIGNADO (Personal Propio)</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                  Personal: {manageOTM.assigned_technicians && manageOTM.assigned_technicians.length > 0 
-                    ? manageOTM.assigned_technicians.map(t => t.technician?.full_name || users.find(u => u.id === t.technician_id)?.full_name).filter(Boolean).join(', ')
-                    : (users.find(u => u.id === manageOTM.technician_id)?.full_name || '—')}
-                  {manageOTM.scheduled_date && ` — 📅 ${new Date(manageOTM.scheduled_date).toLocaleDateString('es')}`}
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  📍 <strong>Ubicación:</strong> {manageOTM.location || 'Sede Principal'} — {manageOTM.exact_location}
                 </div>
-              </div>
-            )}
-            {manageOTM.assignment_type === 'contractor' && (
-              <div style={{ marginBottom: 16, padding: 12, background: 'rgba(78,181,230,0.08)', borderRadius: 8 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-blue)' }}>🏗️ ASIGNADO (Tercero)</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                  Contrata: {manageOTM.contractor_name}
-                  {manageOTM.contractor_date && ` — 📅 ${new Date(manageOTM.contractor_date).toLocaleDateString('es')}`}
-                </div>
-              </div>
-            )}
-
-            {/* Technician Work Data & Approval */}
-            {(manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'closed') && manageOTM.technician_notes && (
-              <div style={{ marginBottom: 16, padding: 16, background: 'rgba(16,185,129,0.08)', borderRadius: 8, border: '1px solid rgba(16,185,129,0.2)' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-emerald)', marginBottom: 12 }}>
-                  ✅ Trabajo Finalizado por Técnico
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: 10, background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 6, border: '1px solid var(--border)' }}>
+                  <strong>Descripción:</strong> {manageOTM.description}
+                </p>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <StatusBadge status={manageOTM.status} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    Prioridad: {URGENCY_LABELS[manageOTM.urgency]}
+                    <span style={{ fontSize: '1.2rem' }}>{urgencyIcons[manageOTM.urgency] || '🛠️'}</span>
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{manageOTM.failure_type}</span>
                 </div>
                 
-                {manageOTM.status === 'awaiting_supervisor' ? (
-                  <div className="flex-col gap-3">
-                    <div className="grid-2">
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Inicio Trabajo</label>
-                        <input className="form-input" type="datetime-local" style={{ fontSize: '0.8rem', padding: '6px 10px' }} value={editTechStart} onChange={e => setEditTechStart(e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Fin Trabajo</label>
-                        <input className="form-input" type="datetime-local" style={{ fontSize: '0.8rem', padding: '6px 10px' }} value={editTechEnd} onChange={e => setEditTechEnd(e.target.value)} />
-                      </div>
-                    </div>
-                    
-                    {editTechStart && editTechEnd && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Tiempo total: {Math.round((new Date(editTechEnd).getTime() - new Date(editTechStart).getTime()) / 60000)} minutos
-                      </div>
-                    )}
-
-                    <div className="form-group">
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Comentario del Técnico (Editable)</label>
-                      <textarea className="form-textarea" style={{ fontSize: '0.8rem', minHeight: 60 }} value={editTechNotes} onChange={e => setEditTechNotes(e.target.value)} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-col gap-2">
-                    {manageOTM.job_start_time && manageOTM.job_end_time && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        🕒 {new Date(manageOTM.job_start_time).toLocaleString('es')} - {new Date(manageOTM.job_end_time).toLocaleString('es')} 
-                        <span style={{ marginLeft: 8, fontWeight: 600 }}>
-                          ({Math.round((new Date(manageOTM.job_end_time).getTime() - new Date(manageOTM.job_start_time).getTime()) / 60000)} min)
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', background: 'var(--bg-secondary)', padding: 10, borderRadius: 6 }}>
-                      {manageOTM.technician_notes}
-                    </div>
+                {/* Images */}
+                {manageOTM.attachments && manageOTM.attachments.some(a => a.phase === 'request' || a.file_type === 'before_photo') && (
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {manageOTM.attachments.filter(a => a.phase === 'request' || a.file_type === 'before_photo').map(att => (
+                      <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                        <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Adjunto" />
+                      </a>
+                    ))}
                   </div>
                 )}
+              </div>
 
-                {/* Performance Time Bar Chart */}
-                {manageOTM.estimated_time !== undefined && manageOTM.estimated_time !== null && (
-                  <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>📊 RENDIMIENTO DE TIEMPO</div>
+              {/* Fase 2: Requerimientos (RQ) */}
+              {(() => {
+                const linkedRQ = getRQByOtmId(manageOTM.id);
+                const hasRQ = linkedRQ || manageOTM.rq_type;
+                
+                return (
+                  <div className="glass-card" style={{ padding: 16, borderLeft: '3px solid var(--accent-purple)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>FASE 2: REQUERIMIENTOS (RQ)</div>
                     
-                    {/* Estimated Time Bar */}
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
-                        <span>Tiempo Estimado:</span>
-                        <span style={{ fontWeight: 700, color: '#38bdf8' }}>{manageOTM.estimated_time} min</span>
+                    {hasRQ ? (
+                      <div style={{ background: 'rgba(124, 58, 237, 0.05)', padding: 12, borderRadius: 8, border: '1px solid rgba(124, 58, 237, 0.15)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <strong style={{ fontSize: '0.8rem', color: 'var(--accent-purple)' }}>
+                            📋 RQ {linkedRQ ? (linkedRQ.type === 'supply' ? 'SUMINISTRO' : 'SERVICIO') : (manageOTM.rq_type === 'supply' ? 'SUMINISTRO' : 'SERVICIO')}
+                          </strong>
+                          {linkedRQ && (
+                            <span className="badge" style={{ 
+                              fontSize: '0.7rem', 
+                              padding: '2px 6px',
+                              backgroundColor: linkedRQ.status === 'attended' ? 'var(--accent-emerald-light)' : linkedRQ.status === 'rejected' ? 'var(--accent-rose-light)' : 'var(--accent-gold-light)',
+                              color: linkedRQ.status === 'attended' ? 'var(--accent-emerald)' : linkedRQ.status === 'rejected' ? 'var(--accent-rose)' : 'var(--accent-gold)'
+                            }}>
+                              {RQ_STATUS_LABELS[linkedRQ.status]}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {linkedRQ ? (
+                            linkedRQ.type === 'supply' ? (
+                              <ul style={{ margin: 0, paddingLeft: 14 }}>
+                                {linkedRQ.materials?.map((m, i) => (
+                                  <li key={i}>{m.name} — {m.quantity} {m.unit}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div>{linkedRQ.description}</div>
+                            )
+                          ) : (
+                            manageOTM.rq_type === 'supply' ? (
+                              <div>{manageOTM.rq_materials} — {manageOTM.rq_quantities}</div>
+                            ) : (
+                              <div>{manageOTM.rq_service_desc}</div>
+                            )
+                          )}
+                          {linkedRQ ? (
+                            <>
+                              {linkedRQ.rq_number && <div style={{ marginTop: 6 }}><strong>N° RQ:</strong> {linkedRQ.rq_number}</div>}
+                              {linkedRQ.sap_number && <div style={{ marginTop: 4 }}><strong>N° SAP:</strong> {linkedRQ.sap_number}</div>}
+                            </>
+                          ) : (
+                            <>
+                              {manageOTM.rq_number && <div style={{ marginTop: 6 }}><strong>N° RQ:</strong> {manageOTM.rq_number}</div>}
+                              {manageOTM.sap_number && <div style={{ marginTop: 4 }}><strong>N° SAP:</strong> {manageOTM.sap_number}</div>}
+                            </>
+                          )}
+                        </div>
+                        {onNavigate && linkedRQ && (
+                          <button 
+                            className="btn btn-secondary w-full" 
+                            style={{ marginTop: 10, fontSize: '0.75rem', color: 'var(--accent-purple)', borderColor: 'rgba(124,58,237,0.2)' }}
+                            onClick={() => {
+                              setManageOTM(null);
+                              localStorage.setItem('selected_rq_id_for_log', linkedRQ.id);
+                              onNavigate('rq-log');
+                            }}
+                          >
+                            🔗 Ir a Bitácora RQ
+                          </button>
+                        )}
                       </div>
-                      <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #38bdf8, #0ea5e9)', borderRadius: 4 }}></div>
-                      </div>
-                    </div>
+                    ) : (
+                      <div>
+                        {action !== 'rq' ? (
+                          <button className="btn btn-secondary w-full" style={{ borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)', fontSize: '0.8rem' }} onClick={() => { setAction('rq'); setRQSub('supply'); }}>
+                            + Registrar Requerimiento (RQ)
+                          </button>
+                        ) : (
+                          <div className="slide-up" style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                              <button className={`btn btn-sm ${rqSub === 'supply' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setRQSub('supply')}>Suministro</button>
+                              <button className={`btn btn-sm ${rqSub === 'service' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setRQSub('service')}>Servicio</button>
+                            </div>
 
-                    {/* Real Time Bar */}
-                    <div>
-                      {(() => {
-                        const est = manageOTM.estimated_time || 0;
-                        const real = manageOTM.net_execution_time !== null && manageOTM.net_execution_time !== undefined 
-                          ? manageOTM.net_execution_time 
-                          : (manageOTM.job_start_time && manageOTM.job_end_time 
-                              ? Math.round((new Date(manageOTM.job_end_time).getTime() - new Date(manageOTM.job_start_time).getTime()) / 60000)
-                              : 0);
-                        const percent = est > 0 ? Math.min(100, (real / est) * 100) : 100;
-                        
-                        const isOver = real > est;
-                        const barColor = isOver ? '#ef4444' : '#10b981';
-                        const labelText = isOver ? 'Tiempo Neto Real (Excedido):' : 'Tiempo Neto Real (Eficiente):';
-                        
-                        return (
-                          <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: 4 }}>
-                              <span>{labelText}</span>
-                              <span style={{ fontWeight: 700, color: barColor }}>{real} min</span>
-                            </div>
-                            <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
-                              <div style={{ width: `${percent}%`, height: '100%', background: `linear-gradient(90deg, ${barColor}, ${barColor}cc)`, borderRadius: 4, transition: 'width 0.8s ease' }}></div>
-                            </div>
-                            {isOver && (
-                              <div style={{ fontSize: '0.65rem', color: '#ef4444', marginTop: 5, fontWeight: 500 }}>
-                                ⚠️ Exceso de {real - est} minutos sobre la estimación.
+                            {rqSub === 'supply' && (
+                              <div className="flex-col gap-3">
+                                <div style={{ background: 'rgba(0,0,0,0.1)', padding: 10, borderRadius: 6 }}>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>Añadir Materiales:</div>
+                                  <div className="form-group">
+                                    <label className="form-label" style={{ fontSize: '0.7rem' }}>Nombre del Material</label>
+                                    <input className="form-input" style={{ fontSize: '0.75rem' }} value={currentMatName} onChange={e => setCurrentMatName(e.target.value)} placeholder="Ej: Tubería PVC 1/2" />
+                                  </div>
+                                  <div className="grid-2" style={{ marginTop: 6 }}>
+                                    <div className="form-group">
+                                      <label className="form-label" style={{ fontSize: '0.7rem' }}>Unidad Medida</label>
+                                      <select className="form-select" style={{ fontSize: '0.75rem', padding: '4px 6px' }} value={currentMatUnit} onChange={e => setCurrentMatUnit(e.target.value)}>
+                                        <option value="Unidades">Unidades</option>
+                                        <option value="Metros">Metros</option>
+                                        <option value="Kilogramos">Kilogramos</option>
+                                        <option value="Galones">Galones</option>
+                                        <option value="Rollos">Rollos</option>
+                                        <option value="Bolsas">Bolsas</option>
+                                        <option value="Otros">Otros</option>
+                                      </select>
+                                    </div>
+                                    <div className="form-group">
+                                      <label className="form-label" style={{ fontSize: '0.7rem' }}>Cantidad</label>
+                                      <input className="form-input" style={{ fontSize: '0.75rem' }} type="number" min="1" value={currentMatQty} onChange={e => setCurrentMatQty(parseInt(e.target.value, 10) || 1)} />
+                                    </div>
+                                  </div>
+                                  <button className="btn btn-secondary btn-sm w-full" style={{ marginTop: 8, fontSize: '0.75rem' }} onClick={() => {
+                                    if (currentMatName.trim()) {
+                                      setRqMaterialsList(prev => [...prev, { name: currentMatName.trim(), unit: currentMatUnit, quantity: currentMatQty }]);
+                                      setCurrentMatName('');
+                                      setCurrentMatQty(1);
+                                    }
+                                  }}>
+                                    + Añadir a la lista
+                                  </button>
+                                </div>
+
+                                {rqMaterialsList.length > 0 && (
+                                  <div style={{ maxHeight: 120, overflowY: 'auto', background: 'var(--bg-secondary)', padding: 8, borderRadius: 6, border: '1px solid var(--border)' }}>
+                                    {rqMaterialsList.map((m, idx) => (
+                                      <div key={idx} className="flex justify-between items-center" style={{ fontSize: '0.75rem', borderBottom: '1px solid var(--border)', padding: '4px 0' }}>
+                                        <span>{m.name} ({m.quantity} {m.unit})</span>
+                                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--accent-rose)', padding: '2px 4px', fontSize: '0.7rem' }} onClick={() => setRqMaterialsList(prev => prev.filter((_, i) => i !== idx))}>Quitar</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="form-group">
+                                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Número de RQ (Opcional)</label>
+                                  <input className="form-input" style={{ fontSize: '0.75rem' }} placeholder="Ej: RQ-10042" value={rqNumberInput} onChange={e => setRqNumberInput(e.target.value)} />
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <button className="btn btn-secondary btn-sm" onClick={() => setAction('none')}>Cancelar</button>
+                                  <button className="btn btn-primary btn-sm" onClick={handleCreateRQGlobal} disabled={rqMaterialsList.length === 0}>✓ Registrar RQ</button>
+                                </div>
                               </div>
                             )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
 
-                {manageOTM.attachments && manageOTM.attachments.filter(a => a.phase === 'execution').length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Fotos de ejecución:</div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {manageOTM.attachments.filter(a => a.phase === 'execution').map(att => (
-                        <a key={att.id} href={att.file_url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                          <img src={att.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Adjunto" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                            {rqSub === 'service' && (
+                              <div className="flex-col gap-3">
+                                <div className="form-group">
+                                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Descripción del Servicio</label>
+                                  <textarea className="form-textarea" style={{ fontSize: '0.75rem', minHeight: 60 }} placeholder="Escribe los detalles del servicio..." value={rqServiceDesc} onChange={e => setRQServiceDesc(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Magnitud</label>
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                    <button className={`btn btn-sm ${rqMagnitude === 'puntual' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setRQMagnitude('puntual')}>Puntual</button>
+                                    <button className={`btn btn-sm ${rqMagnitude === 'integral' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setRQMagnitude('integral')}>Integral</button>
+                                  </div>
+                                </div>
 
-                {manageOTM.status === 'awaiting_supervisor' && (
-                  <button className="btn btn-primary w-full" style={{ marginTop: 16 }} onClick={handleApprove}>
-                    ✓ Aprobado (Dar Visto Bueno)
-                  </button>
+                                <div className="form-group">
+                                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Número de RQ (Opcional)</label>
+                                  <input className="form-input" style={{ fontSize: '0.75rem' }} placeholder="Ej: RQ-10042" value={rqNumberInput} onChange={e => setRqNumberInput(e.target.value)} />
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <button className="btn btn-secondary btn-sm" onClick={() => setAction('none')}>Cancelar</button>
+                                  <button className="btn btn-primary btn-sm" onClick={handleCreateRQGlobal} disabled={!rqServiceDesc.trim()}>✓ Registrar RQ</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Fase 3: Asignación */}
+              <div className="glass-card" style={{ padding: 16, borderLeft: '3px solid var(--accent-blue)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>FASE 3: ASIGNACIÓN</div>
+                
+                {!manageOTM.assignment_type ? (
+                  <div>
+                    {action !== 'assign' ? (
+                      <button className="btn btn-primary w-full" style={{ fontSize: '0.8rem' }} onClick={() => { setAction('assign'); setAssignSub('own'); }}>
+                        🔧 Asignar Trabajo
+                      </button>
+                    ) : (
+                      <div className="slide-up flex-col gap-3" style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                          <button className={`btn btn-sm ${assignSub === 'own' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setAssignSub('own')}>Personal Propio</button>
+                          <button className={`btn btn-sm ${assignSub === 'contractor' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setAssignSub('contractor')}>Contratista</button>
+                        </div>
+
+                        {assignSub === 'own' && (
+                          <div className="flex-col gap-3">
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Técnicos a Asignar</label>
+                              <div className="flex gap-2">
+                                <select className="form-select" style={{ flex: 1, fontSize: '0.75rem' }} value={assignTech} onChange={e => setAssignTech(e.target.value)}>
+                                  <option value="">Seleccionar técnico...</option>
+                                  {technicians.filter(t => !selectedTechs.includes(t.id)).map(t => (
+                                    <option key={t.id} value={t.id}>{t.full_name} ({t.position})</option>
+                                  ))}
+                                </select>
+                                <button className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }} onClick={() => {
+                                  if (assignTech && !selectedTechs.includes(assignTech)) {
+                                    setSelectedTechs(prev => [...prev, assignTech]);
+                                    setAssignTech('');
+                                  }
+                                }} disabled={!assignTech}>
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            {selectedTechs.length > 0 && (
+                              <div style={{ background: 'var(--bg-secondary)', padding: 8, borderRadius: 6, border: '1px solid var(--border)' }}>
+                                {selectedTechs.map(techId => {
+                                  const tech = users.find(u => u.id === techId);
+                                  return (
+                                    <div key={techId} className="flex justify-between items-center" style={{ fontSize: '0.75rem', padding: '2px 0', borderBottom: '1px solid var(--border)' }}>
+                                      <span>{tech?.full_name}</span>
+                                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--accent-rose)', padding: '2px 4px', fontSize: '0.7rem' }} onClick={() => setSelectedTechs(prev => prev.filter(id => id !== techId))}>X</button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Fecha y Hora Programada</label>
+                              <input className="form-input" type="datetime-local" value={assignDate} onChange={e => setAssignDate(e.target.value)} />
+                            </div>
+                            
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Tiempo Estimado (minutos)</label>
+                              <input className="form-input" type="number" min="1" placeholder="Ej: 60" value={assignEstimatedTime} onChange={e => setAssignEstimatedTime(e.target.value)} />
+                            </div>
+
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Instrucciones / Notas</label>
+                              <textarea className="form-textarea" style={{ fontSize: '0.75rem' }} value={assignNotes} onChange={e => setAssignNotes(e.target.value)} />
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button className="btn btn-secondary btn-sm" onClick={() => setAction('none')}>Volver</button>
+                              <button className="btn btn-primary btn-sm" onClick={handleAssignOwn} disabled={selectedTechs.length === 0 || !assignDate}>Asignar</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {assignSub === 'contractor' && (
+                          <div className="flex-col gap-3">
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Nombre Contratista *</label>
+                              <input className="form-input" style={{ fontSize: '0.75rem' }} value={contractorName} onChange={e => setContractorName(e.target.value)} placeholder="Ej: Pinturas CRL SAC" />
+                            </div>
+
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Fecha de Ejecución *</label>
+                              <input className="form-input" type="datetime-local" value={contractorDate} onChange={e => setContractorDate(e.target.value)} />
+                            </div>
+
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Detalle de Trabajo</label>
+                              <textarea className="form-textarea" style={{ fontSize: '0.75rem' }} value={contractorDetail} onChange={e => setContractorDetail(e.target.value)} />
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button className="btn btn-secondary btn-sm" onClick={() => setAction('none')}>Volver</button>
+                              <button className="btn btn-primary btn-sm" onClick={handleAssignContractor} disabled={!contractorName || !contractorDate}>Asignar Contratista</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(14, 165, 233, 0.05)', padding: 12, borderRadius: 8, border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+                    {manageOTM.assignment_type === 'own' ? (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        <strong>Tipo:</strong> Personal Propio<br />
+                        <strong>Supervisor:</strong> {supervisors.find(s => s.id === manageOTM.supervisor_id)?.full_name || 'Sin Supervisor'}<br />
+                        <strong>Técnico(s):</strong> {manageOTM.assigned_technicians && manageOTM.assigned_technicians.length > 0 
+                          ? manageOTM.assigned_technicians.map(t => t.technician?.full_name).join(', ')
+                          : (users.find(u => u.id === manageOTM.technician_id)?.full_name || 'No asignado')}<br />
+                        {manageOTM.scheduled_date && <span>📅 <strong>Fecha Prog:</strong> {new Date(manageOTM.scheduled_date).toLocaleString('es')}</span>}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        <strong>Tipo:</strong> Contratista Tercero<br />
+                        <strong>Contratista:</strong> {manageOTM.contractor_name}<br />
+                        {manageOTM.contractor_date && <span>📅 <strong>Fecha Prog:</strong> {new Date(manageOTM.contractor_date).toLocaleString('es')}</span>}
+                      </div>
+                    )}
+                    {manageOTM.status === 'scheduled' && (
+                      <button className="btn btn-ghost btn-sm w-full" style={{ marginTop: 8, fontSize: '0.75rem' }} onClick={() => {
+                        setAction('assign');
+                        setAssignSub(manageOTM.assignment_type || 'own');
+                      }}>
+                        ✏️ Modificar Asignación
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
 
-            {/* Conformity Data for Closed OTM */}
-            {manageOTM.status === 'closed' && (
-              <div style={{ marginBottom: 16, padding: 16, background: 'rgba(78,181,230,0.08)', borderRadius: 8, border: '1px solid rgba(78,181,230,0.2)' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-blue)', marginBottom: 12 }}>
-                  ⭐ Conformidad de Servicio
-                </div>
-                
-                <div className="flex-col gap-2">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Calificación:</span>
-                    <div style={{ color: 'var(--accent-amber)', fontSize: '1rem', fontWeight: 700 }}>
-                      {'★'.repeat(manageOTM.conformity_rating || 0)}{'☆'.repeat(5 - (manageOTM.conformity_rating || 0))}
-                    </div>
-                  </div>
+              {/* Fase 4: Reprogramación */}
+              {manageOTM.assignment_type === 'own' && (manageOTM.status === 'scheduled' || manageOTM.status === 'in_progress') && (
+                <div className="glass-card" style={{ padding: 16, borderLeft: '3px solid var(--accent-orange)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>FASE 4: REPROGRAMACIÓN</div>
                   
-                  {manageOTM.conformity_date && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      📅 Fecha: {new Date(manageOTM.conformity_date).toLocaleString('es')}
-                    </div>
-                  )}
+                  {!showRescheduleForm ? (
+                    <button className="btn btn-secondary w-full" style={{ color: 'var(--accent-orange)', borderColor: 'var(--accent-orange)', fontSize: '0.8rem' }} onClick={() => {
+                      setShowRescheduleForm(true);
+                      setRescheduleTech(manageOTM.technician_id || '');
+                      setRescheduleDate(manageOTM.scheduled_date ? new Date(manageOTM.scheduled_date).toISOString().slice(0, 16) : '');
+                      setRescheduleReason('');
+                    }}>
+                      🔄 Reprogramar OTM
+                    </button>
+                  ) : (
+                    <div className="slide-up flex-col gap-3" style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Nuevo Técnico</label>
+                        <select className="form-select" style={{ fontSize: '0.75rem' }} value={rescheduleTech} onChange={e => setRescheduleTech(e.target.value)}>
+                          <option value="">Seleccionar técnico...</option>
+                          {technicians.map(t => (
+                            <option key={t.id} value={t.id}>{t.full_name}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  {manageOTM.conformity_notes && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', background: 'var(--bg-secondary)', padding: 10, borderRadius: 6, marginTop: 4 }}>
-                      <strong>Comentarios: </strong> {manageOTM.conformity_notes}
-                    </div>
-                  )}
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Nueva Fecha y Hora</label>
+                        <input className="form-input" type="datetime-local" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} />
+                      </div>
 
-                  {manageOTM.conformity_signature_url && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Firma de conformidad:</div>
-                      <div style={{ background: '#ffffff', padding: 8, borderRadius: 6, display: 'inline-block', border: '1px solid var(--border)' }}>
-                        <img src={manageOTM.conformity_signature_url} style={{ maxHeight: 60, objectFit: 'contain' }} alt="Firma" />
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Motivo de la Reprogramación *</label>
+                        <textarea className="form-textarea" style={{ fontSize: '0.75rem' }} placeholder="Escribe el motivo..." value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button className="btn btn-secondary btn-sm" onClick={() => setShowRescheduleForm(false)}>Cancelar</button>
+                        <button className="btn btn-primary btn-sm" onClick={handleReschedule} disabled={!rescheduleTech || !rescheduleDate || !rescheduleReason.trim()}>Confirmar</button>
                       </div>
                     </div>
                   )}
-                  
-                  <button 
-                    className="btn btn-primary w-full" 
-                    style={{ 
-                      marginTop: 16, 
-                      background: 'linear-gradient(135deg, var(--accent-blue) 0%, #0284c7 100%)', 
-                      border: 'none',
-                      fontWeight: 700
-                    }} 
-                    onClick={() => setActaOTM(manageOTM)}
-                  >
-                    📄 Generar Acta de Conformidad
-                  </button>
-                </div>
-              </div>
-            )}
 
-            {/* Timeline Section */}
-            {(manageOTM.status === 'closed' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'in_progress') && (
-              <div style={{ marginBottom: 16, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
-                  ⏳ Historial del Proceso
+                  {manageOTM.reschedule_history && manageOTM.reschedule_history.length > 0 && (
+                    <div style={{ marginTop: 10, padding: 8, background: '#fdf8f6', borderRadius: 6, border: '1px solid #ffedd5', fontSize: '0.75rem' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--accent-orange)', marginBottom: 4 }}>Historial de Reprogramación:</div>
+                      {manageOTM.reschedule_history.map((h, i) => (
+                        <div key={h.id} style={{ borderBottom: '1px solid #ffedd5', paddingBottom: 4, marginBottom: 4 }}>
+                          <strong>Original:</strong> {new Date(h.scheduled_date).toLocaleString('es')} - {h.technician_name}<br />
+                          <strong>Motivo:</strong> {h.reason}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
-                <div className="timeline">
-                  {statusLogs
-                    .filter(l => l.otm_id === manageOTM.id)
-                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                    .map((log, index, arr) => {
-                      const changerName = log.changed_by_profile?.full_name || users.find(u => u.id === log.changed_by)?.full_name || 'Sistema';
-                      const isLast = index === arr.length - 1;
-                      
-                      return (
-                        <div key={log.id} className="timeline-item" style={{ paddingBottom: isLast ? 0 : 20 }}>
-                          <div className={`timeline-dot ${isLast ? 'active' : 'completed'}`} />
-                          <div className="timeline-time">
-                            {new Date(log.created_at).toLocaleString('es')} — <strong style={{ color: 'var(--text-secondary)' }}>{changerName}</strong>
-                          </div>
-                          <div className="timeline-label" style={{ fontSize: '0.8rem', marginTop: 2 }}>
-                            {log.previous_status ? `${STATUS_LABELS[log.previous_status as OTMStatus] || log.previous_status} ➔ ` : ''}
-                            <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>
-                              {STATUS_LABELS[log.new_status as OTMStatus] || log.new_status}
-                            </span>
-                          </div>
-                          {log.notes && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
-                              Nota: {log.notes}
+              )}
+
+              {/* Fase 5: Ejecución Técnica */}
+              {manageOTM.assignment_type && (
+                <div className="glass-card" style={{ padding: 16, borderLeft: '3px solid var(--accent-emerald)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>FASE 5: EJECUCIÓN TÉCNICA</div>
+                  
+                  {manageOTM.assignment_type === 'own' ? (
+                    <div>
+                      {(manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'closed') && manageOTM.technician_notes ? (
+                        <div className="flex-col gap-3">
+                          {manageOTM.status === 'awaiting_supervisor' ? (
+                            <div className="flex-col gap-3">
+                              <div className="grid-2">
+                                <div className="form-group">
+                                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Inicio Trabajo</label>
+                                  <input className="form-input" type="datetime-local" style={{ fontSize: '0.75rem' }} value={editTechStart} onChange={e => setEditTechStart(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                  <label className="form-label" style={{ fontSize: '0.7rem' }}>Fin Trabajo</label>
+                                  <input className="form-input" type="datetime-local" style={{ fontSize: '0.75rem' }} value={editTechEnd} onChange={e => setEditTechEnd(e.target.value)} />
+                                </div>
+                              </div>
+
+                              <div className="form-group">
+                                <label className="form-label" style={{ fontSize: '0.7rem' }}>Comentario del Técnico (Editable)</label>
+                                <textarea className="form-textarea" style={{ fontSize: '0.75rem', minHeight: 60 }} value={editTechNotes} onChange={e => setEditTechNotes(e.target.value)} />
+                              </div>
+
+                              <button className="btn btn-primary w-full" style={{ fontSize: '0.8rem' }} onClick={handleApprove}>
+                                ✓ Dar Visto Bueno (Aprobar)
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              <strong>Comentarios Técnico:</strong> {manageOTM.technician_notes}<br />
+                              {manageOTM.job_start_time && <div>🕒 <strong>Ejecución:</strong> {new Date(manageOTM.job_start_time).toLocaleString('es')} - {new Date(manageOTM.job_end_time || '').toLocaleString('es')}</div>}
                             </div>
                           )}
                         </div>
-                      );
-                    })}
-                  {statusLogs.filter(l => l.otm_id === manageOTM.id).length === 0 && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      No se encontraron registros de historial para esta OTM.
+                      ) : (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          Esperando que el técnico inicie o finalice las labores.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      {manageOTM.status === 'scheduled' || manageOTM.status === 'in_progress' ? (
+                        <div className="flex-col gap-3">
+                          <div className="grid-2">
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Fecha Inicio Real</label>
+                              <input className="form-input" type="datetime-local" style={{ fontSize: '0.75rem' }} value={contractorStartDate} onChange={e => setContractorStartDate(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>Fecha Fin Real</label>
+                              <input className="form-input" type="datetime-local" style={{ fontSize: '0.75rem' }} value={contractorEndDate} onChange={e => setContractorEndDate(e.target.value)} />
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label" style={{ fontSize: '0.7rem' }}>Descripción de Trabajos Realizados</label>
+                            <textarea className="form-textarea" style={{ fontSize: '0.75rem', minHeight: 60 }} value={contractorWorkDesc} onChange={e => setContractorWorkDesc(e.target.value)} placeholder="Informe de los trabajos..." />
+                          </div>
+
+                          <button className="btn btn-primary w-full" style={{ fontSize: '0.8rem' }} onClick={handleContractorClose} disabled={!contractorStartDate || !contractorEndDate || !contractorWorkDesc.trim()}>
+                            ✓ Registrar y Aprobar Ejecución
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          <strong>Informe Contratista:</strong> {manageOTM.technician_notes}<br />
+                          {manageOTM.job_start_time && <div>🕒 <strong>Ejecución:</strong> {new Date(manageOTM.job_start_time).toLocaleString('es')} - {new Date(manageOTM.job_end_time || '').toLocaleString('es')}</div>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {action === 'none' && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_supervisor' && manageOTM.status !== 'awaiting_conformity' && (
-              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-                <button className="btn btn-primary" style={{ flex: 1, minWidth: 100 }} onClick={() => setAction('assign')}>🔧 ASIGNAR</button>
-                <button className="btn btn-secondary" style={{ flex: 1, minWidth: 100, borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)' }} onClick={() => setAction('rq')}>📋 RQ</button>
-              </div>
-            )}
-
-            {/* Modify button for already processed OTMs */}
-            {action === 'none' && (manageOTM.rq_type || manageOTM.assignment_type) && manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_supervisor' && manageOTM.status !== 'awaiting_conformity' && (
-              <div style={{ marginBottom: 16 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setAction('assign')} style={{ marginRight: 8 }}>✏️ Modificar Asignación</button>
-              </div>
-            )}
-
-            {/* === ASSIGN SUB-PANEL === */}
-            {action === 'assign' && (
-              <div className="slide-up">
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12 }}>Tipo de Personal</h4>
-                <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                  <button className={`btn ${assignSub === 'own' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setAssignSub('own')}>
-                    👤 Personal Propio
-                  </button>
-                  <button className={`btn ${assignSub === 'contractor' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setAssignSub('contractor')}>
-                    🏗️ Personal Tercero
-                  </button>
-                </div>
-
-                {assignSub === 'own' && (
-                  <div className="flex-col gap-4 slide-up">
-                    <div className="form-group">
-                      <label className="form-label">Seleccionar Personal</label>
-                      <div className="flex gap-2">
-                        <select className="form-select" style={{ flex: 1 }} value={assignTech} onChange={e => setAssignTech(e.target.value)}>
-                          <option value="">Seleccionar técnico...</option>
-                          {technicians.filter(t => !selectedTechs.includes(t.id)).map(t => (
-                            <option key={t.id} value={t.id}>{t.full_name} ({t.position || 'Técnico'})</option>
-                          ))}
-                        </select>
-                        <button className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }} type="button" onClick={() => {
-                          if (assignTech && !selectedTechs.includes(assignTech)) {
-                            setSelectedTechs(prev => [...prev, assignTech]);
-                            setAssignTech('');
-                          }
-                        }} disabled={!assignTech}>
-                          Agregar persona
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Lista de Personal Agregado */}
-                    {selectedTechs.length > 0 && (
-                      <div className="form-group" style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 8 }}>
-                        <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Personal Asignado ({selectedTechs.length}):</label>
-                        <div className="flex-col gap-2" style={{ marginTop: 8 }}>
-                          {selectedTechs.map(techId => {
-                            const tech = users.find(u => u.id === techId);
-                            return (
-                              <div key={techId} className="flex justify-between items-center" style={{ background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)' }}>
-                                <span style={{ fontSize: '0.85rem' }}>{tech?.full_name || 'Técnico Desconocido'}</span>
-                                <button className="btn btn-icon btn-ghost btn-sm" type="button" style={{ color: 'var(--accent-rose)', padding: '2px 6px', height: 'auto', minWidth: 'auto' }} onClick={() => {
-                                  setSelectedTechs(prev => prev.filter(id => id !== techId));
-                                }}>
-                                  Eliminar
-                                </button>
-                              </div>
-                            );
-                          })}
+              {/* Fase 6: Conformidad */}
+              {(manageOTM.status === 'closed' || manageOTM.status === 'awaiting_conformity') && (
+                <div className="glass-card" style={{ padding: 16, borderLeft: '3px solid var(--accent-gold)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>FASE 6: CONFORMIDAD</div>
+                  
+                  {manageOTM.status === 'closed' ? (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <strong>Calificación:</strong> {'⭐'.repeat(manageOTM.conformity_rating || 0)}{'☆'.repeat(5 - (manageOTM.conformity_rating || 0))}<br />
+                      <strong>Fecha:</strong> {manageOTM.conformity_date && new Date(manageOTM.conformity_date).toLocaleString()}<br />
+                      {manageOTM.conformity_notes && <div><strong>Comentarios:</strong> "{manageOTM.conformity_notes}"</div>}
+                      {manageOTM.conformity_signature_url && (
+                        <div style={{ marginTop: 8 }}>
+                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', padding: 4, borderRadius: 4, display: 'inline-block' }}>
+                            <img src={manageOTM.conformity_signature_url} style={{ maxHeight: 50 }} alt="Firma" />
+                          </div>
                         </div>
+                      )}
+                      <button className="btn btn-primary w-full" style={{ marginTop: 12, fontSize: '0.8rem' }} onClick={() => setActaOTM(manageOTM)}>
+                        📄 Generar Acta de Conformidad
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                      Trabajo aprobado. Esperando conformidad y firma del solicitante.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Historial del Proceso / Auditoría */}
+              {(manageOTM.status === 'closed' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'in_progress' || manageOTM.status === 'rq') && (
+                <div style={{ padding: 16, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
+                    ⏳ Historial del Proceso
+                  </div>
+                  
+                  <div className="timeline">
+                    {statusLogs
+                      .filter(l => l.otm_id === manageOTM.id)
+                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map((log, index, arr) => {
+                        const changerName = log.changed_by_profile?.full_name || users.find(u => u.id === log.changed_by)?.full_name || 'Sistema';
+                        const isLast = index === arr.length - 1;
+                        
+                        return (
+                          <div key={log.id} className="timeline-item" style={{ paddingBottom: isLast ? 0 : 20 }}>
+                            <div className={`timeline-dot ${isLast ? 'active' : 'completed'}`} />
+                            <div className="timeline-time">
+                              {new Date(log.created_at).toLocaleString('es')} — <strong style={{ color: 'var(--text-secondary)' }}>{changerName}</strong>
+                            </div>
+                            <div className="timeline-label" style={{ fontSize: '0.8rem', marginTop: 2 }}>
+                              {log.previous_status ? `${STATUS_LABELS[log.previous_status as OTMStatus] || log.previous_status} ➔ ` : ''}
+                              <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>
+                                {STATUS_LABELS[log.new_status as OTMStatus] || log.new_status}
+                              </span>
+                            </div>
+                            {log.notes && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
+                                Nota: {log.notes}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-panel cancel action */}
+              {action === 'cancel' && (
+                <div className="slide-up" style={{ padding: 12, background: 'rgba(225,29,72,0.02)', borderRadius: 8, border: '1px solid rgba(225,29,72,0.1)' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12, color: 'var(--accent-rose)' }}>Cancelar Solicitud</h4>
+                  <div className="flex-col gap-3">
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Motivo de cancelación *</label>
+                      <select className="form-select" value={cancelReason} onChange={e => setCancelReason(e.target.value)}>
+                        <option value="">Seleccionar motivo...</option>
+                        {Object.entries(CANCELLATION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                    {cancelReason === 'other' && (
+                      <div className="form-group slide-up">
+                        <label className="form-label" style={{ fontSize: '0.75rem' }}>Especifique el motivo *</label>
+                        <textarea className="form-textarea" style={{ fontSize: '0.75rem' }} placeholder="Escriba el motivo..." value={cancelDetail} onChange={e => setCancelDetail(e.target.value)} />
                       </div>
                     )}
-
-                    <div className="form-group">
-                      <label className="form-label">Fecha programada *</label>
-                      <input className="form-input" type="datetime-local" value={assignDate} onChange={e => setAssignDate(e.target.value)} />
+                    <div className="flex gap-2">
+                      <button className="btn btn-secondary btn-sm" onClick={() => setAction('none')}>Volver</button>
+                      <button className="btn btn-danger btn-sm" onClick={handleCancel} disabled={!cancelReason || (cancelReason === 'other' && !cancelDetail)}>✓ Confirmar Cancelación</button>
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Tiempo Estimado (minutos)</label>
-                      <input className="form-input" type="number" min="1" placeholder="Ej: 120" value={assignEstimatedTime} onChange={e => setAssignEstimatedTime(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Instrucciones / Notas</label>
-                      <textarea className="form-textarea" placeholder="Instrucciones para el técnico..." value={assignNotes} onChange={e => setAssignNotes(e.target.value)} />
-                    </div>
-                    <div className="flex gap-3" style={{ marginTop: 8 }}>
-                      <button className="btn btn-secondary" onClick={() => { setAction('none'); setAssignSub('none'); }}>Volver</button>
-                      <button className="btn btn-primary" onClick={handleAssignOwn} disabled={selectedTechs.length === 0 || !assignDate}>✓ Aceptar</button>
-                    </div>
-                  </div>
-                )}
-
-                {assignSub === 'contractor' && (
-                  <div className="flex-col gap-4 slide-up">
-                    <div className="form-group">
-                      <label className="form-label">Nombre de la contrata *</label>
-                      <input className="form-input" placeholder="Ej: Servicios Eléctricos SAC" value={contractorName} onChange={e => setContractorName(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Fecha de ejecución *</label>
-                      <input className="form-input" type="datetime-local" value={contractorDate} onChange={e => setContractorDate(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Detalle del trabajo</label>
-                      <textarea className="form-textarea" placeholder="Describe el trabajo que realizará el tercero..." value={contractorDetail} onChange={e => setContractorDetail(e.target.value)} />
-                    </div>
-                    <div className="flex gap-3" style={{ marginTop: 8 }}>
-                      <button className="btn btn-secondary" onClick={() => { setAction('none'); setAssignSub('none'); }}>Volver</button>
-                      <button className="btn btn-primary" onClick={handleAssignContractor} disabled={!contractorName || !contractorDate}>✓ Aceptar</button>
-                    </div>
-                  </div>
-                )}
-
-                {assignSub === 'none' && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => setAction('none')}>← Volver</button>
-                )}
-              </div>
-            )}
-
-            {/* === RQ SUB-PANEL === */}
-            {action === 'rq' && (
-              <div className="slide-up">
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12 }}>Tipo de Requerimiento</h4>
-                <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                  <button className={`btn ${rqSub === 'supply' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setRQSub('supply')}>
-                    📦 RQ Suministro
-                  </button>
-                  <button className={`btn ${rqSub === 'service' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setRQSub('service')}>
-                    🔧 RQ Servicio
-                  </button>
-                </div>
-
-                {rqSub === 'supply' && (
-                  <div className="flex-col gap-4 slide-up">
-                    <div className="form-group">
-                      <label className="form-label">Material / Producto *</label>
-                      <textarea className="form-textarea" placeholder="Ej: Tubería PVC 2 pulgadas, Pegamento, Cinta teflón..." value={rqMaterials} onChange={e => setRQMaterials(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Cantidades *</label>
-                      <input className="form-input" placeholder="Ej: 3 metros, 2 unidades, 1 galón..." value={rqQuantities} onChange={e => setRQQuantities(e.target.value)} />
-                    </div>
-                    <div className="flex gap-3" style={{ marginTop: 8 }}>
-                      <button className="btn btn-secondary" onClick={() => { setAction('none'); setRQSub('none'); }}>Volver</button>
-                      <button className="btn btn-primary" onClick={handleRQ} disabled={!rqMaterials || !rqQuantities}>✓ Guardar</button>
-                    </div>
-                  </div>
-                )}
-
-                {rqSub === 'service' && (
-                  <div className="flex-col gap-4 slide-up">
-                    <div className="form-group">
-                      <label className="form-label">Servicio solicitado *</label>
-                      <textarea className="form-textarea" placeholder="Describe el servicio que se solicita..." value={rqServiceDesc} onChange={e => setRQServiceDesc(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Magnitud *</label>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button className={`btn ${rqMagnitude === 'puntual' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setRQMagnitude('puntual')}>Puntual</button>
-                        <button className={`btn ${rqMagnitude === 'integral' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setRQMagnitude('integral')}>Integral</button>
-                      </div>
-                    </div>
-                    <div className="flex gap-3" style={{ marginTop: 8 }}>
-                      <button className="btn btn-secondary" onClick={() => { setAction('none'); setRQSub('none'); }}>Volver</button>
-                      <button className="btn btn-primary" onClick={handleRQ} disabled={!rqServiceDesc}>✓ Guardar</button>
-                    </div>
-                  </div>
-                )}
-
-                {rqSub === 'none' && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => setAction('none')}>← Volver</button>
-                )}
-              </div>
-            )}
-
-            {/* === CANCEL SUB-PANEL === */}
-            {action === 'cancel' && (
-              <div className="slide-up">
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12, color: 'var(--accent-rose)' }}>Cancelar Solicitud</h4>
-                <div className="flex-col gap-4">
-                  <div className="form-group">
-                    <label className="form-label">Motivo de cancelación *</label>
-                    <select className="form-select" value={cancelReason} onChange={e => setCancelReason(e.target.value)}>
-                      <option value="">Seleccionar motivo...</option>
-                      {Object.entries(CANCELLATION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
-                  </div>
-                  {cancelReason === 'other' && (
-                    <div className="form-group slide-up">
-                      <label className="form-label">Especifique el motivo *</label>
-                      <textarea className="form-textarea" placeholder="Escriba el motivo de la cancelación..." value={cancelDetail} onChange={e => setCancelDetail(e.target.value)} />
-                    </div>
-                  )}
-                  <div className="flex gap-3" style={{ marginTop: 8 }}>
-                    <button className="btn btn-secondary" onClick={() => setAction('none')}>Volver</button>
-                    <button className="btn btn-danger" onClick={handleCancel} disabled={!cancelReason || (cancelReason === 'other' && !cancelDetail)}>✓ Confirmar Cancelación</button>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+
+            </div>
 
             {/* Floating Cancel Button (Bottom Right) */}
             {manageOTM.status !== 'cancelled' && manageOTM.status !== 'closed' && manageOTM.status !== 'awaiting_conformity' && action !== 'cancel' && (
-              <div style={{ position: 'sticky', bottom: -28, left: 0, right: 0, background: 'linear-gradient(transparent, var(--bg-card) 20%)', padding: '40px 0 20px', marginTop: 40, display: 'flex', justifyContent: 'flex-end', pointerEvents: 'none' }}>
+              <div style={{ position: 'sticky', bottom: -28, left: 0, right: 0, background: 'linear-gradient(transparent, var(--bg-card) 20%)', padding: '40px 0 20px', marginTop: 10, display: 'flex', justifyContent: 'flex-end', pointerEvents: 'none' }}>
                 <button className="btn btn-danger" 
-                  style={{ pointerEvents: 'auto', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)', padding: '12px 24px' }} 
+                  style={{ pointerEvents: 'auto', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)', padding: '10px 20px', fontSize: '0.8rem' }} 
                   onClick={() => setAction('cancel')}>
                   ❌ CANCELAR SOLICITUD
                 </button>

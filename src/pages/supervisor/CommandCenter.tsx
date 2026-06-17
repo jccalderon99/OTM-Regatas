@@ -416,13 +416,13 @@ export default function CommandCenter() {
   }, [filteredRecords]);
 
   const maintenanceData = useMemo(() => {
-    const map: Record<string, number> = { corrective: 0, preventive: 0, emergency: 0, support: 0 };
+    const map: Record<string, number> = { corrective: 0, emergency: 0, support: 0 };
     filteredOTMs.forEach(o => {
       if (o.maintenance_type && o.maintenance_type in map) map[o.maintenance_type]++;
     });
     return Object.entries(map).map(([type, count]) => ({
       type,
-      label: type === 'corrective' ? 'Correctivo' : type === 'preventive' ? 'Preventivo' : type === 'emergency' ? 'Emergencia' : 'Soporte',
+      label: type === 'corrective' ? 'Correctivo' : type === 'emergency' ? 'Emergencia' : 'Soporte',
       count
     }));
   }, [filteredOTMs]);

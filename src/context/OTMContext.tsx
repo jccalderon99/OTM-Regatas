@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS, TechRequest, TechRequestStatus } from '../types';
+import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS, TechRequest, TechRequestStatus, OpexBudgetItem, CapexBudgetItem, PreventivePlanItem } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode } from '../lib/demoData';
 import { useAuth } from './AuthContext';
 import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { MOCK_OPEX_BUDGET, MOCK_CAPEX_BUDGET } from '../lib/mockBudgetData';
+import { MOCK_PREVENTIVE_PLAN } from '../lib/mockPreventiveData';
 
 export function calculateNetTime(startTime: string | null, endTime: string | null, pauses: { paused_at: string; resumed_at: string | null }[] | null | undefined): number {
   if (!startTime || !endTime) return 0;
@@ -75,6 +77,15 @@ interface OTMContextType {
   getTechRequestsForCurrentUser: () => TechRequest[];
   createTechRequest: (reqData: Partial<TechRequest>) => Promise<TechRequest>;
   updateTechRequestStatus: (id: string, status: TechRequestStatus, response?: string) => void;
+
+  // Budget and Preventive state and methods
+  opexBudget: OpexBudgetItem[];
+  capexBudget: CapexBudgetItem[];
+  preventivePlan: PreventivePlanItem[];
+  updatePreventivePlanItem: (id: string, fields: Partial<PreventivePlanItem>) => void;
+  addPreventivePlanItem: (item: Partial<PreventivePlanItem>) => void;
+  deletePreventivePlanItem: (id: string) => void;
+  updateBudgetItem: (type: 'CAPEX' | 'OPEX', id: string, fields: any) => void;
 }
 
 const OTMContext = createContext<OTMContextType | null>(null);
@@ -122,6 +133,24 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [opexBudget, setOpexBudget] = useState<OpexBudgetItem[]>(() => {
+    const saved = localStorage.getItem('demo_opex_budget');
+    if (saved) return JSON.parse(saved);
+    return MOCK_OPEX_BUDGET.map((item, idx) => ({ ...item, id: item.id || `opex-${idx}` }));
+  });
+
+  const [capexBudget, setCapexBudget] = useState<CapexBudgetItem[]>(() => {
+    const saved = localStorage.getItem('demo_capex_budget');
+    if (saved) return JSON.parse(saved);
+    return MOCK_CAPEX_BUDGET.map((item, idx) => ({ ...item, id: item.id || `capex-${idx}` }));
+  });
+
+  const [preventivePlan, setPreventivePlan] = useState<PreventivePlanItem[]>(() => {
+    const saved = localStorage.getItem('demo_preventive_plan');
+    if (saved) return JSON.parse(saved);
+    return [...MOCK_PREVENTIVE_PLAN];
+  });
+
   // ── Demo persistence effects ──
   useEffect(() => {
     if (!isLive) localStorage.setItem('demo_otms_v3', JSON.stringify(otms));
@@ -154,6 +183,18 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('demo_tech_requests', JSON.stringify(techRequests));
   }, [techRequests]);
+
+  useEffect(() => {
+    localStorage.setItem('demo_opex_budget', JSON.stringify(opexBudget));
+  }, [opexBudget]);
+
+  useEffect(() => {
+    localStorage.setItem('demo_capex_budget', JSON.stringify(capexBudget));
+  }, [capexBudget]);
+
+  useEffect(() => {
+    localStorage.setItem('demo_preventive_plan', JSON.stringify(preventivePlan));
+  }, [preventivePlan]);
 
   // ── Supabase: Load initial data ──
   const fetchAll = useCallback(async () => {
@@ -657,6 +698,50 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updatePreventivePlanItem = useCallback((id: string, fields: Partial<PreventivePlanItem>) => {
+    setPreventivePlan(prev => prev.map(item => item.id !== id ? item : { ...item, ...fields }));
+  }, []);
+
+  const addPreventivePlanItem = useCallback((item: Partial<PreventivePlanItem>) => {
+    const newItem: PreventivePlanItem = {
+      id: `pm-${Date.now()}`,
+      num: preventivePlan.length + 1,
+      prio: item.prio || 'MEDIO',
+      actividad: item.actividad || '',
+      ubicacion: item.ubicacion || '',
+      frecuencia: item.frecuencia || '',
+      presupuesto_proyectado: item.presupuesto_proyectado || 0,
+      responsable: item.responsable || '',
+      fecha_tdr_revision: item.fecha_tdr_revision || '',
+      fecha_tdr_envio: item.fecha_tdr_envio || '',
+      rq: item.rq || '',
+      acuerdo: item.acuerdo || '',
+      proveedor: item.proveedor || '',
+      monto_sin_igv: item.monto_sin_igv || 0,
+      estado_original: item.estado_original || 'PLANIFICADO',
+      active_weeks: item.active_weeks || [],
+      assigned_staff_id: item.assigned_staff_id || null,
+      assigned_contractor: item.assigned_contractor,
+      status: item.status || 'Pendiente',
+      budgetItemLinkId: item.budgetItemLinkId,
+      budgetItemLinkType: item.budgetItemLinkType,
+      completed_weeks: item.completed_weeks || []
+    };
+    setPreventivePlan(prev => [...prev, newItem]);
+  }, [preventivePlan]);
+
+  const deletePreventivePlanItem = useCallback((id: string) => {
+    setPreventivePlan(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const updateBudgetItem = useCallback((type: 'CAPEX' | 'OPEX', id: string, fields: any) => {
+    if (type === 'OPEX') {
+      setOpexBudget(prev => prev.map(item => item.id !== id ? item : { ...item, ...fields }));
+    } else {
+      setCapexBudget(prev => prev.map(item => item.id !== id ? item : { ...item, ...fields }));
+    }
+  }, []);
+
   return (
     <OTMContext.Provider value={{
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
@@ -669,7 +754,9 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       locations, addLocation, updateLocation,
       deleteUser, deleteArea, deleteSpecialty, deleteLocation,
       otis, getOTIsForCurrentUser, createOTI, updateOTIStatus,
-      techRequests, getTechRequestsForCurrentUser, createTechRequest, updateTechRequestStatus
+      techRequests, getTechRequestsForCurrentUser, createTechRequest, updateTechRequestStatus,
+      opexBudget, capexBudget, preventivePlan,
+      updatePreventivePlanItem, addPreventivePlanItem, deletePreventivePlanItem, updateBudgetItem
     }}>
       {children}
     </OTMContext.Provider>

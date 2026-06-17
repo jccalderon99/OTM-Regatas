@@ -10,11 +10,10 @@ export type OTMStatus =
   | 'closed'
   | 'cancelled';
 
-export type MaintenanceType = 'corrective' | 'preventive' | 'emergency' | 'support' | null;
+export type MaintenanceType = 'corrective' | 'emergency' | 'support' | null;
 
 export const MAINTENANCE_LABELS: Record<string, string> = {
   corrective: 'Correctivo',
-  preventive: 'Preventivo',
   emergency: 'Emergencia',
   support: 'Soporte',
 };
@@ -104,6 +103,10 @@ export interface OTMRequest {
   // Cancellation
   cancellation_reason: CancellationReason;
   cancellation_detail: string | null;
+  // Rescheduling
+  reschedule_history?: RescheduleRecord[] | null;
+  is_rescheduled?: boolean | null;
+
   // Joined data
   supervisor?: Profile;
   technician?: Profile;
@@ -156,9 +159,9 @@ export const STATUS_LABELS: Record<OTMStatus, string> = {
   pending: 'Pendiente',
   scheduled: 'Programado',
   in_progress: 'En Proceso',
-  rq: 'Requerimiento',
+  rq: 'Con requerimiento',
   awaiting_supervisor: 'Finalizado - Visto Bueno',
-  awaiting_conformity: 'Finalizado - Conformidad',
+  awaiting_conformity: 'Para conformidad',
   closed: 'Cerrado',
   cancelled: 'Cancelado',
 };
@@ -369,7 +372,109 @@ export interface TechRequest {
   supervisor_response?: string | null;
   created_at: string;
   updated_at: string;
+}export interface OpexBudgetItem {
+  id: string;
+  areaPresupuesto: string;
+  filial: string;
+  concepto: string;
+  descripcionArticulo: string;
+  periodo: string;
+  unidNegocio: string;
+  area: string;
+  cCosto: string;
+  proyecto: string;
+  cta: number;
+  ctaContable: number;
+  descripcionCtaContable: string;
+  importeEEFF: number;
+  comentarios: string;
+  extraordinarioOrdinario: string;
+  ingresoEgreso: string;
+  rubro1: string;
+  monto: number;
 }
 
+export interface CapexBudgetItem {
+  id: string;
+  filial: string;
+  concepto: string;
+  descripcionArticulo: string;
+  periodo: string;
+  unidNegocio: string;
+  area: string;
+  cCosto: string;
+  proyecto: string;
+  ctaContable: number;
+  descripcionCtaCont: string;
+  importe: number;
+  areaPpto: string;
+}
 
+export interface PreventivePlanItem {
+  id: string;
+  num: number;
+  prio: 'ALTO' | 'MEDIO';
+  actividad: string;
+  ubicacion: string;
+  frecuencia: string;
+  presupuesto_proyectado: number;
+  responsable: string;
+  fecha_tdr_revision: string;
+  fecha_tdr_envio: string;
+  rq: string;
+  acuerdo: string;
+  proveedor: string;
+  monto_sin_igv: number;
+  estado_original: string;
+  active_weeks: number[];
+  assigned_staff_id: string | null; // ID del técnico asignado (si es personal propio)
+  assigned_contractor?: string; // Nombre del contratista (si aplica)
+  status: 'Pendiente' | 'Realizado';
+  budgetItemLinkId?: string; // ID de la partida presupuestal enlazada
+  budgetItemLinkType?: 'CAPEX' | 'OPEX';
+  completed_weeks?: number[]; // Semanas que ya se han ejecutado
+}
+
+export interface RescheduleRecord {
+  id: string;
+  technician_id: string | null;
+  technician_name: string | null;
+  scheduled_date: string; // Original scheduled date
+  rescheduled_at: string;
+  reason: string;
+}
+
+export type RQStatus = 'review' | 'approved' | 'in_logistics' | 'attended' | 'rejected';
+
+export interface RQMaterial {
+  name: string;
+  unit: string;
+  quantity: number;
+}
+
+export interface RQRecord {
+  id: string;
+  item_number: number;
+  otm_id: string | null;
+  otm_code: string | null;
+  created_at: string;
+  supervisor_id: string;
+  supervisor_name: string;
+  type: 'supply' | 'service';
+  description: string;
+  materials?: RQMaterial[];
+  rq_number: string | null;
+  sap_number: string | null;
+  status: RQStatus;
+  status_dates: Partial<Record<RQStatus, string>>;
+  observations: string | null;
+}
+
+export const RQ_STATUS_LABELS: Record<RQStatus, string> = {
+  review: 'En Revisión',
+  approved: 'Aprobado/Con SAP',
+  in_logistics: 'En Proceso Logístico',
+  attended: 'Atendido/Entregado',
+  rejected: 'Rechazado',
+};
 
