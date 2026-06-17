@@ -35,7 +35,13 @@ export default function AIAssistant() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('crl_gemini_api_key') || '');
   const [useSimulated, setUseSimulated] = useState(() => !localStorage.getItem('crl_gemini_api_key'));
 
+  // Voice States
+  const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('crl_ai_voice_enabled') === 'true');
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -57,12 +63,129 @@ export default function AIAssistant() {
     }
   }, [isOpen, messages.length, user]);
 
+  // Trigger text-to-speech for the last assistant message
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'assistant' && lastMsg.id !== 'welcome') {
+        speakText(lastMsg.text);
+      }
+    }
+  }, [messages, voiceEnabled]);
+
+  // Cleanup speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Text to Speech
+  const speakText = (text: string) => {
+    if (!voiceEnabled || !('speechSynthesis' in window)) return;
+
+    try {
+      window.speechSynthesis.cancel(); // stop current speech
+      
+      // Clean markdown formatting so the voice doesn't read symbols
+      let cleanText = text
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/#/g, '')
+        .replace(/`{1,3}[^`]*`{1,3}/g, '') // remove code blocks
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // keep text inside markdown links
+        .trim();
+
+      // Limit length to avoid browser speech timeout
+      if (cleanText.length > 600) {
+        cleanText = cleanText.substring(0, 600) + '...';
+      }
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'es-PE'; // Spanish - Peru
+
+      // Find a suitable Spanish voice
+      const voices = window.speechSynthesis.getVoices();
+      const esVoice = voices.find(v => v.lang.startsWith('es'));
+      if (esVoice) {
+        utterance.voice = esVoice;
+      }
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.error('Speech synthesis error:', err);
+      setIsSpeaking(false);
+    }
+  };
+
+  // Speech to Text (Speech Recognition)
+  const startListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('La entrada de voz no es compatible con este navegador. Por favor, utiliza Google Chrome o Microsoft Edge.');
+      return;
+    }
+
+    // Stop speaking if active
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'es-PE'; // Spanish - Peru
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript && transcript.trim()) {
+          handleSendMessage(transcript);
+        }
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
   // Welcome message based on user role
   const getWelcomeMessage = (currentUser: Profile) => {
     const name = currentUser.full_name.split(' ')[0];
     switch (currentUser.role) {
       case 'requester':
-        return `¡Hola ${name}! Soy tu Asistente de Mantenimiento CRL. ¿En qué te puedo ayudar hoy? Puedes hacerme preguntas sobre la plataforma o simplemente decirme qué falla tienes (por ejemplo: *"Se rompió un caño en los vestuarios de tenis"*) y yo crearé el requerimiento por ti.`;
+        return `¡Hola ${name}! Soy tu Asistente de Mantenimiento CRL. ¿En qué te puedo ayudar hoy? Puedes hacerme preguntas sobre la plataforma o simplemente decirme qué falla tienes (por ejemplo: *"Se rompió un caño en los vestuarios de tenis"*) y yo crearé el requerimiento por ti. Puedes usar el micrófono para hablarme si lo prefieres.`;
       case 'supervisor':
       case 'admin':
         return `Hola ${name}. Estoy listo para apoyarte en la gestión. Puedes preguntarme el estado de los requerimientos, o pedirme directamente que programe y asigne trabajos, por ejemplo: *"Asigna la OTM2703-0003 a Ciro Diaz para mañana"* o *"Cancela la OTM2703-0004"*.`;
@@ -118,7 +241,6 @@ export default function AIAssistant() {
     const technicians = users.filter(u => u.role === 'technician');
     for (const tech of technicians) {
       const nameParts = tech.full_name.toLowerCase().split(' ');
-      // Match first name and last name combinations
       if (cleanText.includes(tech.full_name.toLowerCase()) || 
           (nameParts[0] && nameParts[1] && cleanText.includes(nameParts[0]) && cleanText.includes(nameParts[1]))) {
         return tech;
@@ -138,7 +260,6 @@ export default function AIAssistant() {
   // ----------------------------------------------------
   const runSimulation = async (userText: string) => {
     setIsLoading(true);
-    // Simulate thinking delay
     await new Promise(resolve => setTimeout(resolve, 1200));
 
     const cleanText = userText.toLowerCase().trim();
@@ -158,12 +279,11 @@ export default function AIAssistant() {
     }
 
     // B. Requester Flow: Create OTM
-    if (user?.role === 'requester' && (cleanText.includes('registrar') || cleanText.includes('falla') || cleanText.includes('crear') || cleanText.includes('roto') || cleanText.includes('dañ') || cleanText.includes('problema'))) {
-      // Check if user provided details
+    if (user?.role === 'requester' && (cleanText.includes('registrar') || cleanText.includes('falla') || cleanText.includes('crear') || cleanText.includes('roto') || cleanText.includes('dañ') || cleanText.includes('problema') || cleanText.includes('caño') || cleanText.includes('fuga'))) {
       const detectedSpecialty = specialties.find(s => cleanText.includes(s.toLowerCase().replace(/^\d+\.\s*/, ''))) || 'Otros';
       const detectedLocation = locations.find(l => cleanText.includes(l.toLowerCase().replace(/^\d+\.\s*/, ''))) || locations[0] || 'Instalaciones';
       
-      const isMissingDetails = !cleanText.includes('baño') && !cleanText.includes('oficina') && !cleanText.includes('tuber') && !cleanText.includes('puerta') && !cleanText.includes('luz') && !cleanText.includes('caño');
+      const isMissingDetails = !cleanText.includes('baño') && !cleanText.includes('oficina') && !cleanText.includes('tuber') && !cleanText.includes('puerta') && !cleanText.includes('luz') && !cleanText.includes('caño') && !cleanText.includes('fuga');
 
       if (isMissingDetails) {
         setIsLoading(false);
@@ -176,7 +296,6 @@ export default function AIAssistant() {
         return;
       }
 
-      // Execute OTM creation in local storage context
       try {
         const cleanDesc = userText.charAt(0).toUpperCase() + userText.slice(1);
         const newOtm = await createOTM({
@@ -244,7 +363,6 @@ export default function AIAssistant() {
         return;
       }
 
-      // Execute assignment in context
       try {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -294,7 +412,6 @@ export default function AIAssistant() {
         return;
       }
 
-      // Find OTM to check state
       const targetOtm = otms.find(o => o.otm_code === code || o.id === code);
       if (!targetOtm) {
         setIsLoading(false);
@@ -307,7 +424,6 @@ export default function AIAssistant() {
         return;
       }
 
-      // Execute completion in context
       try {
         const notes = userText.replace(new RegExp(code, 'gi'), '').replace(/(termine|finalice|complete|cerrar|el|trabajo)/gi, '').trim();
         const cleanNotes = notes ? notes.charAt(0).toUpperCase() + notes.slice(1) : 'Trabajo completado satisfactoriamente.';
@@ -363,7 +479,6 @@ export default function AIAssistant() {
     const timestamp = new Date();
     const id = `msg-${Date.now()}`;
 
-    // System prompt setup based on role
     const systemPrompt = `
 Eres el "Asistente de IA CRL", el agente inteligente integrado en la Plataforma de Mantenimiento del Club de Regatas Lima (CRL).
 Tu misión es facilitar la gestión operativa de mantenimiento respondiendo consultas de soporte o llamando a herramientas (Function Calling) para automatizar el sistema.
@@ -385,7 +500,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
 - Lista de Técnicos activos (Nombre e ID): ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
     `;
 
-    // Define function declarations for tools
     const tools = [
       {
         functionDeclarations: [
@@ -435,7 +549,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
       }
     ];
 
-    // Build contents history
     const contents = messages
       .filter(m => m.id !== 'welcome')
       .map(m => ({
@@ -479,7 +592,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
         }
       }
 
-      // If Gemini decided to call a function/tool
       if (functionCall) {
         const { name, args } = functionCall;
         console.log('Gemini Function Call requested:', name, args);
@@ -488,7 +600,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
         let cardType = undefined;
         let cardData = null;
 
-        // Execute actual functions based on tools
         if (name === 'createOTM') {
           try {
             const newOtm = await createOTM({
@@ -520,7 +631,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
           } else {
             try {
               assignOTM(args.otmId, args.technicianIds, args.scheduledDate, 'Asignado vía Asistente de IA', args.estimatedTime || 2);
-              
               const techNames = args.technicianIds.map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
               
               resultData = { status: 'success', message: 'OTM asignada con éxito.' };
@@ -559,7 +669,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
           }
         }
 
-        // Send the tool response back to Gemini to get the final dialogue reply
         const secondContents = [
           ...contents,
           {
@@ -606,7 +715,6 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
           cardData
         }]);
       } else {
-        // Simple text response from Gemini
         setIsLoading(false);
         setMessages(prev => [...prev, {
           id,
@@ -763,6 +871,37 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Speaker Toggle Button (TTS) */}
+          <button 
+            onClick={() => {
+              const nextVal = !voiceEnabled;
+              setVoiceEnabled(nextVal);
+              localStorage.setItem('crl_ai_voice_enabled', String(nextVal));
+              if (!nextVal) {
+                if ('speechSynthesis' in window) {
+                  window.speechSynthesis.cancel();
+                }
+                setIsSpeaking(false);
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: voiceEnabled ? '#3b82f6' : '#94a3b8',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              padding: 4,
+              borderRadius: 6,
+              transition: 'background 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title={voiceEnabled ? "Desactivar voz de la IA" : "Activar voz de la IA"}
+          >
+            {voiceEnabled ? (isSpeaking ? '🔊' : '🔈') : '🔇'}
+          </button>
+
           <button 
             onClick={() => setShowSettings(!showSettings)}
             style={{
@@ -1060,6 +1199,30 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
             boxSizing: 'border-box'
           }}
         />
+
+        {/* Microphone Button (Speech to Text) */}
+        <button
+          onClick={isListening ? stopListening : startListening}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: isListening ? '#ef4444' : 'rgba(255,255,255,0.05)',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.15rem',
+            boxShadow: isListening ? '0 0 12px #ef4444' : 'none',
+            transition: 'all 0.2s'
+          }}
+          title={isListening ? "Detener grabación (Escuchando...)" : "Hablar con la IA (Entrada de voz)"}
+        >
+          {isListening ? '🛑' : '🎤'}
+        </button>
+
         <button
           onClick={() => handleSendMessage()}
           disabled={isLoading || !inputVal.trim()}
