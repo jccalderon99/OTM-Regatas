@@ -152,17 +152,28 @@ function EditableObservationItem({
   const [text, setText] = useState(observation.text);
   const [date, setDate] = useState(() => {
     if (!observation.date) return '';
-    const d = new Date(observation.date);
-    const tzoffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzoffset).toISOString().slice(0, 16);
+    try {
+      const d = new Date(observation.date);
+      if (isNaN(d.getTime())) return '';
+      const tzoffset = d.getTimezoneOffset() * 60000;
+      return new Date(d.getTime() - tzoffset).toISOString().slice(0, 16);
+    } catch (e) {
+      return '';
+    }
   });
 
   useEffect(() => {
     setText(observation.text);
     if (observation.date) {
-      const d = new Date(observation.date);
-      const tzoffset = d.getTimezoneOffset() * 60000;
-      setDate(new Date(d.getTime() - tzoffset).toISOString().slice(0, 16));
+      try {
+        const d = new Date(observation.date);
+        if (!isNaN(d.getTime())) {
+          const tzoffset = d.getTimezoneOffset() * 60000;
+          setDate(new Date(d.getTime() - tzoffset).toISOString().slice(0, 16));
+        }
+      } catch (e) {
+        // ignore
+      }
     }
   }, [observation]);
 

@@ -163,12 +163,42 @@ export function RQProvider({ children }: { children: ReactNode }) {
   };
 
   const [rqs, setRqs] = useState<RQRecord[]>(() => {
-    const saved = localStorage.getItem('demo_rqs_v2');
-    return saved ? JSON.parse(saved) : getInitialRqs();
+    const saved = localStorage.getItem('demo_rqs_v3');
+    if (!saved) return getInitialRqs();
+    try {
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return getInitialRqs();
+      return parsed.map((r: any) => {
+        // Sanitize status
+        let status = r.status;
+        if (status === 'review') status = 'in_approval';
+        if (status === 'approved') status = 'in_logistics';
+        
+        // Sanitize observations
+        let observations = r.observations;
+        if (typeof observations === 'string') {
+          observations = observations.trim() ? [{
+            id: `obs-mig-${Date.now()}-${Math.random()}`,
+            text: observations,
+            date: r.created_at || new Date().toISOString()
+          }] : [];
+        } else if (!Array.isArray(observations)) {
+          observations = [];
+        }
+
+        return {
+          ...r,
+          status,
+          observations
+        };
+      });
+    } catch (e) {
+      return getInitialRqs();
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('demo_rqs_v2', JSON.stringify(rqs));
+    localStorage.setItem('demo_rqs_v3', JSON.stringify(rqs));
   }, [rqs]);
 
   const getRQById = useCallback((id: string) => {
