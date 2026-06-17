@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import NotificationBell from '../components/NotificationBell';
+import AIAssistant from '../components/AIAssistant';
+
 
 interface NavItem {
   id: string;
@@ -217,6 +219,9 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
           {children}
         </main>
       </div>
+
+      <AIAssistant />
+
 
       <style>{`
         #mobile-menu-btn { display: none; }
