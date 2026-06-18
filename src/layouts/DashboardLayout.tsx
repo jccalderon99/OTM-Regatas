@@ -232,7 +232,8 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                     style={isComplementos ? { paddingLeft: 28 } : undefined}
                     onClick={() => {
                       if (item.id === 'clau-rv') {
-                        window.open('http://localhost:3000', '_blank');
+                        const clauRvUrl = import.meta.env.VITE_CLAURV_URL || 'http://localhost:3000';
+                        window.open(clauRvUrl, '_blank');
                       } else {
                         onNavigate(item.id);
                       }

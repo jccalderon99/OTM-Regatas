@@ -117,7 +117,8 @@ export default function WelcomePortal({ onNavigate }: Props) {
               key={item.id}
               onClick={() => {
                 if (item.id === 'clau-rv') {
-                  window.open('http://localhost:3000', '_blank');
+                  const clauRvUrl = import.meta.env.VITE_CLAURV_URL || 'http://localhost:3000';
+                  window.open(clauRvUrl, '_blank');
                 } else {
                   onNavigate(item.id);
                 }
