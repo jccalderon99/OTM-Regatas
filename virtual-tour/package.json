@@ -1,0 +1,19 @@
+{
+  "name": "virtual-tour",
+  "version": "1.0.0",
+  "description": "Esta plataforma standalone permite visualizar imágenes 360° interactivas con calidad premium. Está diseñada para que puedas agregar y enlazar nuevas escenas editando únicamente el archivo `config.json`, sin necesidad de tocar código.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.2.0"
+  }
+}

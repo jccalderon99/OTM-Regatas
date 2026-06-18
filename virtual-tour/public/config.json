@@ -1,0 +1,53 @@
+{
+  "tourName": "Recorrido Virtual — Sede Principal",
+  "author": "Tu Empresa",
+  "defaultScene": "sala",
+  "autoRotate": -2,
+  "scenes": {
+    "sala": {
+      "title": "Sala de Estar (Ejemplo)",
+      "description": "Una vista panorámica de la sala.",
+      "image": "assets/panoramas/sala.jpg",
+      "thumbnail": "assets/thumbnails/sala_thumb.jpg",
+      "pitch": 0,
+      "yaw": 0,
+      "hfov": 100,
+      "hotSpots": [
+        {
+          "type": "scene",
+          "pitch": 5,
+          "yaw": 80,
+          "targetScene": "exterior",
+          "text": "Ir al Exterior",
+          "icon": "arrow"
+        },
+        {
+          "type": "info",
+          "pitch": -10,
+          "yaw": -30,
+          "title": "Detalle Arquitectónico",
+          "text": "Este es un hotspot de información. Puedes poner texto aquí para explicar detalles del lugar.\\n\\nSoporta múltiples líneas."
+        }
+      ]
+    },
+    "exterior": {
+      "title": "Vista Exterior (Ejemplo)",
+      "description": "Vista desde fuera.",
+      "image": "assets/panoramas/exterior.jpg",
+      "thumbnail": "assets/thumbnails/exterior_thumb.jpg",
+      "pitch": 0,
+      "yaw": 180,
+      "hfov": 100,
+      "hotSpots": [
+        {
+          "type": "scene",
+          "pitch": -5,
+          "yaw": 0,
+          "targetScene": "sala",
+          "text": "Volver a la Sala",
+          "icon": "arrow"
+        }
+      ]
+    }
+  }
+}
