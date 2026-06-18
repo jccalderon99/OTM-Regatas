@@ -115,14 +115,7 @@ export default function WelcomePortal({ onNavigate }: Props) {
            {permittedItems.map(item => (
             <button
               key={item.id}
-              onClick={() => {
-                if (item.id === 'clau-rv') {
-                  const clauRvUrl = import.meta.env.VITE_CLAURV_URL || 'http://localhost:3000';
-                  window.open(clauRvUrl, '_blank');
-                } else {
-                  onNavigate(item.id);
-                }
-              }}
+              onClick={() => onNavigate(item.id)}
               style={{
                 background: 'rgba(255, 255, 255, 0.1)',
                 backdropFilter: 'blur(16px)',

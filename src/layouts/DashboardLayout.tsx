@@ -231,12 +231,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                   <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
                     style={isComplementos ? { paddingLeft: 28 } : undefined}
                     onClick={() => {
-                      if (item.id === 'clau-rv') {
-                        const clauRvUrl = import.meta.env.VITE_CLAURV_URL || 'http://localhost:3000';
-                        window.open(clauRvUrl, '_blank');
-                      } else {
-                        onNavigate(item.id);
-                      }
+                      onNavigate(item.id);
                       setSidebarOpen(false);
                     }}>
                     <span>{item.icon}</span>
