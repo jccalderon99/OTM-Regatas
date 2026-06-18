@@ -193,6 +193,63 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     setOTMs(prev => [...prev]);
   }, [user]);
 
+  const [otms, setOTMs] = useState<OTMRequest[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_otms_v3');
+    return saved ? JSON.parse(saved) : [...DEMO_OTMS];
+  });
+  const [statusLogs, setLogs] = useState<OTMStatusLog[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_status_logs_v3');
+    return saved ? JSON.parse(saved) : [...DEMO_STATUS_LOGS];
+  });
+  const [users, setUsers] = useState<Profile[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_users');
+    return saved ? JSON.parse(saved) : [...DEMO_USERS];
+  });
+  const [areas, setAreas] = useState<string[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_areas');
+    return saved ? JSON.parse(saved) : [...INITIAL_AREAS];
+  });
+  const [specialties, setSpecialties] = useState<string[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_specialties');
+    return saved ? JSON.parse(saved) : [...INITIAL_FAILURES];
+  });
+  const [locations, setLocations] = useState<string[]>(() => {
+    if (isLive) return [];
+    const saved = localStorage.getItem('demo_locations');
+    return saved ? JSON.parse(saved) : [...INITIAL_LOCATIONS];
+  });
+  const [otis, setOTIs] = useState<OTIRequest[]>(() => {
+    const saved = localStorage.getItem('demo_otis');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [techRequests, setTechRequests] = useState<TechRequest[]>(() => {
+    const saved = localStorage.getItem('demo_tech_requests');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [opexBudget, setOpexBudget] = useState<OpexBudgetItem[]>(() => {
+    const saved = localStorage.getItem('demo_opex_budget');
+    if (saved) return JSON.parse(saved);
+    return MOCK_OPEX_BUDGET.map((item, idx) => ({ ...item, id: item.id || `opex-${idx}` }));
+  });
+
+  const [capexBudget, setCapexBudget] = useState<CapexBudgetItem[]>(() => {
+    const saved = localStorage.getItem('demo_capex_budget');
+    if (saved) return JSON.parse(saved);
+    return MOCK_CAPEX_BUDGET.map((item, idx) => ({ ...item, id: item.id || `capex-${idx}` }));
+  });
+
+  const [preventivePlan, setPreventivePlan] = useState<PreventivePlanItem[]>(() => {
+    const saved = localStorage.getItem('demo_preventive_plan');
+    if (saved) return JSON.parse(saved);
+    return [...MOCK_PREVENTIVE_PLAN];
+  });
+
   // Diffing ref to monitor and trigger alerts for new/updated OTMs
   const prevOtmsRef = useRef<OTMRequest[]>([]);
 
@@ -308,62 +365,6 @@ export function OTMProvider({ children }: { children: ReactNode }) {
 
   }, [otms, user, addToast]);
 
-  const [otms, setOTMs] = useState<OTMRequest[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_otms_v3');
-    return saved ? JSON.parse(saved) : [...DEMO_OTMS];
-  });
-  const [statusLogs, setLogs] = useState<OTMStatusLog[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_status_logs_v3');
-    return saved ? JSON.parse(saved) : [...DEMO_STATUS_LOGS];
-  });
-  const [users, setUsers] = useState<Profile[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_users');
-    return saved ? JSON.parse(saved) : [...DEMO_USERS];
-  });
-  const [areas, setAreas] = useState<string[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_areas');
-    return saved ? JSON.parse(saved) : [...INITIAL_AREAS];
-  });
-  const [specialties, setSpecialties] = useState<string[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_specialties');
-    return saved ? JSON.parse(saved) : [...INITIAL_FAILURES];
-  });
-  const [locations, setLocations] = useState<string[]>(() => {
-    if (isLive) return [];
-    const saved = localStorage.getItem('demo_locations');
-    return saved ? JSON.parse(saved) : [...INITIAL_LOCATIONS];
-  });
-  const [otis, setOTIs] = useState<OTIRequest[]>(() => {
-    const saved = localStorage.getItem('demo_otis');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [techRequests, setTechRequests] = useState<TechRequest[]>(() => {
-    const saved = localStorage.getItem('demo_tech_requests');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [opexBudget, setOpexBudget] = useState<OpexBudgetItem[]>(() => {
-    const saved = localStorage.getItem('demo_opex_budget');
-    if (saved) return JSON.parse(saved);
-    return MOCK_OPEX_BUDGET.map((item, idx) => ({ ...item, id: item.id || `opex-${idx}` }));
-  });
-
-  const [capexBudget, setCapexBudget] = useState<CapexBudgetItem[]>(() => {
-    const saved = localStorage.getItem('demo_capex_budget');
-    if (saved) return JSON.parse(saved);
-    return MOCK_CAPEX_BUDGET.map((item, idx) => ({ ...item, id: item.id || `capex-${idx}` }));
-  });
-
-  const [preventivePlan, setPreventivePlan] = useState<PreventivePlanItem[]>(() => {
-    const saved = localStorage.getItem('demo_preventive_plan');
-    if (saved) return JSON.parse(saved);
-    return [...MOCK_PREVENTIVE_PLAN];
-  });
 
   // ── Demo persistence effects ──
   useEffect(() => {
@@ -473,7 +474,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   // ── CRUD: OTMs ──
   const getOTMsForCurrentUser = useCallback(() => {
     if (!user) return [];
-    if (user.role === 'requester' || (user.role === 'jefatura' && user.area_sector !== '22. MANTENIMIENTO')) {
+    if (user.role === 'requester') {
+      return otms.filter(o => o.requester_id === user.id);
+    }
+    if (user.role === 'jefatura' && user.area_sector !== '22. MANTENIMIENTO') {
       return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);
     }
     if (user.role === 'technician') return otms.filter(o => 

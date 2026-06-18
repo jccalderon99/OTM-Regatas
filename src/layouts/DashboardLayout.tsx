@@ -126,7 +126,7 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
   const hasNavItemUnread = (itemId: string): boolean => {
     if (itemId === 'dashboard') {
       if (user.role === 'requester') {
-        return otms.some(o => (o.requester_id === user.id || o.area_sector === user.area_sector) && isOTMUnread(o));
+        return otms.some(o => o.requester_id === user.id && isOTMUnread(o));
       }
       if (user.role === 'jefatura') {
         return otms.some(o => {

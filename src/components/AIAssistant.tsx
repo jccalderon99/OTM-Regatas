@@ -42,7 +42,10 @@ export default function AIAssistant() {
   });
 
   // Ollama redundancy states
-  const [ollamaEnabled, setOllamaEnabled] = useState(() => localStorage.getItem('crl_ollama_enabled') === 'true');
+  const [ollamaEnabled, setOllamaEnabled] = useState(() => {
+    const stored = localStorage.getItem('crl_ollama_enabled');
+    return stored !== 'false';
+  });
   const [ollamaModel, setOllamaModel] = useState(() => localStorage.getItem('crl_ollama_model') || 'llama3.2');
   const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem('crl_ollama_url') || 'http://localhost:11434');
 
@@ -237,17 +240,7 @@ export default function AIAssistant() {
   // Welcome message based on user role
   const getWelcomeMessage = (currentUser: Profile) => {
     const name = currentUser.full_name.split(' ')[0];
-    switch (currentUser.role) {
-      case 'requester':
-        return `¡Hola ${name}! Soy tu Asistente de Mantenimiento CRL. ¿En qué te puedo ayudar hoy? Puedes hacerme preguntas sobre la plataforma o simplemente decirme qué falla tienes (por ejemplo: *"Se rompió un caño en los vestuarios de tenis"*) y yo crearé el requerimiento por ti. Puedes usar el micrófono para hablarme si lo prefieres.`;
-      case 'supervisor':
-      case 'admin':
-        return `Hola ${name}. Estoy listo para apoyarte en la gestión. Puedes preguntarme el estado de los requerimientos, o pedirme directamente que programe y asigne trabajos, por ejemplo: *"Asigna la OTM2703-0003 a Ciro Diaz para mañana"* o *"Cancela la OTM2703-0004"*.`;
-      case 'technician':
-        return `Hola Técnico ${name}. Estoy aquí para agilizar tu registro. Cuando termines un trabajo, puedes decírmelo en lenguaje natural y yo lo registraré por ti, por ejemplo: *"Ya finalicé el trabajo OTM2703-0003, usé pernos y silicona y tardó 3 horas"*. ¿Qué actividad registramos hoy?`;
-      default:
-        return `¡Hola! Soy tu asistente de mantenimiento con IA. ¿En qué te puedo ayudar hoy?`;
-    }
+    return `Hola ${name}, soy tu asistente virtual, ¿En qué puedo ayudarte?`;
   };
 
   // Quick Action pills
@@ -563,6 +556,7 @@ export default function AIAssistant() {
 
   // Respaldo local usando Ollama
   const runOllamaAPI = async (userText: string): Promise<boolean> => {
+    setIsLoading(true);
     const timestamp = new Date();
     const id = `msg-${Date.now()}`;
     
@@ -1046,7 +1040,7 @@ CATÁLOGO DEL SISTEMA:
   // ----------------------------------------------------
   // MESSAGE HANDLER
   // ----------------------------------------------------
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputVal).trim();
     if (!text) return;
 
@@ -1061,6 +1055,13 @@ CATÁLOGO DEL SISTEMA:
     setInputVal('');
 
     if (useSimulated) {
+      if (ollamaEnabled) {
+        console.log('No Gemini key. Attempting local Ollama API call...');
+        const ollamaSuccess = await runOllamaAPI(text);
+        if (ollamaSuccess) {
+          return;
+        }
+      }
       runSimulation(text);
     } else {
       runGeminiAPI(text);
@@ -1159,21 +1160,7 @@ CATÁLOGO DEL SISTEMA:
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-              Asistente de IA
-              <span style={{ 
-                fontSize: '0.65rem', 
-                background: useSimulated 
-                  ? 'rgba(234, 179, 8, 0.15)' 
-                  : (ollamaEnabled ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)'),
-                color: useSimulated 
-                  ? '#eab308' 
-                  : (ollamaEnabled ? '#3b82f6' : '#22c55e'),
-                padding: '2px 6px',
-                borderRadius: 4,
-                fontWeight: 600
-              }}>
-                {useSimulated ? 'Simulado' : (ollamaEnabled ? 'Gemini + Ollama 🔄' : 'Gemini 2.5 ⚡')}
-              </span>
+              Mant.ia
             </div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
               Mantenimiento CRL • {user?.role === 'admin' ? 'Admin' : user?.role === 'supervisor' ? 'Supervisor' : user?.role === 'technician' ? 'Técnico' : 'Solicitante'}
