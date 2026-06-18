@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OTMProvider } from './context/OTMContext';
 import Login from './pages/Login';
-import DashboardLayout from './layouts/DashboardLayout';
+import DashboardLayout, { isViewPermitted } from './layouts/DashboardLayout';
 import NewOTM from './pages/requester/NewOTM';
 import MyDashboard from './pages/requester/MyDashboard';
 import CommandCenter from './pages/supervisor/CommandCenter';
@@ -49,6 +49,10 @@ function AppContent() {
   };
 
   const renderView = () => {
+    if (currentView !== 'portal' && !isViewPermitted(currentView, user)) {
+      return defaultView();
+    }
+
     switch (currentView) {
       case 'dashboard': return defaultView();
       case 'new-otm': return <NewOTM onCreated={() => setCurrentView('dashboard')} />;
@@ -60,7 +64,7 @@ function AppContent() {
       case 'routine-admin': return <RoutineActivitiesAdmin />;
       case 'routine-register': return <RoutineRegister />;
       case 'reports': return <Reports />;
-      case 'gantt': return user.role === 'technician' ? defaultView() : <GanttChart />;
+      case 'gantt': return <GanttChart />;
       case 'preventive-plan': return <PreventiveMaintenancePlan />;
       case 'budget': return <BudgetDashboard />;
       case 'rq-log': return <RQLog onNavigate={setCurrentView} />;

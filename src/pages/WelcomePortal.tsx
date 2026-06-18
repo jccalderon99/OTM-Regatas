@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { NAV_GROUPS, ROLE_LABELS } from '../layouts/DashboardLayout';
+import { NAV_GROUPS, ROLE_LABELS, isViewPermitted } from '../layouts/DashboardLayout';
 
 interface Props {
   onNavigate: (view: string) => void;
@@ -35,7 +35,7 @@ export default function WelcomePortal({ onNavigate }: Props) {
 
   // Get permitted navigation items
   const permittedItems = NAV_GROUPS.flatMap(group => 
-    group.items.filter(item => item.roles.includes(user.role))
+    group.items.filter(item => isViewPermitted(item.id, user))
   );
 
   return (

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
-import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS, TechRequest, TechRequestStatus, OpexBudgetItem, CapexBudgetItem, PreventivePlanItem } from '../types';
+import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS, TechRequest, TechRequestStatus, OpexBudgetItem, CapexBudgetItem, PreventivePlanItem, OTMComment } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode } from '../lib/demoData';
 import { useAuth } from './AuthContext';
 import { AREAS as INITIAL_AREAS, FAILURE_TYPES as INITIAL_FAILURES, LOCATIONS as INITIAL_LOCATIONS } from '../types';
@@ -86,6 +86,9 @@ interface OTMContextType {
   addPreventivePlanItem: (item: Partial<PreventivePlanItem>) => void;
   deletePreventivePlanItem: (id: string) => void;
   updateBudgetItem: (type: 'CAPEX' | 'OPEX', id: string, fields: any) => void;
+  deriveOTM: (otmId: string, area: string, notes: string) => Promise<void>;
+  respondToDerivation: (otmId: string, status: 'accepted' | 'rejected', notes: string) => Promise<void>;
+  addOTMComment: (otmId: string, text: string) => Promise<void>;
 }
 
 const OTMContext = createContext<OTMContextType | null>(null);
@@ -200,7 +203,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const fetchAll = useCallback(async () => {
     if (!isLive) return;
     const [otmRes, logRes, userRes, masterRes] = await Promise.all([
-      supabase.from('otm_requests').select('*, assigned_technicians:otm_technicians(technician_id, technician:profiles(*))').order('created_at', { ascending: false }),
+      supabase.from('otm_requests').select('*, assigned_technicians:otm_technicians(technician_id, technician:profiles(*)), comments:otm_comments(*)').order('created_at', { ascending: false }),
       supabase.from('otm_status_logs').select('*').order('created_at', { ascending: true }),
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('master_data').select('*').eq('active', true).order('sort_order'),
@@ -246,7 +249,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
         .from('otm_requests')
         .update(fields)
         .eq('id', otmId)
-        .select('*, assigned_technicians:otm_technicians(technician_id, technician:profiles(*))')
+        .select('*, assigned_technicians:otm_technicians(technician_id, technician:profiles(*)), comments:otm_comments(*)')
         .single();
       if (data) {
         setOTMs(prev => prev.map(o => o.id === otmId ? { ...o, ...data } : o));
@@ -742,6 +745,76 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deriveOTM = useCallback(async (otmId: string, area: string, notes: string) => {
+    const otm = otms.find(o => o.id === otmId);
+    if (!otm || !user) return;
+
+    const jefaturas = users
+      .filter(u => u.role === 'jefatura' && u.area_sector === area)
+      .map(u => u.full_name)
+      .join(', ') || 'Jefatura de Área';
+
+    const fields = {
+      status: 'derived' as OTMStatus,
+      derived_to_area: area,
+      derived_notes: notes,
+      derived_to_jefatura_name: jefaturas,
+      derived_at: new Date().toISOString(),
+      derived_status: 'pending' as 'pending' | 'accepted' | 'rejected',
+      derived_response_notes: null,
+      derived_response_at: null,
+    };
+
+    await patchOTM(otmId, fields);
+    await addLog(otmId, otm.status, 'derived', `Derivado al área ${area} (Jefatura: ${jefaturas}) — Nota: ${notes}`);
+  }, [otms, users, user, patchOTM]);
+
+  const respondToDerivation = useCallback(async (otmId: string, status: 'accepted' | 'rejected', notes: string) => {
+    const otm = otms.find(o => o.id === otmId);
+    if (!otm || !user) return;
+
+    const fields = {
+      derived_status: status,
+      derived_response_notes: notes,
+      derived_response_at: new Date().toISOString(),
+      status: (status === 'rejected' ? 'pending' : 'derived') as OTMStatus,
+    };
+
+    await patchOTM(otmId, fields);
+    await addLog(otmId, otm.status, fields.status, `Derivación ${status === 'accepted' ? 'ACEPTADA' : 'RECHAZADA'} por ${user.full_name}. Nota: ${notes}`);
+  }, [otms, user, patchOTM]);
+
+  const addOTMComment = useCallback(async (otmId: string, text: string) => {
+    if (!user) return;
+    const newComment: OTMComment = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      otm_id: otmId,
+      user_id: user.id,
+      user_name: user.full_name,
+      user_role: user.role,
+      text: text,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isLive) {
+      try {
+        const { data } = await supabase
+          .from('otm_comments')
+          .insert(newComment)
+          .select()
+          .single();
+        if (data) {
+          setOTMs(prev => prev.map(o => o.id === otmId ? { ...o, comments: [...(o.comments || []), data] } : o));
+        }
+      } catch (err) {
+        console.error('Error inserting comment to Supabase, falling back to local state:', err);
+        setOTMs(prev => prev.map(o => o.id === otmId ? { ...o, comments: [...(o.comments || []), newComment] } : o));
+      }
+    } else {
+      setOTMs(prev => prev.map(o => o.id === otmId ? { ...o, comments: [...(o.comments || []), newComment] } : o));
+    }
+  }, [user, isLive]);
+
   return (
     <OTMContext.Provider value={{
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
@@ -756,7 +829,8 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       otis, getOTIsForCurrentUser, createOTI, updateOTIStatus,
       techRequests, getTechRequestsForCurrentUser, createTechRequest, updateTechRequestStatus,
       opexBudget, capexBudget, preventivePlan,
-      updatePreventivePlanItem, addPreventivePlanItem, deletePreventivePlanItem, updateBudgetItem
+      updatePreventivePlanItem, addPreventivePlanItem, deletePreventivePlanItem, updateBudgetItem,
+      deriveOTM, respondToDerivation, addOTMComment
     }}>
       {children}
     </OTMContext.Provider>

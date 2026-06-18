@@ -41,6 +41,11 @@ export default function AIAssistant() {
     return !defaultApiKey;
   });
 
+  // Ollama redundancy states
+  const [ollamaEnabled, setOllamaEnabled] = useState(() => localStorage.getItem('crl_ollama_enabled') === 'true');
+  const [ollamaModel, setOllamaModel] = useState(() => localStorage.getItem('crl_ollama_model') || 'llama3.2');
+  const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem('crl_ollama_url') || 'http://localhost:11434');
+
 
   // Voice States
   const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('crl_ai_voice_enabled') === 'true');
@@ -271,7 +276,14 @@ export default function AIAssistant() {
   }, [user]);
 
   // Update localStorage when settings change
-  const handleSaveSettings = (key: string, simulate: boolean) => {
+  const handleSaveSettings = (key: string, simulate: boolean, ollamaOn: boolean, model: string, url: string) => {
+    localStorage.setItem('crl_ollama_enabled', String(ollamaOn));
+    localStorage.setItem('crl_ollama_model', model.trim());
+    localStorage.setItem('crl_ollama_url', url.trim());
+    setOllamaEnabled(ollamaOn);
+    setOllamaModel(model.trim());
+    setOllamaUrl(url.trim());
+
     if (key.trim()) {
       localStorage.setItem('crl_gemini_api_key', key.trim());
       setApiKey(key.trim());
@@ -519,6 +531,213 @@ export default function AIAssistant() {
       }`,
       timestamp
     }]);
+  };
+
+  // Helper to parse arguments from Ollama custom action tags
+  const parseActionArgs = (argsStr: string) => {
+    const args: any = {};
+    const regex = /(\w+)\s*=\s*(?:'([^']*)'|"([^"]*)"|(\[.*?\])|([\w\-.]+))/g;
+    let match;
+    while ((match = regex.exec(argsStr)) !== null) {
+      const key = match[1];
+      let val: any = match[2] || match[3] || match[5];
+      const arrayVal = match[4];
+      
+      if (arrayVal) {
+        try {
+          val = JSON.parse(arrayVal.replace(/'/g, '"'));
+        } catch {
+          val = [];
+        }
+      } else if (val === 'true') {
+        val = true;
+      } else if (val === 'false') {
+        val = false;
+      } else if (!isNaN(Number(val))) {
+        val = Number(val);
+      }
+      args[key] = val;
+    }
+    return args;
+  };
+
+  // Respaldo local usando Ollama
+  const runOllamaAPI = async (userText: string): Promise<boolean> => {
+    const timestamp = new Date();
+    const id = `msg-${Date.now()}`;
+    
+    const messagesHistory = messages
+      .filter(m => m.id !== 'welcome')
+      .map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.text
+      }));
+
+    const ollamaSystemPrompt = `
+Eres el "Asistente de IA CRL Local", un modelo de inteligencia artificial de respaldo corriendo localmente en la laptop del usuario mediante Ollama.
+Tu objetivo es dar soporte en la Plataforma de Gestión de Mantenimiento del Club de Regatas Lima (CRL).
+
+PERSONALIDAD Y ESTILO:
+- Habla en español de manera atenta, fluida y amigable.
+- Sé sumamente conciso. Responde en un máximo de 2 o 3 oraciones, ya que procesas de forma local.
+- Agrega emojis amigables.
+
+DATOS DEL USUARIO:
+- Nombre: ${user?.full_name}
+- Rol: ${user?.role}
+
+CATÁLOGO DEL SISTEMA:
+- Áreas válidas: ${JSON.stringify(areas)}
+- Ubicaciones válidas: ${JSON.stringify(locations)}
+- Especialidades válidas: ${JSON.stringify(specialties)}
+- Técnicos activos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+
+REGLAS DE ACCIÓN CRÍTICAS (PARA EJECUTAR CAMBIOS EN LA PLATAFORMA):
+Si el usuario te pide registrar una acción concreta (crear una OTM, asignar técnicos o finalizar una OTM), debes responder conversando brevemente y obligatoriamente añadir al final de tu mensaje la siguiente línea exacta con corchetes para que el sistema la ejecute:
+
+1. Crear OTM (solo si el usuario tiene rol 'requester' o 'admin'):
+[ACCION: createOTM(area='Área', location='Ubicación', description='Descripción de la falla', specialty='Especialidad', priority='Alto|Medio|Bajo')]
+
+2. Asignar OTM (solo si el usuario tiene rol 'supervisor' o 'admin'):
+[ACCION: assignOTM(otmId='Código OTM', technicianIds=['ID_TECNICO'], scheduledDate='YYYY-MM-DD', estimatedTime=2)]
+
+3. Finalizar OTM (solo si el usuario tiene rol 'technician'):
+[ACCION: finishTechnicianWork(otmId='Código OTM', notes='Notas del técnico')]
+
+Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, respetando las comillas simples para los textos. Si te falta información obligatoria (por ejemplo, dónde ocurrió la falla), no pongas la marca, pídele los datos faltantes conversando amablemente.
+`;
+
+    try {
+      const response = await fetch(`${ollamaUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: ollamaModel,
+          messages: [
+            { role: 'system', content: ollamaSystemPrompt },
+            ...messagesHistory,
+            { role: 'user', content: userText }
+          ],
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Servidor de Ollama no responde');
+      }
+
+      const data = await response.json();
+      let responseText = data.message?.content || '';
+      console.log('Ollama Local Response:', responseText);
+
+      let cardType: any = undefined;
+      let cardData: any = null;
+
+      // Extract Action Tag if present
+      const actionMatch = responseText.match(/\[ACCION:\s*(\w+)\(([^)]*)\)\]/);
+      if (actionMatch) {
+        const actionName = actionMatch[1];
+        const argsStr = actionMatch[2];
+        const args = parseActionArgs(argsStr);
+        console.log('Action parsed from local Ollama model:', actionName, args);
+
+        // Strip action tag from chat display text
+        responseText = responseText.replace(/\[ACCION:[^\]]*\]/g, '').trim();
+
+        if (actionName === 'createOTM') {
+          try {
+            const newOtm = await createOTM({
+              area_sector: args.area || 'General',
+              location: args.location || 'Vía Asistente Local',
+              exact_location: args.exactLocation || 'Vía Asistente Local',
+              failure_type: args.specialty || 'General',
+              description: args.description || 'Reporte de falla local',
+              urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium',
+              status: 'pending'
+            });
+            cardType = 'otm-created';
+            cardData = {
+              code: newOtm.otm_code,
+              description: args.description || 'Reporte local',
+              location: args.location || 'Vía Local',
+              specialty: args.specialty || 'General',
+              status: 'Pendiente'
+            };
+            responseText += ' \n\n*(Ejecutado localmente por Llama: OTM registrada con éxito 👍)*';
+          } catch (e: any) {
+            responseText += ` \n\n*(Error local: ${e.message})*`;
+          }
+        }
+        else if (actionName === 'assignOTM') {
+          if (user?.role !== 'supervisor' && user?.role !== 'admin') {
+            responseText += ' \n\n*(Acción rechazada: Tu rol no permite programar asignaciones)*';
+          } else {
+            try {
+              assignOTM(args.otmId, args.technicianIds || [], args.scheduledDate || '', 'Asignado vía Asistente Local', args.estimatedTime || 2);
+              const techNames = (args.technicianIds || []).map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
+              cardType = 'otm-assigned';
+              cardData = {
+                code: args.otmId,
+                techName: techNames,
+                date: args.scheduledDate,
+                notes: 'Asignado vía Asistente Local'
+              };
+              responseText += ' \n\n*(Ejecutado localmente por Llama: Técnico asignado con éxito 👍)*';
+            } catch (e: any) {
+              responseText += ` \n\n*(Error local al asignar: ${e.message})*`;
+            }
+          }
+        }
+        else if (actionName === 'finishTechnicianWork') {
+          if (user?.role !== 'technician') {
+            responseText += ' \n\n*(Acción rechazada: Tu rol no permite finalizar tareas)*';
+          } else {
+            try {
+              const targetOtm = otms.find(o => o.otm_code === args.otmId || o.id === args.otmId);
+              if (!targetOtm) throw new Error('OTM no encontrada.');
+              finishTechnicianWork(targetOtm.id, args.notes || 'Trabajo completado.', []);
+              cardType = 'otm-finished';
+              cardData = {
+                code: args.otmId,
+                notes: args.notes || 'Completado localmente.'
+              };
+              responseText += ' \n\n*(Ejecutado localmente por Llama: OTM finalizada con éxito 👍)*';
+            } catch (e: any) {
+              responseText += ` \n\n*(Error local: ${e.message})*`;
+            }
+          }
+        }
+      }
+
+      setIsLoading(false);
+      setMessages(prev => [...prev, {
+        id,
+        role: 'assistant',
+        text: responseText + ' \n\n*(Servicio local activo: Llama 3.2 🏠)*',
+        timestamp,
+        cardType,
+        cardData
+      }]);
+
+      // Speak if enabled
+      if (voiceEnabled && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const cleanText = responseText.replace(/[*#`_]/g, '').substring(0, 800);
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'es-PE';
+        if (bestVoiceRef.current) utterance.voice = bestVoiceRef.current;
+        utterance.rate = 1.05;
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Ollama fetch error:', err);
+      return false;
+    }
   };
 
   // ----------------------------------------------------
@@ -784,6 +1003,15 @@ CATÁLOGO DEL SISTEMA:
       }
     } catch (err: any) {
       console.error('Gemini SDK Error:', err);
+      
+      if (ollamaEnabled) {
+        console.log('Gemini failed. Attempting failover to local Ollama...');
+        const ollamaSuccess = await runOllamaAPI(userText);
+        if (ollamaSuccess) {
+          return;
+        }
+      }
+
       setIsLoading(false);
       
       let errorText = 'Lo siento, no pude conectar con el servidor de IA. Asegúrate de que tu conexión sea estable y tu API Key sea correcta.';
@@ -795,7 +1023,13 @@ CATÁLOGO DEL SISTEMA:
                           errMsg.includes('API_KEY_SERVICE_BLOCKED');
                           
       if (isAuthError) {
-        errorText = 'Parece que hay un inconveniente de autenticación con tu API Key. Google requiere agregar una tarjeta de pago para habilitar el uso de las nuevas claves de formato "AQ." en tu proyecto. \n\n**¿Deseas activar el Modo Simulado (en el botón de configuración de arriba) para probar todo el flujo de inmediato?**';
+        errorText = 'Parece que hay un inconveniente de autenticación con tu API Key. Google requiere agregar una tarjeta de pago para habilitar el uso de las nuevas claves de formato "AQ." en tu proyecto.';
+      }
+
+      if (ollamaEnabled) {
+        errorText += '\n\n*(También intenté conectar con tu servidor de Ollama local pero falló. Asegúrate de tener Ollama abierto en tu laptop con el modelo cargado mediante: `ollama run ' + ollamaModel + '`)*';
+      } else {
+        errorText += '\n\n*¿Deseas activar el **Modo Simulado** (en el botón de configuración de arriba) para probar todo el flujo de inmediato?*';
       }
 
       setMessages(prev => [...prev, {
@@ -927,13 +1161,17 @@ CATÁLOGO DEL SISTEMA:
               Asistente de IA
               <span style={{ 
                 fontSize: '0.65rem', 
-                background: useSimulated ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                color: useSimulated ? '#eab308' : '#22c55e',
+                background: useSimulated 
+                  ? 'rgba(234, 179, 8, 0.15)' 
+                  : (ollamaEnabled ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)'),
+                color: useSimulated 
+                  ? '#eab308' 
+                  : (ollamaEnabled ? '#3b82f6' : '#22c55e'),
                 padding: '2px 6px',
                 borderRadius: 4,
                 fontWeight: 600
               }}>
-                {useSimulated ? 'Simulado' : 'Gemini 2.5 ⚡'}
+                {useSimulated ? 'Simulado' : (ollamaEnabled ? 'Gemini + Ollama 🔄' : 'Gemini 2.5 ⚡')}
               </span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
@@ -1056,9 +1294,68 @@ CATÁLOGO DEL SISTEMA:
               </div>
             )}
           </div>
+
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', cursor: 'pointer', marginBottom: 8 }}>
+              <input 
+                type="checkbox" 
+                checked={ollamaEnabled}
+                onChange={e => setOllamaEnabled(e.target.checked)}
+              />
+              Redundancia con Ollama Local (Llama 3)
+            </label>
+            {ollamaEnabled && (
+              <div style={{ display: 'flex', gap: 8, flexDirection: 'column', paddingLeft: 16 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: 2 }}>Modelo local:</div>
+                    <input 
+                      type="text" 
+                      value={ollamaModel}
+                      onChange={e => setOllamaModel(e.target.value)}
+                      placeholder="llama3.2"
+                      style={{
+                        width: '100%',
+                        background: '#0f172a',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1.5 }}>
+                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: 2 }}>Dirección API:</div>
+                    <input 
+                      type="text" 
+                      value={ollamaUrl}
+                      onChange={e => setOllamaUrl(e.target.value)}
+                      placeholder="http://localhost:11434"
+                      style={{
+                        width: '100%',
+                        background: '#0f172a',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>
+                  Si Gemini supera su límite de 15 solicitudes/minuto, las consultas se procesarán localmente mediante Ollama.
+                </div>
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
             <button 
-              onClick={() => handleSaveSettings(useSimulated ? '' : apiKey, useSimulated)}
+              onClick={() => handleSaveSettings(useSimulated ? '' : apiKey, useSimulated, ollamaEnabled, ollamaModel, ollamaUrl)}
               style={{
                 background: '#2563eb',
                 color: 'white',

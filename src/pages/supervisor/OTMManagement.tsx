@@ -3,7 +3,7 @@ import { useOTM } from '../../context/OTMContext';
 import { useAuth } from '../../context/AuthContext';
 import { useRQ } from '../../context/RQContext';
 import StatusBadge from '../../components/StatusBadge';
-import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS, RQ_STATUS_LABELS } from '../../types';
+import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS, RQ_STATUS_LABELS, AREAS } from '../../types';
 import ConformityActa from '../../components/ConformityActa';
 
 type ManageAction = 'none' | 'assign' | 'rq' | 'cancel';
@@ -15,7 +15,7 @@ interface OTMManagementProps {
 }
 
 export default function OTMManagement({ onNavigate }: OTMManagementProps) {
-  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs } = useOTM();
+  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs, deriveOTM, addOTMComment } = useOTM();
   const { user } = useAuth();
   const { createRQRecord, getRQByOtmId } = useRQ();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
@@ -90,6 +90,40 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
   const [contractorEndDate, setContractorEndDate] = useState('');
   const [contractorWorkDesc, setContractorWorkDesc] = useState('');
 
+  // Derivación y Comentarios
+  const [deriveArea, setDeriveArea] = useState('');
+  const [deriveNotes, setDeriveNotes] = useState('');
+  const [newCommentText, setNewCommentText] = useState('');
+
+  const handleDeriveSubmit = async () => {
+    if (!manageOTM || !deriveArea || !deriveNotes.trim()) return;
+    await deriveOTM(manageOTM.id, deriveArea, deriveNotes.trim());
+    setManageOTM(null);
+    setAction('none');
+    setDeriveArea('');
+    setDeriveNotes('');
+  };
+
+  const handleAddCommentSubmit = async () => {
+    if (!manageOTM || !newCommentText.trim()) return;
+    await addOTMComment(manageOTM.id, newCommentText.trim());
+    
+    setManageOTM(prev => prev ? {
+      ...prev,
+      comments: [...(prev.comments || []), {
+        id: `comment-${Date.now()}`,
+        otm_id: prev.id,
+        user_id: user?.id || '',
+        user_name: user?.full_name || '',
+        user_role: user?.role || '',
+        text: newCommentText.trim(),
+        created_at: new Date().toISOString()
+      }]
+    } : null);
+    
+    setNewCommentText('');
+  };
+
   const technicians = users.filter(u => u.role === 'technician').sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   const urgencyOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -152,6 +186,9 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
     setContractorStartDate(otm.job_start_time ? new Date(otm.job_start_time).toISOString().slice(0, 16) : '');
     setContractorEndDate(otm.job_end_time ? new Date(otm.job_end_time).toISOString().slice(0, 16) : '');
     setContractorWorkDesc(otm.technician_notes || '');
+    setDeriveArea('');
+    setDeriveNotes('');
+    setNewCommentText('');
   };
 
   useEffect(() => {
@@ -719,16 +756,80 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
                 );
               })()}
 
-              {/* Fase 3: Asignación */}
+              {/* Fase 3: Asignación / Derivación */}
               <div className="glass-card" style={{ padding: 16, borderLeft: '3px solid var(--accent-blue)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>FASE 3: ASIGNACIÓN</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 10 }}>
+                  {manageOTM.status === 'derived' ? 'INFORMACIÓN DE DERIVACIÓN' : 'FASE 3: ASIGNACIÓN'}
+                </div>
                 
-                {!manageOTM.assignment_type ? (
+                {manageOTM.status === 'derived' ? (
+                  <div style={{ background: 'rgba(249, 115, 22, 0.05)', padding: 12, borderRadius: 8, border: '1px solid rgba(249, 115, 22, 0.15)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--accent-orange)' }}>
+                        ➡️ DERIVADA A OTRA ÁREA
+                      </strong>
+                      <span className="badge" style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        backgroundColor: manageOTM.derived_status === 'accepted' ? 'rgba(16, 185, 129, 0.12)' : manageOTM.derived_status === 'rejected' ? 'rgba(244, 63, 94, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                        color: manageOTM.derived_status === 'accepted' ? '#34d399' : manageOTM.derived_status === 'rejected' ? '#fb7185' : '#f59e0b',
+                        border: `1px solid ${
+                          manageOTM.derived_status === 'accepted' ? 'rgba(52, 211, 153, 0.3)' : 
+                          manageOTM.derived_status === 'rejected' ? 'rgba(251, 113, 133, 0.3)' : 
+                          'rgba(245, 158, 11, 0.3)'
+                        }`
+                      }}>
+                        {manageOTM.derived_status === 'accepted' ? 'Aceptada' : manageOTM.derived_status === 'rejected' ? 'Rechazada' : 'Pendiente'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div><strong>Área de Destino:</strong> {manageOTM.derived_to_area}</div>
+                      <div><strong>Jefatura responsable:</strong> {manageOTM.derived_to_jefatura_name || 'Sin especificar'}</div>
+                      <div><strong>Fecha de derivación:</strong> {manageOTM.derived_at ? new Date(manageOTM.derived_at).toLocaleDateString('es') : '-'}</div>
+                      <div style={{ marginTop: 4, background: '#f8fafc', padding: 6, borderRadius: 4, border: '1px solid #e2e8f0' }}>
+                        <strong>Nota de Mantenimiento:</strong><br />
+                        {manageOTM.derived_notes}
+                      </div>
+                      {manageOTM.derived_response_notes && (
+                        <div style={{ marginTop: 4, background: manageOTM.derived_status === 'accepted' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(244, 63, 94, 0.05)', padding: 6, borderRadius: 4, border: `1px solid ${manageOTM.derived_status === 'accepted' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)'}` }}>
+                          <strong>Respuesta de Jefatura Destino:</strong><br />
+                          {manageOTM.derived_response_notes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : !manageOTM.assignment_type ? (
                   <div>
-                    {action !== 'assign' ? (
-                      <button className="btn btn-primary w-full" style={{ fontSize: '0.8rem' }} onClick={() => { setAction('assign'); setAssignSub('own'); }}>
-                        🔧 Asignar Trabajo
-                      </button>
+                    {action !== 'assign' && action !== 'derive' ? (
+                      <div className="flex gap-2">
+                        <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.8rem' }} onClick={() => { setAction('assign'); setAssignSub('own'); }}>
+                          🔧 Asignar Trabajo
+                        </button>
+                        <button className="btn btn-secondary" style={{ flex: 1, fontSize: '0.8rem', borderColor: 'var(--accent-orange)', color: 'var(--accent-orange)' }} onClick={() => { setAction('derive'); }}>
+                          ➡️ Derivar Área
+                        </button>
+                      </div>
+                    ) : action === 'derive' ? (
+                      <div className="flex-col gap-3 slide-up" style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-orange)' }}>Derivar a otra Área</h4>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Área de Destino *</label>
+                          <select className="form-select" style={{ fontSize: '0.75rem' }} value={deriveArea} onChange={e => setDeriveArea(e.target.value)}>
+                            <option value="">Seleccionar área...</option>
+                            {AREAS.filter(a => a !== '22. MANTENIMIENTO').map(area => (
+                              <option key={area} value={area}>{area}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Comentario de derivación *</label>
+                          <textarea className="form-textarea" style={{ fontSize: '0.75rem', minHeight: 60 }} placeholder="Explique por qué se deriva a esta área..." value={deriveNotes} onChange={e => setDeriveNotes(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                          <button className="btn btn-secondary btn-sm" onClick={() => setAction('none')}>Volver</button>
+                          <button className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--accent-orange)', borderColor: 'var(--accent-orange)' }} onClick={handleDeriveSubmit} disabled={!deriveArea || !deriveNotes.trim()}>Derivar</button>
+                        </div>
+                      </div>
                     ) : (
                       <div className="slide-up flex-col gap-3" style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -1015,44 +1116,79 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
                 </div>
               )}
 
-              {/* Historial del Proceso / Auditoría */}
-              {(manageOTM.status === 'closed' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'in_progress' || manageOTM.status === 'rq') && (
-                <div style={{ padding: 16, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
-                    ⏳ Historial del Proceso
-                  </div>
-                  
-                  <div className="timeline">
-                    {statusLogs
-                      .filter(l => l.otm_id === manageOTM.id)
-                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                      .map((log, index, arr) => {
-                        const changerName = log.changed_by_profile?.full_name || users.find(u => u.id === log.changed_by)?.full_name || 'Sistema';
-                        const isLast = index === arr.length - 1;
-                        
-                        return (
-                          <div key={log.id} className="timeline-item" style={{ paddingBottom: isLast ? 0 : 20 }}>
-                            <div className={`timeline-dot ${isLast ? 'active' : 'completed'}`} />
-                            <div className="timeline-time">
-                              {new Date(log.created_at).toLocaleString('es')} — <strong style={{ color: 'var(--text-secondary)' }}>{changerName}</strong>
-                            </div>
-                            <div className="timeline-label" style={{ fontSize: '0.8rem', marginTop: 2 }}>
-                              {log.previous_status ? `${STATUS_LABELS[log.previous_status as OTMStatus] || log.previous_status} ➔ ` : ''}
-                              <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>
-                                {STATUS_LABELS[log.new_status as OTMStatus] || log.new_status}
-                              </span>
-                            </div>
-                            {log.notes && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
-                                Nota: {log.notes}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
                   </div>
                 </div>
               )}
+
+              {/* Sección de Comentarios / Aclaraciones */}
+              <div className="glass-card" style={{ padding: 16 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+                  💬 Mensajes y Aclaraciones
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', marginBottom: 12, paddingRight: 4 }}>
+                  {(!manageOTM.comments || manageOTM.comments.length === 0) ? (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '10px 0' }}>
+                      No hay mensajes en esta solicitud.
+                    </div>
+                  ) : (
+                    manageOTM.comments.map(c => {
+                      const isMe = c.user_id === user?.id;
+                      return (
+                        <div key={c.id} style={{
+                          alignSelf: isMe ? 'flex-end' : 'flex-start',
+                          maxWidth: '85%',
+                          background: isMe ? 'rgba(14, 165, 233, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                          border: `1px solid ${isMe ? 'rgba(14, 165, 233, 0.2)' : 'var(--border)'}`,
+                          padding: '8px 10px',
+                          borderRadius: '12px',
+                          borderTopRightRadius: isMe ? '2px' : '12px',
+                          borderTopLeftRadius: isMe ? '12px' : '2px',
+                          fontSize: '0.75rem',
+                          marginLeft: isMe ? 'auto' : '0',
+                          marginRight: isMe ? '0' : 'auto'
+                        }}>
+                          <div style={{ fontWeight: 700, color: isMe ? 'var(--accent-blue)' : 'var(--text-primary)', display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                            <span>{c.user_name}</span>
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 400 }}>({c.user_role === 'admin' ? 'Admin' : c.user_role === 'supervisor' ? 'Superv.' : c.user_role === 'jefatura' ? 'Jefe' : 'Solict.'})</span>
+                          </div>
+                          <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{c.text}</p>
+                          <div style={{ textAlign: 'right', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                            {new Date(c.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ fontSize: '0.75rem', height: '32px', flex: 1 }}
+                    placeholder="Escribe un mensaje o consulta..."
+                    value={newCommentText}
+                    onChange={e => setNewCommentText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newCommentText.trim()) {
+                        handleAddCommentSubmit();
+                      }
+                    }}
+                  />
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ height: '32px', padding: '0 12px', fontSize: '0.75rem' }}
+                    onClick={handleAddCommentSubmit}
+                    disabled={!newCommentText.trim()}
+                  >
+                    Enviar
+                  </button>
+                </div>
+              </div>
 
               {/* Sub-panel cancel action */}
               {action === 'cancel' && (

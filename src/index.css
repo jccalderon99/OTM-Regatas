@@ -249,9 +249,11 @@ a:hover { color: var(--accent-blue-hover); }
 .status-scheduled { background: #e0e7ff; color: #4338ca; }
 .status-in_progress { background: #e0f2fe; color: #0369a1; }
 .status-rq { background: #f3e8ff; color: #7e22ce; }
+.status-awaiting_supervisor { background: #ecfeff; color: #0891b2; }
 .status-awaiting_conformity { background: #d1fae5; color: #047857; }
 .status-closed { background: #f1f5f9; color: #475569; }
 .status-cancelled { background: #ffe4e6; color: #be123c; }
+.status-derived { background: #ffedd5; color: #c2410c; }
 
 /* Urgency Badge */
 .urgency-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid transparent; }

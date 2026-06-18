@@ -78,6 +78,34 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
 };
 
+export function isViewPermitted(viewId: string, user: { role: string; area_sector: string | null }): boolean {
+  const isMaintMgmt = user.role === 'admin' || user.role === 'supervisor' || (user.role === 'jefatura' && user.area_sector === '22. MANTENIMIENTO');
+
+  switch (viewId) {
+    case 'dashboard':
+      return user.role !== 'technician';
+    case 'new-otm':
+      return user.role === 'requester' || user.role === 'admin' || user.role === 'jefatura';
+    case 'new-oti':
+    case 'management':
+    case 'rq-log':
+    case 'gantt':
+    case 'preventive-plan':
+    case 'reports':
+    case 'budget':
+      return isMaintMgmt;
+    case 'my-tasks':
+    case 'routine-register':
+      return user.role === 'technician';
+    case 'calendar':
+      return isMaintMgmt || user.role === 'technician';
+    case 'users':
+      return user.role === 'admin';
+    default:
+      return false;
+  }
+}
+
 interface Props {
   currentView: string;
   onNavigate: (view: string) => void;
@@ -125,8 +153,8 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
           </div>
         </div>
         <nav className="sidebar-nav">
-          {NAV_GROUPS.filter(g => g.roles.includes(user.role)).map(group => {
-            const groupItems = group.items.filter(item => item.roles.includes(user.role));
+          {NAV_GROUPS.map(group => {
+            const groupItems = group.items.filter(item => isViewPermitted(item.id, user));
             if (groupItems.length === 0) return null;
             return (
               <div key={group.id}>

@@ -8,7 +8,8 @@ export type OTMStatus =
   | 'awaiting_supervisor'
   | 'awaiting_conformity'
   | 'closed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'derived';
 
 export type MaintenanceType = 'corrective' | 'emergency' | 'support' | null;
 
@@ -119,6 +120,16 @@ export interface OTMRequest {
   estimated_time?: number | null;
   net_execution_time?: number | null;
   pauses?: { paused_at: string; resumed_at: string | null }[] | null;
+  // Derivación
+  derived_to_area?: string | null;
+  derived_notes?: string | null;
+  derived_to_jefatura_name?: string | null;
+  derived_at?: string | null;
+  derived_status?: 'pending' | 'accepted' | 'rejected' | null;
+  derived_response_notes?: string | null;
+  derived_response_at?: string | null;
+  // Comentarios
+  comments?: OTMComment[];
 }
 
 export interface OTMStatusLog {
@@ -143,6 +154,16 @@ export interface OTMAttachment {
   created_at: string;
 }
 
+export interface OTMComment {
+  id: string;
+  otm_id: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  text: string;
+  created_at: string;
+}
+
 export interface KPIData {
   total_requests: number;
   resolved: number;
@@ -164,6 +185,7 @@ export const STATUS_LABELS: Record<OTMStatus, string> = {
   awaiting_conformity: 'Para conformidad',
   closed: 'Cerrado',
   cancelled: 'Cancelado',
+  derived: 'Derivada a otra área',
 };
 
 export const URGENCY_LABELS: Record<Urgency, string> = {
