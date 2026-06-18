@@ -863,7 +863,7 @@ CATÁLOGO DEL SISTEMA:
         contents,
         config: {
           systemInstruction: systemPrompt,
-          tools
+          tools: tools as any
         }
       });
 
@@ -881,7 +881,8 @@ CATÁLOGO DEL SISTEMA:
 
       if (functionCall) {
         const { name, args } = functionCall;
-        console.log('Gemini Function Call requested:', name, args);
+        const typedArgs = (args || {}) as any;
+        console.log('Gemini Function Call requested:', name, typedArgs);
 
         let resultData = null;
         let cardType = undefined;
@@ -890,12 +891,12 @@ CATÁLOGO DEL SISTEMA:
         if (name === 'createOTM') {
           try {
             const newOtm = await createOTM({
-              area_sector: args.area,
-              location: args.location,
-              exact_location: args.exactLocation || 'Vía Asistente IA',
-              failure_type: args.specialty,
-              description: args.description,
-              urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium',
+              area_sector: typedArgs.area,
+              location: typedArgs.location,
+              exact_location: typedArgs.exactLocation || 'Vía Asistente IA',
+              failure_type: typedArgs.specialty,
+              description: typedArgs.description,
+              urgency: typedArgs.priority?.toLowerCase() === 'alto' ? 'high' : typedArgs.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium',
               status: 'pending'
             });
 
@@ -903,9 +904,9 @@ CATÁLOGO DEL SISTEMA:
             cardType = 'otm-created' as const;
             cardData = {
               code: newOtm.otm_code,
-              description: args.description,
-              location: args.location,
-              specialty: args.specialty,
+              description: typedArgs.description,
+              location: typedArgs.location,
+              specialty: typedArgs.specialty,
               status: 'Pendiente'
             };
           } catch (e: any) {
@@ -917,15 +918,15 @@ CATÁLOGO DEL SISTEMA:
             resultData = { status: 'error', message: 'Permiso denegado. Solo supervisores pueden asignar tareas.' };
           } else {
             try {
-              assignOTM(args.otmId, args.technicianIds, args.scheduledDate, 'Asignado vía Asistente de IA', args.estimatedTime || 2);
-              const techNames = args.technicianIds.map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
+              assignOTM(typedArgs.otmId, typedArgs.technicianIds, typedArgs.scheduledDate, 'Asignado vía Asistente de IA', typedArgs.estimatedTime || 2);
+              const techNames = typedArgs.technicianIds.map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
               
               resultData = { status: 'success', message: 'OTM asignada con éxito.' };
               cardType = 'otm-assigned' as const;
               cardData = {
-                code: args.otmId,
+                code: typedArgs.otmId,
                 techName: techNames,
-                date: args.scheduledDate,
+                date: typedArgs.scheduledDate,
                 notes: 'Asignado vía Asistente de IA'
               };
             } catch (e: any) {
@@ -938,17 +939,17 @@ CATÁLOGO DEL SISTEMA:
             resultData = { status: 'error', message: 'Permiso denegado. Solo técnicos pueden finalizar tareas.' };
           } else {
             try {
-              const targetOtm = otms.find(o => o.otm_code === args.otmId || o.id === args.otmId);
+              const targetOtm = otms.find(o => o.otm_code === typedArgs.otmId || o.id === typedArgs.otmId);
               if (!targetOtm) {
-                throw new Error(`OTM ${args.otmId} no encontrada.`);
+                throw new Error(`OTM ${typedArgs.otmId} no encontrada.`);
               }
-              finishTechnicianWork(targetOtm.id, args.notes, []);
+              finishTechnicianWork(targetOtm.id, typedArgs.notes, []);
               
               resultData = { status: 'success', message: 'OTM finalizada con éxito.' };
               cardType = 'otm-finished' as const;
               cardData = {
-                code: args.otmId,
-                notes: args.notes
+                code: typedArgs.otmId,
+                notes: typedArgs.notes
               };
             } catch (e: any) {
               resultData = { status: 'error', message: e.message };
@@ -975,7 +976,7 @@ CATÁLOGO DEL SISTEMA:
 
         const secondResponse = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: secondContents,
+          contents: secondContents as any,
           config: {
             systemInstruction: systemPrompt
           }
@@ -1212,22 +1213,24 @@ CATÁLOGO DEL SISTEMA:
             {voiceEnabled ? (isSpeaking ? '🔊' : '🔈') : '🔇'}
           </button>
 
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: showSettings ? '#3b82f6' : '#94a3b8',
-              cursor: 'pointer',
-              fontSize: '1.2rem',
-              padding: 4,
-              borderRadius: 6,
-              transition: 'background 0.2s'
-            }}
-            title="Configuración de IA"
-          >
-            ⚙️
-          </button>
+          {user?.role === 'admin' && (
+            <button 
+              onClick={() => setShowSettings(!showSettings)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: showSettings ? '#3b82f6' : '#94a3b8',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                padding: 4,
+                borderRadius: 6,
+                transition: 'background 0.2s'
+              }}
+              title="Configuración de IA"
+            >
+              ⚙️
+            </button>
+          )}
           <button 
             onClick={() => setIsOpen(false)}
             style={{
@@ -1246,7 +1249,7 @@ CATÁLOGO DEL SISTEMA:
       </div>
 
       {/* Settings Panel */}
-      {showSettings && (
+      {showSettings && user?.role === 'admin' && (
         <div style={{
           padding: '16px 20px',
           background: 'rgba(30, 41, 59, 0.95)',

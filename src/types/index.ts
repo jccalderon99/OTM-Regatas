@@ -395,8 +395,8 @@ export interface TechRequest {
   created_at: string;
   updated_at: string;
 }export interface OpexBudgetItem {
-  id: string;
-  areaPresupuesto: string;
+  id?: string;
+  areaPresupuesto?: string;
   filial: string;
   concepto: string;
   descripcionArticulo: string;
@@ -413,11 +413,11 @@ export interface TechRequest {
   extraordinarioOrdinario: string;
   ingresoEgreso: string;
   rubro1: string;
-  monto: number;
+  monto?: number;
 }
 
 export interface CapexBudgetItem {
-  id: string;
+  id?: string;
   filial: string;
   concepto: string;
   descripcionArticulo: string;
@@ -426,7 +426,7 @@ export interface CapexBudgetItem {
   area: string;
   cCosto: string;
   proyecto: string;
-  ctaContable: number;
+  ctaContable: number | string;
   descripcionCtaCont: string;
   importe: number;
   areaPpto: string;

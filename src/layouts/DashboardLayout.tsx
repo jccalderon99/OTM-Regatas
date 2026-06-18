@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import NotificationBell from '../components/NotificationBell';
 import AIAssistant from '../components/AIAssistant';
+import { useOTM } from '../context/OTMContext';
 
 
 interface NavItem {
@@ -115,11 +116,33 @@ interface Props {
 export default function DashboardLayout({ currentView, onNavigate, children }: Props) {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isEmbeddedDashboard = currentView === 'dashboard' && (user.role === 'admin' || user.role === 'supervisor');
+  const { toasts, removeToast, otms, isOTMUnread } = useOTM();
+  const isEmbeddedDashboard = currentView === 'dashboard' && (user?.role === 'admin' || user?.role === 'supervisor');
 
   if (!user) return null;
 
   const initials = user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+
+  const hasNavItemUnread = (itemId: string): boolean => {
+    if (itemId === 'dashboard') {
+      if (user.role === 'requester') {
+        return otms.some(o => (o.requester_id === user.id || o.area_sector === user.area_sector) && isOTMUnread(o));
+      }
+      if (user.role === 'jefatura') {
+        return otms.some(o => {
+          const isOwnArea = o.requester_id === user.id || o.area_sector === user.area_sector;
+          const isDerivedToMe = o.status === 'derived' && o.derived_to_area === user.area_sector;
+          return (isOwnArea || isDerivedToMe) && isOTMUnread(o);
+        });
+      }
+    }
+    if (itemId === 'management') {
+      if (user.role === 'supervisor' || user.role === 'admin') {
+        return otms.some(o => isOTMUnread(o));
+      }
+    }
+    return false;
+  };
 
   return (
     <div className="app-layout">
@@ -163,7 +186,10 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                   <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
                     onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}>
                     <span>{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>{item.label}</span>
+                      {hasNavItemUnread(item.id) && <span className="pulsing-red-dot" />}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -252,6 +278,47 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
 
       <AIAssistant />
 
+      {/* Toast Notifications Overlay */}
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <div 
+            key={toast.id} 
+            className={`toast-card toast-card-${toast.type}`}
+            onClick={() => {
+              if (toast.otmId) {
+                const event = new CustomEvent('focus_otm_changed', { detail: { otmId: toast.otmId } });
+                window.dispatchEvent(event);
+                if (user.role === 'supervisor' || user.role === 'admin') {
+                  onNavigate('management');
+                } else if (user.role === 'requester' || user.role === 'jefatura') {
+                  onNavigate('dashboard');
+                }
+              }
+              removeToast(toast.id);
+            }}
+          >
+            <div className="toast-icon">
+              {toast.type === 'success' && '🟢'}
+              {toast.type === 'info' && '🔵'}
+              {toast.type === 'warning' && '🟡'}
+              {toast.type === 'error' && '🔴'}
+            </div>
+            <div className="toast-content">
+              <div className="toast-title">{toast.title}</div>
+              <div className="toast-message">{toast.message}</div>
+            </div>
+            <button 
+              className="toast-close" 
+              onClick={(e) => {
+                e.stopPropagation();
+                removeToast(toast.id);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
 
       <style>{`
         #mobile-menu-btn { display: none; }

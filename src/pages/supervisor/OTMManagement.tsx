@@ -6,7 +6,7 @@ import StatusBadge from '../../components/StatusBadge';
 import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS, RQ_STATUS_LABELS, AREAS } from '../../types';
 import ConformityActa from '../../components/ConformityActa';
 
-type ManageAction = 'none' | 'assign' | 'rq' | 'cancel';
+type ManageAction = 'none' | 'assign' | 'rq' | 'cancel' | 'derive';
 type AssignSubAction = 'none' | 'own' | 'contractor';
 type RQSubAction = 'none' | 'supply' | 'service';
 
@@ -15,7 +15,7 @@ interface OTMManagementProps {
 }
 
 export default function OTMManagement({ onNavigate }: OTMManagementProps) {
-  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs, deriveOTM, addOTMComment } = useOTM();
+  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs, deriveOTM, addOTMComment, markAsRead, isOTMUnread } = useOTM();
   const { user } = useAuth();
   const { createRQRecord, getRQByOtmId } = useRQ();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
@@ -28,16 +28,6 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
   const [sortField, setSortField] = useState<'created_at' | 'urgency' | 'status'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  // Google API Settings
-  const [showSettings, setShowSettings] = useState(false);
-  const [googleClientId, setGoogleClientId] = useState(localStorage.getItem('google_client_id') || '');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
-
-  const handleSaveSettings = () => {
-    localStorage.setItem('google_client_id', googleClientId);
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 2500);
-  };
 
   // Manage panel state
   const [manageOTM, setManageOTM] = useState<OTMRequest | null>(null);
@@ -127,7 +117,7 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
   const technicians = users.filter(u => u.role === 'technician').sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   const urgencyOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-  const statusOrder: Record<OTMStatus, number> = { pending: 0, scheduled: 1, in_progress: 2, rq: 3, awaiting_supervisor: 4, awaiting_conformity: 5, closed: 6, cancelled: 7 };
+  const statusOrder: Record<OTMStatus, number> = { pending: 0, scheduled: 1, in_progress: 2, rq: 3, awaiting_supervisor: 4, awaiting_conformity: 5, closed: 6, cancelled: 7, derived: 8 };
 
   let filtered = otms
     .filter(o => !statusFilter || o.status === statusFilter)
@@ -163,6 +153,7 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
 
   const openManage = (otm: OTMRequest) => {
     setManageOTM(otm);
+    markAsRead(otm.id);
     setAction('none');
     setAssignSub('none');
     setRQSub('none');
@@ -200,6 +191,24 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
       }
       localStorage.removeItem('selected_otm_id_for_management');
     }
+  }, [otms]);
+
+  useEffect(() => {
+    const handleFocusOtm = (e: CustomEvent<{ otmId: string }>) => {
+      const targetOtm = otms.find(o => o.id === e.detail.otmId);
+      if (targetOtm) {
+        openManage(targetOtm);
+        setTimeout(() => {
+          const el = document.getElementById(`otm-row-${targetOtm.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    };
+
+    window.addEventListener('focus_otm_changed' as any, handleFocusOtm as any);
+    return () => {
+      window.removeEventListener('focus_otm_changed' as any, handleFocusOtm as any);
+    };
   }, [otms]);
 
   const handleAssignOwn = () => {
@@ -357,60 +366,7 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <p className="page-subtitle" style={{ margin: 0 }}>Administra, asigna y supervisa todas las órdenes de trabajo</p>
-        <button 
-          onClick={() => setShowSettings(!showSettings)}
-          className="btn btn-secondary"
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 8, 
-            padding: '6px 12px', 
-            fontSize: '0.8rem', 
-            borderColor: 'rgba(255,255,255,0.1)', 
-            background: showSettings ? 'rgba(78, 181, 230, 0.1)' : 'transparent',
-            color: '#f8fafc'
-          }}
-        >
-          ⚙️ {showSettings ? 'Ocultar Configuración Google' : 'Configurar Google Drive'}
-        </button>
-      </div>
-
-      {showSettings && (
-        <div style={{
-          background: 'rgba(30, 41, 59, 0.6)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-          marginBottom: '20px',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
-            🔑 Parámetros de Integración Google Drive
-          </h4>
-          <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: '#94a3b8', lineHeight: '1.4' }}>
-            Como administrador/desarrollador, ingresa tu <strong>Google Client ID</strong> creado en Google Cloud Console para habilitar la subida automática directa de las actas PDF. Si lo dejas en blanco, el sistema correrá en <strong>Modo Simulación Demo</strong> con animaciones premium.
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <input 
-              type="text"
-              placeholder="Ej: 12345678-abc.apps.googleusercontent.com"
-              value={googleClientId}
-              onChange={e => setGoogleClientId(e.target.value)}
-              className="form-input"
-              style={{ flex: 1, fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(15,23,42,0.4)', borderColor: 'rgba(255,255,255,0.1)', color: '#f8fafc' }}
-            />
-            <button 
-              onClick={handleSaveSettings}
-              className="btn btn-primary"
-              style={{ padding: '8px 16px', fontSize: '0.8rem', background: saveStatus === 'saved' ? 'var(--accent-emerald)' : 'var(--accent-blue)', border: 'none', color: '#ffffff' }}
-            >
-              {saveStatus === 'saved' ? '✓ ¡Guardado!' : 'Guardar Clave'}
-            </button>
-          </div>
-        </div>
-      )}
+      <p className="page-subtitle" style={{ marginBottom: 20 }}>Administra, asigna y supervisa todas las órdenes de trabajo</p>
 
       {/* Filters */}
       <div className="filter-bar responsive-actions" style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
@@ -445,8 +401,13 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
         const supName = supervisorFilter ? supervisors.find(s => s.id === supervisorFilter)?.full_name : null;
 
         const renderTableRows = (rows: typeof filtered) => rows.map(otm => (
-          <tr key={otm.id}>
-            <td><span style={{ fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{otm.otm_code}</span></td>
+          <tr key={otm.id} id={`otm-row-${otm.id}`}>
+            <td>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.8rem' }}>{otm.otm_code}</span>
+                {isOTMUnread(otm) && <span className="pulsing-red-dot" title="Nuevas actualizaciones / comentarios sin leer" />}
+              </div>
+            </td>
             <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               {new Date(otm.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
             </td>
@@ -1116,6 +1077,38 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
                 </div>
               )}
 
+              {/* Historial del Proceso / Auditoría */}
+              {(manageOTM.status === 'closed' || manageOTM.status === 'awaiting_conformity' || manageOTM.status === 'awaiting_supervisor' || manageOTM.status === 'in_progress' || manageOTM.status === 'rq' || manageOTM.status === 'derived') && (
+                <div style={{ padding: 16, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
+                    ⏳ Historial del Proceso
+                  </div>
+                  
+                  <div className="timeline">
+                    {statusLogs
+                      .filter(l => l.otm_id === manageOTM.id)
+                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map((log, index, arr) => {
+                        const changerName = log.changed_by_profile?.full_name || users.find(u => u.id === log.changed_by)?.full_name || 'Sistema';
+                        const isLast = index === arr.length - 1;
+                        
+                        return (
+                          <div key={log.id} className="timeline-item" style={{ paddingBottom: isLast ? 0 : 20 }}>
+                            <div className={`timeline-dot ${isLast ? 'active' : 'completed'}`} />
+                            <div className="timeline-time">
+                              {new Date(log.created_at).toLocaleString('es')} — <strong style={{ color: 'var(--text-secondary)' }}>{changerName}</strong>
+                            </div>
+                            <div className="timeline-label" style={{ fontSize: '0.8rem', marginTop: 2 }}>
+                              {log.previous_status ? `${STATUS_LABELS[log.previous_status as OTMStatus] || log.previous_status} ➔ ` : ''}
+                              <span style={{ color: 'var(--accent-blue)', fontWeight: 700 }}>
+                                {STATUS_LABELS[log.new_status as OTMStatus] || log.new_status}
+                              </span>
+                            </div>
+                            {log.notes && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: 4 }}>
+                                Nota: {log.notes}
+                              </div>
+                            )}
                           </div>
                         );
                       })}

@@ -1,4 +1,5 @@
 export interface OpexBudgetItem {
+  id?: string;
   areaPresupuesto: string;
   filial: string;
   concepto: string;
@@ -16,10 +17,11 @@ export interface OpexBudgetItem {
   extraordinarioOrdinario: string;
   ingresoEgreso: string;
   rubro1: string;
-  monto: number;
+  monto?: number;
 }
 
 export interface CapexBudgetItem {
+  id?: string;
   filial: string;
   concepto: string;
   descripcionArticulo: string;
@@ -28,7 +30,7 @@ export interface CapexBudgetItem {
   area: string;
   cCosto: string;
   proyecto: string;
-  ctaContable: number;
+  ctaContable: number | string;
   descripcionCtaCont: string;
   importe: number;
   areaPpto: string;
@@ -65310,9 +65312,12 @@ export const MOCK_CAPEX_BUDGET: CapexBudgetItem[] = [
   {
     "filial": "001-CHORRILLOS",
     "concepto": "FABRICACION 8 NUEVOS POSTES DE ILUMINACION CANCHAS DE TENIS ",
+    "descripcionArticulo": "MEJORA DE INSTALACIONES",
     "periodo": "2026-02",
+    "unidNegocio": "01-CLUB",
     "area": "200-INFRAESTRUCTURA Y PROYECTOS",
     "cCosto": "20012-CANCHAS DEPORTIVAS",
+    "proyecto": "TM1001-MANTENIMIENTO",
     "ctaContable": 3324190,
     "descripcionCtaCont": "OTRAS INSTALACIONES - COSTO",
     "importe": 84966,

@@ -9,7 +9,7 @@ import { useRQ } from '../../context/RQContext';
 
 export default function MyDashboard() {
   const { user } = useAuth();
-  const { getOTMsForCurrentUser, users: allUsers } = useOTM();
+  const { getOTMsForCurrentUser, users: allUsers, respondToDerivation, addOTMComment, isOTMUnread, markAsRead } = useOTM();
   const { getRQByOtmId } = useRQ();
   const [selectedOTM, setSelectedOTM] = useState<OTMRequest | null>(null);
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
@@ -18,6 +18,77 @@ export default function MyDashboard() {
   const [dateRange, setDateRange] = useState<'week' | 'month' | '3months' | '6months' | 'year'>('month');
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [showConformity, setShowConformity] = useState<OTMRequest | null>(null);
+
+  // Derivaciones y Comentarios
+  const [activeTab, setActiveTab] = useState<'my_area' | 'derived'>('my_area');
+  const [deriveResponseAction, setDeriveResponseAction] = useState<'none' | 'accept' | 'reject'>('none');
+  const [deriveResponseNotes, setDeriveResponseNotes] = useState('');
+  const [newCommentText, setNewCommentText] = useState('');
+
+  // Listen for Toast click focusing on specific OTM
+  React.useEffect(() => {
+    const handleFocusOtm = (e: CustomEvent<{ otmId: string }>) => {
+      const otmsList = getOTMsForCurrentUser();
+      const targetOtm = otmsList.find(o => o.id === e.detail.otmId);
+      if (targetOtm) {
+        const isDerived = targetOtm.status === 'derived' && targetOtm.derived_to_area === user?.area_sector;
+        if (isDerived) {
+          setActiveTab('derived');
+        } else {
+          setActiveTab('my_area');
+        }
+        setSelectedOTM(targetOtm);
+        markAsRead(targetOtm.id);
+        
+        setTimeout(() => {
+          const el = document.getElementById(`otm-card-${targetOtm.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    };
+
+    window.addEventListener('focus_otm_changed' as any, handleFocusOtm as any);
+    return () => {
+      window.removeEventListener('focus_otm_changed' as any, handleFocusOtm as any);
+    };
+  }, [user, markAsRead, getOTMsForCurrentUser]);
+
+  const handleRespondToDerivation = async (otmId: string) => {
+    if (deriveResponseAction === 'none') return;
+    const status = deriveResponseAction === 'accept' ? 'accepted' : 'rejected';
+    await respondToDerivation(otmId, status, deriveResponseNotes.trim());
+    
+    setSelectedOTM(prev => prev ? {
+      ...prev,
+      derived_status: status,
+      derived_response_notes: deriveResponseNotes.trim(),
+      derived_response_at: new Date().toISOString(),
+      status: status === 'rejected' ? 'pending' : 'derived'
+    } : null);
+
+    setDeriveResponseAction('none');
+    setDeriveResponseNotes('');
+  };
+
+  const handleAddComment = async (otmId: string) => {
+    if (!newCommentText.trim()) return;
+    await addOTMComment(otmId, newCommentText.trim());
+
+    setSelectedOTM(prev => prev ? {
+      ...prev,
+      comments: [...(prev.comments || []), {
+        id: `comment-${Date.now()}`,
+        otm_id: prev.id,
+        user_id: user?.id || '',
+        user_name: user?.full_name || '',
+        user_role: user?.role || '',
+        text: newCommentText.trim(),
+        created_at: new Date().toISOString()
+      }]
+    } : null);
+
+    setNewCommentText('');
+  };
 
   const otms = getOTMsForCurrentUser();
   
@@ -64,6 +135,13 @@ export default function MyDashboard() {
     awaiting: filtered.filter(o => o.status === 'awaiting_conformity').length,
     closed: filtered.filter(o => o.status === 'closed').length,
   };
+
+  const showDerivedTab = user?.role === 'jefatura' && user?.area_sector !== '22. MANTENIMIENTO';
+  const derivedOTMs = useMemo(() => {
+    return otms.filter(o => o.status === 'derived' && o.derived_to_area === user?.area_sector);
+  }, [otms, user]);
+
+  const listOTMs = showDerivedTab && activeTab === 'derived' ? derivedOTMs : filtered;
 
   // Chart Data preparation
   const priorityData = useMemo(() => {
@@ -127,12 +205,22 @@ export default function MyDashboard() {
           { label: 'En Curso', value: counts.active, color: vibrant.purple, icon: '⚙️' },
           { label: 'Con requerimiento', value: counts.rq, color: vibrant.orange, icon: '📦' },
           { label: 'Para conformidad', value: counts.awaiting, color: vibrant.green, icon: '✅' },
+          ...(showDerivedTab ? [{ label: 'Derivadas a mi Área', value: derivedOTMs.length, color: '#f97316', icon: '📥', onClick: () => { setActiveTab('derived'); setSelectedOTM(null); } }] : [])
         ].map((c, i) => (
-          <div key={i} className="kpi-card" style={{
-            '--kpi-color': c.color,
-            boxShadow: `0 8px 24px ${c.color}18`,
-            border: `1px solid ${c.color}22`
-          } as any}>
+          <div 
+            key={i} 
+            className="kpi-card" 
+            onClick={c.onClick}
+            style={{
+              '--kpi-color': c.color,
+              boxShadow: `0 8px 24px ${c.color}18`,
+              border: `1px solid ${c.color}22`,
+              cursor: c.onClick ? 'pointer' : 'default',
+              transition: c.onClick ? 'transform 0.2s ease, box-shadow 0.2s ease' : 'none'
+            } as any}
+            onMouseOver={c.onClick ? (e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 12px 28px ${c.color}30`; }) : undefined}
+            onMouseOut={c.onClick ? (e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 8px 24px ${c.color}18`; }) : undefined}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
               <div>
                 <div className="kpi-label">{c.label}</div>
@@ -283,7 +371,28 @@ export default function MyDashboard() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {showDerivedTab && (
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <button
+                className={`btn btn-sm ${activeTab === 'my_area' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ fontSize: '0.8rem', borderRadius: 20, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                onClick={() => { setActiveTab('my_area'); setSelectedOTM(null); }}
+              >
+                 Solicitudes de mi Área ({filtered.length})
+                 {filtered.some(o => isOTMUnread(o)) && <span className="pulsing-red-dot" />}
+              </button>
+              <button
+                className={`btn btn-sm ${activeTab === 'derived' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ fontSize: '0.8rem', borderRadius: 20, borderColor: activeTab === 'derived' ? 'var(--accent-orange)' : 'transparent', color: activeTab === 'derived' ? 'var(--accent-orange)' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                onClick={() => { setActiveTab('derived'); setSelectedOTM(null); }}
+              >
+                ➡️ Derivadas a mi Área ({derivedOTMs.length})
+                {derivedOTMs.some(o => isOTMUnread(o)) && <span className="pulsing-red-dot" />}
+              </button>
+            </div>
+          )}
+
+          {listOTMs.length === 0 ? (
             <div className="empty-state glass-card">
               <div className="empty-state-icon">📭</div>
               <div className="empty-state-title">No hay solicitudes</div>
@@ -291,22 +400,35 @@ export default function MyDashboard() {
             </div>
           ) : (
             <div className="flex-col gap-3 scrollable-list-container" style={{ padding: '4px 10px', maxHeight: 'calc(100vh - 400px)', minHeight: 400 }}>
-              {filtered.map(otm => {
+              {listOTMs.map(otm => {
                 const urgencyColors = { high: '#f43f5e', medium: '#f97316', low: '#10b981' };
                 const urgencyColor = urgencyColors[otm.urgency] || '#cbd5e1';
                 return (
-                  <div key={otm.id} className="glass-card dashboard-list-card" style={{
-                    cursor: 'pointer',
-                    padding: '20px 20px 20px 24px',
-                    marginBottom: 12,
-                    borderLeft: `4px solid ${urgencyColor}`,
-                    transition: 'transform 0.25s ease, box-shadow 0.25s ease'
-                  }}
-                  onClick={() => setSelectedOTM(selectedOTM?.id === otm.id ? null : otm)}>
+                  <div 
+                    key={otm.id} 
+                    id={`otm-card-${otm.id}`}
+                    className="glass-card dashboard-list-card" 
+                    style={{
+                      cursor: 'pointer',
+                      padding: '20px 20px 20px 24px',
+                      marginBottom: 12,
+                      borderLeft: `4px solid ${urgencyColor}`,
+                      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+                      position: 'relative'
+                    }}
+                    onClick={() => {
+                      const isClosing = selectedOTM?.id === otm.id;
+                      setSelectedOTM(isClosing ? null : otm);
+                      if (!isClosing) {
+                        markAsRead(otm.id);
+                      }
+                    }}
+                  >
                     <div className="flex justify-between items-center">
                     <div>
                       <div className="flex items-center gap-2">
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>{otm.otm_code}</span>
+                        {isOTMUnread(otm) && <span className="pulsing-red-dot" />}
                         <StatusBadge status={otm.status} />
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -318,7 +440,7 @@ export default function MyDashboard() {
                   
                   {/* Expanded Details */}
                   {selectedOTM?.id === otm.id && (
-                    <div className="slide-up" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                    <div className="slide-up" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
                       
                       {/* 2. Ubicación */}
                       <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -431,6 +553,92 @@ export default function MyDashboard() {
                           </div>
                         );
                       })()}
+
+                      {/* 7.5. Sección Derivación (Para solicitante/visualización) */}
+                      {otm.status === 'derived' && (
+                        <div style={{ marginTop: 12, marginBottom: 16, padding: 12, background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.15)', borderRadius: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              ➡️ DERIVADO A OTRA ÁREA
+                            </span>
+                            <span className="badge" style={{ 
+                              fontSize: '0.7rem', 
+                              fontWeight: 700, 
+                              padding: '2px 8px', 
+                              borderRadius: '4px',
+                              backgroundColor: otm.derived_status === 'accepted' ? 'rgba(16, 185, 129, 0.12)' : otm.derived_status === 'rejected' ? 'rgba(244, 63, 94, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                              color: otm.derived_status === 'accepted' ? '#34d399' : otm.derived_status === 'rejected' ? '#fb7185' : '#f59e0b',
+                              border: `1px solid ${
+                                otm.derived_status === 'accepted' ? 'rgba(52, 211, 153, 0.3)' : 
+                                otm.derived_status === 'rejected' ? 'rgba(251, 113, 133, 0.3)' : 
+                                'rgba(245, 158, 11, 0.3)'
+                              }`
+                            }}>
+                              {otm.derived_status === 'accepted' ? 'Aceptado' : otm.derived_status === 'rejected' ? 'Rechazado' : 'Pendiente revisión'}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div><strong>Área Competente:</strong> {otm.derived_to_area}</div>
+                            <div><strong>Jefatura encargada:</strong> {otm.derived_to_jefatura_name}</div>
+                            {otm.derived_notes && (
+                              <div style={{ marginTop: 4, padding: 6, background: '#f8fafc', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: '0.75rem' }}>
+                                <strong>Nota de Derivación:</strong> {otm.derived_notes}
+                              </div>
+                            )}
+                            {otm.derived_response_notes && (
+                              <div style={{ marginTop: 4, padding: 6, background: otm.derived_status === 'accepted' ? 'rgba(16,185,129,0.02)' : 'rgba(225,29,72,0.02)', borderRadius: 4, border: `1px solid ${otm.derived_status === 'accepted' ? 'rgba(16,185,129,0.1)' : 'rgba(225,29,72,0.1)'}`, fontSize: '0.75rem' }}>
+                                <strong>Respuesta de Jefatura:</strong> {otm.derived_response_notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Acciones de Derivación para Jefatura Externa */}
+                      {otm.status === 'derived' && otm.derived_to_area === user?.area_sector && otm.derived_status === 'pending' && (
+                        <div style={{ marginTop: 12, marginBottom: 16, padding: 12, background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.2)', borderRadius: 8 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-orange)', marginBottom: 8 }}>
+                            Acciones de Derivación:
+                          </div>
+                          {deriveResponseAction === 'none' ? (
+                            <div className="flex gap-2">
+                              <button className="btn btn-sm btn-primary" style={{ backgroundColor: 'var(--accent-emerald)', borderColor: 'var(--accent-emerald)', fontSize: '0.75rem', flex: 1 }} onClick={() => setDeriveResponseAction('accept')}>
+                                ✓ Aceptar Solicitud
+                              </button>
+                              <button className="btn btn-sm btn-danger" style={{ fontSize: '0.75rem', flex: 1 }} onClick={() => setDeriveResponseAction('reject')}>
+                                ✗ Rechazar Solicitud
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex-col gap-2 slide-up">
+                              <label className="form-label" style={{ fontSize: '0.7rem' }}>
+                                {deriveResponseAction === 'accept' ? 'Nota de aceptación (opcional):' : 'Nota de descargo / motivo de rechazo *:'}
+                              </label>
+                              <textarea
+                                className="form-textarea"
+                                style={{ fontSize: '0.75rem', minHeight: 50 }}
+                                placeholder="Escribe un comentario..."
+                                value={deriveResponseNotes}
+                                onChange={e => setDeriveResponseNotes(e.target.value)}
+                              />
+                              <div className="flex gap-2 justify-end" style={{ marginTop: 4 }}>
+                                <button className="btn btn-sm btn-ghost" style={{ fontSize: '0.75rem' }} onClick={() => { setDeriveResponseAction('none'); setDeriveResponseNotes(''); }}>
+                                  Cancelar
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  style={{ fontSize: '0.75rem', backgroundColor: deriveResponseAction === 'accept' ? 'var(--accent-emerald)' : 'var(--accent-rose)', borderColor: deriveResponseAction === 'accept' ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}
+                                  onClick={() => handleRespondToDerivation(otm.id)}
+                                  disabled={deriveResponseAction === 'reject' && !deriveResponseNotes.trim()}
+                                >
+                                  Confirmar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* 8. Sección Asignado */}
                       {(() => {
@@ -546,6 +754,73 @@ export default function MyDashboard() {
                           {otm.conformity_notes && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, fontStyle: 'italic' }}>"{otm.conformity_notes}"</p>}
                         </div>
                       )}
+
+                      {/* Sección de Comentarios / Aclaraciones */}
+                      <div style={{ marginTop: 12, padding: 12, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                          💬 Mensajes y Aclaraciones
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 150, overflowY: 'auto', marginBottom: 8, paddingRight: 4 }}>
+                          {(!otm.comments || otm.comments.length === 0) ? (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 0' }}>
+                              No hay mensajes en esta solicitud.
+                            </div>
+                          ) : (
+                            otm.comments.map(c => {
+                              const isMe = c.user_id === user?.id;
+                              return (
+                                <div key={c.id} style={{
+                                  alignSelf: isMe ? 'flex-end' : 'flex-start',
+                                  maxWidth: '85%',
+                                  background: isMe ? 'rgba(14, 165, 233, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                                  border: `1px solid ${isMe ? 'rgba(14, 165, 233, 0.2)' : 'var(--border)'}`,
+                                  padding: '6px 8px',
+                                  borderRadius: '10px',
+                                  borderTopRightRadius: isMe ? '2px' : '10px',
+                                  borderTopLeftRadius: isMe ? '10px' : '2px',
+                                  fontSize: '0.7rem',
+                                  marginLeft: isMe ? 'auto' : '0',
+                                  marginRight: isMe ? '0' : 'auto'
+                                }}>
+                                  <div style={{ fontWeight: 700, color: isMe ? 'var(--accent-blue)' : 'var(--text-primary)', display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                                    <span>{c.user_name}</span>
+                                    <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontWeight: 400 }}>({c.user_role === 'admin' ? 'Admin' : c.user_role === 'supervisor' ? 'Superv.' : c.user_role === 'jefatura' ? 'Jefe' : 'Solict.'})</span>
+                                  </div>
+                                  <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{c.text}</p>
+                                  <div style={{ textAlign: 'right', fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                    {new Date(c.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            type="text"
+                            className="form-input"
+                            style={{ fontSize: '0.75rem', height: '28px', flex: 1 }}
+                            placeholder="Escribe un mensaje o consulta..."
+                            value={newCommentText}
+                            onChange={e => setNewCommentText(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && newCommentText.trim()) {
+                                handleAddComment(otm.id);
+                              }
+                            }}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ height: '28px', padding: '0 10px', fontSize: '0.7rem' }}
+                            onClick={() => handleAddComment(otm.id)}
+                            disabled={!newCommentText.trim()}
+                          >
+                            Enviar
+                          </button>
+                        </div>
+                      </div>
 
                     </div>
                   )}

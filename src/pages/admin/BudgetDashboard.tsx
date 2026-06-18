@@ -217,7 +217,7 @@ export default function BudgetDashboard() {
          item.descripcionCtaContable?.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchPeriod = selectedPeriod === '' || item.periodo === selectedPeriod;
       const matchCC = selectedCostCenters.length === 0 || selectedCostCenters.includes(item.cCosto);
-      const matchArea = selectedAreas.length === 0 || selectedAreas.includes(item.areaPresupuesto);
+      const matchArea = selectedAreas.length === 0 || selectedAreas.includes(item.areaPresupuesto || '');
       return matchSearch && matchPeriod && matchCC && matchArea;
     });
   }, [opexBudget, searchTerm, selectedPeriod, selectedCostCenters, selectedAreas]);
@@ -230,7 +230,7 @@ export default function BudgetDashboard() {
          item.descripcionCtaCont?.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchPeriod = selectedPeriod === '' || item.periodo === selectedPeriod;
       const matchCC = selectedCostCenters.length === 0 || selectedCostCenters.includes(item.cCosto);
-      const matchArea = selectedAreas.length === 0 || selectedAreas.includes(item.areaPpto);
+      const matchArea = selectedAreas.length === 0 || selectedAreas.includes(item.areaPpto || '');
       return matchSearch && matchPeriod && matchCC && matchArea;
     });
   }, [capexBudget, searchTerm, selectedPeriod, selectedCostCenters, selectedAreas]);
@@ -243,7 +243,7 @@ export default function BudgetDashboard() {
         if (item.budgetItemLinkType === 'OPEX') {
           const opt = opexBudget.find(b => b.id === item.budgetItemLinkId);
           if (opt) {
-            linkedArea = opt.areaPresupuesto;
+            linkedArea = opt.areaPresupuesto || '';
             linkedCC = opt.cCosto;
           }
         } else if (item.budgetItemLinkType === 'CAPEX') {
@@ -545,8 +545,9 @@ export default function BudgetDashboard() {
                         height={opexHeight} 
                         fill="#a855f7" 
                         rx={capexHeight === 0 ? 3 : 0} 
-                        title={`OPEX: ${formatSoles(d.opex)}`}
-                      />
+                      >
+                        <title>{`OPEX: ${formatSoles(d.opex)}`}</title>
+                      </rect>
                     )}
                     {/* CAPEX Bar */}
                     {d.capex > 0 && (
@@ -557,8 +558,9 @@ export default function BudgetDashboard() {
                         height={capexHeight} 
                         fill="#06b6d4" 
                         rx={3} 
-                        title={`CAPEX: ${formatSoles(d.capex)}`}
-                      />
+                      >
+                        <title>{`CAPEX: ${formatSoles(d.capex)}`}</title>
+                      </rect>
                     )}
                     {/* X Axis Label */}
                     <text x={x + barWidth / 2} y={chartH - 8} fill="#94a3b8" fontSize="8" fontWeight="700" textAnchor="middle">{d.name}</text>

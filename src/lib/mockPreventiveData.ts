@@ -1,6 +1,6 @@
 export interface PreventivePlanItem {
   id: string;
-  num: number;
+  num: number | string;
   prio: 'ALTO' | 'MEDIO';
   actividad: string;
   ubicacion: string;
@@ -1567,6 +1567,7 @@ export const MOCK_PREVENTIVE_PLAN: PreventivePlanItem[] = [
   },
   {
     "id": "pm-74",
+    "num": 74,
     "prio": "ALTO",
     "actividad": "Limpieza de pozos sépticos colectores de aguas servidas de la sede Chorrillos.",
     "ubicacion": "",

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode, useRef } from 'react';
 import { OTMRequest, OTMStatusLog, OTMStatus, Profile, AssignmentType, RQType, RQMagnitude, CancellationReason, OTIRequest, OTI_SPECIALTY_ABBREVIATIONS, TechRequest, TechRequestStatus, OpexBudgetItem, CapexBudgetItem, PreventivePlanItem, OTMComment } from '../types';
 import { DEMO_OTMS, DEMO_STATUS_LOGS, DEMO_USERS, generateOTMCode } from '../lib/demoData';
 import { useAuth } from './AuthContext';
@@ -89,13 +89,224 @@ interface OTMContextType {
   deriveOTM: (otmId: string, area: string, notes: string) => Promise<void>;
   respondToDerivation: (otmId: string, status: 'accepted' | 'rejected', notes: string) => Promise<void>;
   addOTMComment: (otmId: string, text: string) => Promise<void>;
+  toasts: { id: string; title: string; message: string; type: 'info' | 'success' | 'warning' | 'error'; otmId?: string }[];
+  removeToast: (id: string) => void;
+  addToast: (title: string, message: string, type?: 'info' | 'success' | 'warning' | 'error', otmId?: string) => void;
+  isOTMUnread: (otm: OTMRequest) => boolean;
+  markAsRead: (otmId: string) => void;
 }
 
 const OTMContext = createContext<OTMContextType | null>(null);
 
+function playNotificationSound() {
+  try {
+    const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    
+    const playTone = (frequency: number, startTime: number, duration: number) => {
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      
+      gainNode.gain.setValueAtTime(0.15, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    };
+
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().then(() => {
+        const now = audioCtx.currentTime;
+        playTone(587.33, now, 0.12);
+        playTone(880, now + 0.10, 0.25);
+      });
+    } else {
+      const now = audioCtx.currentTime;
+      playTone(587.33, now, 0.12);
+      playTone(880, now + 0.10, 0.25);
+    }
+  } catch (error) {
+    console.warn('AudioContext failed to play:', error);
+  }
+}
+
 export function OTMProvider({ children }: { children: ReactNode }) {
   const { user, updateCurrentUser } = useAuth();
   const isLive = isSupabaseConfigured();
+
+  // Notification Toast states
+  const [toasts, setToasts] = useState<{ id: string; title: string; message: string; type: 'info' | 'success' | 'warning' | 'error'; otmId?: string }[]>([]);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const addToast = useCallback((title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', otmId?: string) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    
+    playNotificationSound();
+    if (navigator.vibrate) {
+      try {
+        navigator.vibrate([100, 50, 100]);
+      } catch (e) {
+        console.warn('Vibration API blocked or not supported');
+      }
+    }
+
+    setToasts(prev => [...prev, { id, title, message, type, otmId }]);
+    
+    setTimeout(() => {
+      removeToast(id);
+    }, 5000);
+  }, [removeToast]);
+
+  const isOTMUnread = useCallback((otm: OTMRequest): boolean => {
+    if (!user) return false;
+    const lastViewedStr = localStorage.getItem(`otm_viewed_${user.id}_${otm.id}`);
+    if (!lastViewedStr) {
+      if (user.role === 'supervisor' && otm.status === 'pending') return true;
+      if (user.role === 'jefatura' && otm.status === 'derived' && otm.derived_to_area === user.area_sector && otm.derived_status === 'pending') return true;
+      if (user.role === 'requester' && otm.status === 'awaiting_conformity' && otm.area_sector === user.area_sector) return true;
+      return false;
+    }
+    const lastViewed = new Date(lastViewedStr);
+    const otmUpdated = new Date(otm.updated_at);
+    if (otmUpdated > lastViewed) return true;
+
+    if (otm.comments && otm.comments.length > 0) {
+      const lastComment = new Date(otm.comments[otm.comments.length - 1].created_at);
+      if (lastComment > lastViewed) return true;
+    }
+    return false;
+  }, [user]);
+
+  const markAsRead = useCallback((otmId: string) => {
+    if (!user) return;
+    localStorage.setItem(`otm_viewed_${user.id}_${otmId}`, new Date().toISOString());
+    setOTMs(prev => [...prev]);
+  }, [user]);
+
+  // Diffing ref to monitor and trigger alerts for new/updated OTMs
+  const prevOtmsRef = useRef<OTMRequest[]>([]);
+
+  useEffect(() => {
+    if (prevOtmsRef.current.length === 0) {
+      prevOtmsRef.current = otms;
+      return;
+    }
+
+    const prevOtms = prevOtmsRef.current;
+    prevOtmsRef.current = otms;
+
+    if (!user) return;
+
+    otms.forEach(newOtm => {
+      const oldOtm = prevOtms.find(o => o.id === newOtm.id);
+      
+      if (!oldOtm) {
+        if ((user.role === 'supervisor' || user.role === 'admin') && newOtm.status === 'pending') {
+          addToast(
+            '🆕 Nueva Solicitud',
+            `OTM ${newOtm.otm_code} creada por ${newOtm.requester_name} en ${newOtm.location || 'Sede Principal'}.`,
+            'info',
+            newOtm.id
+          );
+        }
+        else if (user.role === 'jefatura' && newOtm.status === 'derived' && newOtm.derived_to_area === user.area_sector && newOtm.derived_status === 'pending') {
+          addToast(
+            '📥 OTM Derivada',
+            `OTM ${newOtm.otm_code} ha sido derivada a tu área (${newOtm.derived_to_area}).`,
+            'warning',
+            newOtm.id
+          );
+        }
+      } else {
+        if (oldOtm.status !== newOtm.status) {
+          if (user.role === 'requester' && newOtm.area_sector === user.area_sector && newOtm.requester_id === user.id) {
+            const statusLabels: Record<string, string> = {
+              scheduled: 'Programada',
+              in_progress: 'En Ejecución',
+              rq: 'Con Requerimiento',
+              awaiting_conformity: 'Espera Conformidad',
+              closed: 'Cerrada',
+              cancelled: 'Cancelada'
+            };
+            const label = statusLabels[newOtm.status] || newOtm.status;
+            addToast(
+              '🔄 Actualización de OTM',
+              `Tu OTM ${newOtm.otm_code} cambió al estado: ${label}.`,
+              newOtm.status === 'awaiting_conformity' ? 'success' : 'info',
+              newOtm.id
+            );
+          }
+          else if (user.role === 'technician' && newOtm.technician_id === user.id && newOtm.status === 'scheduled') {
+            addToast(
+              '📅 Nueva Asignación',
+              `Se te asignó la OTM ${newOtm.otm_code} para programar en agenda.`,
+              'info',
+              newOtm.id
+            );
+          }
+          else if (user.role === 'jefatura' && newOtm.status === 'derived' && newOtm.derived_to_area === user.area_sector && newOtm.derived_status === 'pending' && oldOtm.status !== 'derived') {
+            addToast(
+              '📥 OTM Derivada',
+              `OTM ${newOtm.otm_code} derivada a tu área (${newOtm.derived_to_area}).`,
+              'warning',
+              newOtm.id
+            );
+          }
+          else if (user.role === 'supervisor' || user.role === 'admin') {
+            if (newOtm.status === 'awaiting_supervisor') {
+              addToast(
+                '👷 Aprobación Requerida',
+                `OTM ${newOtm.otm_code} finalizada por el técnico y requiere aprobación.`,
+                'success',
+                newOtm.id
+              );
+            } else if (newOtm.status === 'pending' && oldOtm.status === 'derived' && newOtm.derived_status === 'rejected') {
+              addToast(
+                '❌ Derivación Rechazada',
+                `OTM ${newOtm.otm_code} rechazada por ${newOtm.derived_to_area}. Volvió a pendientes.`,
+                'error',
+                newOtm.id
+              );
+            }
+          }
+        }
+
+        const oldCommentsLen = oldOtm.comments?.length || 0;
+        const newCommentsLen = newOtm.comments?.length || 0;
+        if (newCommentsLen > oldCommentsLen && newOtm.comments) {
+          const newComment = newOtm.comments[newOtm.comments.length - 1];
+          if (newComment.user_id !== user.id) {
+            const isRelevant = 
+              (user.role === 'requester' && newOtm.requester_id === user.id) ||
+              (user.role === 'technician' && newOtm.technician_id === user.id) ||
+              (user.role === 'supervisor' && (newOtm.supervisor_id === user.id || !newOtm.supervisor_id)) ||
+              (user.role === 'jefatura' && newOtm.derived_to_area === user.area_sector && newOtm.status === 'derived') ||
+              (user.role === 'admin');
+
+            if (isRelevant) {
+              addToast(
+                '💬 Nuevo Mensaje',
+                `Mensaje de ${newComment.user_name} en OTM ${newOtm.otm_code}: "${newComment.text.substring(0, 40)}${newComment.text.length > 40 ? '...' : ''}"`,
+                'info',
+                newOtm.id
+              );
+            }
+          }
+        }
+      }
+    });
+
+  }, [otms, user, addToast]);
 
   const [otms, setOTMs] = useState<OTMRequest[]>(() => {
     if (isLive) return [];
@@ -262,7 +473,9 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   // ── CRUD: OTMs ──
   const getOTMsForCurrentUser = useCallback(() => {
     if (!user) return [];
-    if (user.role === 'requester') return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);
+    if (user.role === 'requester' || (user.role === 'jefatura' && user.area_sector !== '22. MANTENIMIENTO')) {
+      return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);
+    }
     if (user.role === 'technician') return otms.filter(o => 
       o.technician_id === user.id || 
       (o.assigned_technicians && o.assigned_technicians.some(t => t.technician_id === user.id))
@@ -830,7 +1043,8 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       techRequests, getTechRequestsForCurrentUser, createTechRequest, updateTechRequestStatus,
       opexBudget, capexBudget, preventivePlan,
       updatePreventivePlanItem, addPreventivePlanItem, deletePreventivePlanItem, updateBudgetItem,
-      deriveOTM, respondToDerivation, addOTMComment
+      deriveOTM, respondToDerivation, addOTMComment,
+      toasts, removeToast, addToast, isOTMUnread, markAsRead
     }}>
       {children}
     </OTMContext.Provider>
