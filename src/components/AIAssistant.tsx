@@ -32,8 +32,14 @@ export default function AIAssistant() {
   const [inputVal, setInputVal] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('crl_gemini_api_key') || '');
-  const [useSimulated, setUseSimulated] = useState(() => !localStorage.getItem('crl_gemini_api_key'));
+  const defaultApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('crl_gemini_api_key') || defaultApiKey);
+  const [useSimulated, setUseSimulated] = useState(() => {
+    const stored = localStorage.getItem('crl_gemini_api_key');
+    if (stored) return false;
+    return !defaultApiKey;
+  });
+
 
   // Voice States
   const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('crl_ai_voice_enabled') === 'true');
@@ -229,8 +235,9 @@ export default function AIAssistant() {
       setUseSimulated(false);
     } else {
       localStorage.removeItem('crl_gemini_api_key');
-      setApiKey('');
-      setUseSimulated(true);
+      const defaultKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+      setApiKey(defaultKey);
+      setUseSimulated(simulate);
     }
     setShowSettings(false);
   };
@@ -960,11 +967,11 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
             {!useSimulated && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                  Ingresa tu Gemini API Key para conectar con el modelo real en vivo:
+                  {import.meta.env.VITE_GEMINI_API_KEY ? 'Se ha cargado una API Key global (.env). Puedes ingresar una clave diferente aquí para sobrescribirla:' : 'Ingresa tu Gemini API Key para conectar con el modelo real en vivo:'}
                 </div>
                 <input 
                   type="password" 
-                  placeholder="AIzaSy..."
+                  placeholder={import.meta.env.VITE_GEMINI_API_KEY ? "Configurada de forma global (.env)" : "AIzaSy..."}
                   value={apiKey}
                   onChange={e => setApiKey(e.target.value)}
                   style={{

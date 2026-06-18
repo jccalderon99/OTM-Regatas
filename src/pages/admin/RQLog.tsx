@@ -511,19 +511,10 @@ export default function RQLog({ onNavigate }: RQLogProps) {
   }, [filteredRQs]);
 
   return (
-    <div className="rq-log-page" style={{ padding: '24px 0', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="rq-log-page" style={{ padding: '0 0 24px 0', width: '100%', maxWidth: '100%' }}>
       
-      {/* Header View */}
-      <div className="flex justify-between items-center" style={{ marginBottom: 24, gap: 16 }}>
-        <div>
-          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-            📋 Bitácora de Requerimientos (RQ)
-          </h1>
-          <p className="page-subtitle" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-            Visualización y control de solicitudes de suministros y servicios complementarios.
-          </p>
-        </div>
-        
+      {/* Header View: Aligned to the right, since title/description are now in the layout topbar */}
+      <div className="flex justify-end items-center" style={{ marginBottom: 20 }}>
         <button 
           className="btn btn-primary" 
           onClick={() => setShowNewRQModal(true)}
@@ -547,28 +538,76 @@ export default function RQLog({ onNavigate }: RQLogProps) {
         gap: 16, 
         marginBottom: 24 
       }}>
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>📋</div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Requerimientos</span>
-          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>{kpis.total}</span>
+        {/* Total Requerimientos */}
+        <div className="glass-card" style={{ 
+          padding: '16px 20px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 6, 
+          position: 'relative', 
+          overflow: 'hidden',
+          background: 'linear-gradient(135deg, rgba(78, 181, 230, 0.08) 0%, rgba(78, 181, 230, 0.01) 100%)',
+          border: '1px solid rgba(78, 181, 230, 0.25)',
+          borderLeft: '4px solid var(--accent-blue)',
+          boxShadow: '0 4px 15px rgba(78, 181, 230, 0.06)'
+        }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.15, pointerEvents: 'none', color: 'var(--accent-blue)' }}>📋</div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Requerimientos</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#2563eb' }}>{kpis.total}</span>
         </div>
         
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', borderLeft: '3px solid rgba(245, 158, 11, 0.4)' }}>
-          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>⏳</div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>En Aprobación</span>
-          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f59e0b' }}>{kpis.inApproval}</span>
+        {/* En Aprobación */}
+        <div className="glass-card" style={{ 
+          padding: '16px 20px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 6, 
+          position: 'relative', 
+          overflow: 'hidden', 
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.01) 100%)',
+          border: '1px solid rgba(245, 158, 11, 0.25)',
+          borderLeft: '4px solid #f59e0b',
+          boxShadow: '0 4px 15px rgba(245, 158, 11, 0.06)'
+        }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.15, pointerEvents: 'none', color: '#f59e0b' }}>⏳</div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>En Aprobación</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#d97706' }}>{kpis.inApproval}</span>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', borderLeft: '3px solid rgba(139, 92, 246, 0.4)' }}>
-          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>🚚</div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>En Proceso Logístico</span>
-          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#a78bfa' }}>{kpis.inLogistics}</span>
+        {/* En Proceso Logístico */}
+        <div className="glass-card" style={{ 
+          padding: '16px 20px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 6, 
+          position: 'relative', 
+          overflow: 'hidden', 
+          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.01) 100%)',
+          border: '1px solid rgba(139, 92, 246, 0.25)',
+          borderLeft: '4px solid #8b5cf6',
+          boxShadow: '0 4px 15px rgba(139, 92, 246, 0.06)'
+        }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.15, pointerEvents: 'none', color: '#8b5cf6' }}>🚚</div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>En Proceso Logístico</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#7c3aed' }}>{kpis.inLogistics}</span>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', borderLeft: '3px solid rgba(52, 211, 153, 0.4)' }}>
-          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.05, pointerEvents: 'none' }}>✅</div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Atendido/Entregado</span>
-          <span style={{ fontSize: '1.75rem', fontWeight: 800, color: '#34d399' }}>{kpis.attended}</span>
+        {/* Atendido/Entregado */}
+        <div className="glass-card" style={{ 
+          padding: '16px 20px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 6, 
+          position: 'relative', 
+          overflow: 'hidden', 
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.01) 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.25)',
+          borderLeft: '4px solid #10b981',
+          boxShadow: '0 4px 15px rgba(16, 185, 129, 0.06)'
+        }}>
+          <div style={{ position: 'absolute', top: -10, right: -10, fontSize: '3rem', opacity: 0.15, pointerEvents: 'none', color: '#10b981' }}>✅</div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Atendido/Entregado</span>
+          <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#059669' }}>{kpis.attended}</span>
         </div>
       </div>
 

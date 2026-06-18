@@ -204,7 +204,9 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                 </span>
                 {(user.role === 'admin' || user.role === 'supervisor') && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400, borderLeft: '1px solid var(--border)', paddingLeft: 10, display: 'inline-block' }}>
-                    Centro de control - Mantenimiento
+                    {currentView === 'rq-log' 
+                      ? 'Visualización y control de solicitudes de suministros y servicios complementarios.' 
+                      : 'Centro de control - Mantenimiento'}
                   </span>
                 )}
               </span>
