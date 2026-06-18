@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { useOTM } from '../context/OTMContext';
 import { OTMRequest, Profile } from '../types';
@@ -637,31 +638,23 @@ CATÁLOGO DEL SISTEMA:
     });
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{ text: systemPrompt }] },
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
           tools
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Error en llamada a Gemini API');
-      }
-
-      const resData = await response.json();
-      const candidate = resData.candidates?.[0];
+      const candidate = response.candidates?.[0];
       const modelParts = candidate?.content?.parts || [];
       
-      let aiText = '';
+      let aiText = response.text || '';
       let functionCall = null;
 
       for (const part of modelParts) {
-        if (part.text) {
-          aiText += part.text;
-        }
         if (part.functionCall) {
           functionCall = part.functionCall;
         }
@@ -761,24 +754,15 @@ CATÁLOGO DEL SISTEMA:
           }
         ];
 
-        const secondResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: secondContents,
-            systemInstruction: { parts: [{ text: systemPrompt }] }
-          })
+        const secondResponse = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: secondContents,
+          config: {
+            systemInstruction: systemPrompt
+          }
         });
 
-        if (secondResponse.ok) {
-          const secondData = await secondResponse.json();
-          const secondCandidate = secondData.candidates?.[0];
-          aiText = secondCandidate?.content?.parts?.[0]?.text || 'Acción procesada con éxito en la plataforma.';
-        } else {
-          aiText = resultData.status === 'success' 
-            ? `Acción realizada con éxito: ${name}.` 
-            : `Ocurrió un inconveniente al realizar la acción: ${resultData.message}`;
-        }
+        aiText = secondResponse.text || 'Acción procesada con éxito en la plataforma.';
 
         setIsLoading(false);
         setMessages(prev => [...prev, {
@@ -798,13 +782,26 @@ CATÁLOGO DEL SISTEMA:
           timestamp
         }]);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Gemini SDK Error:', err);
       setIsLoading(false);
+      
+      let errorText = 'Lo siento, no pude conectar con el servidor de IA. Asegúrate de que tu conexión sea estable y tu API Key sea correcta.';
+      
+      const errMsg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      const isAuthError = errMsg.includes('401') || 
+                          errMsg.toLowerCase().includes('unauthenticated') || 
+                          errMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') ||
+                          errMsg.includes('API_KEY_SERVICE_BLOCKED');
+                          
+      if (isAuthError) {
+        errorText = 'Parece que hay un inconveniente de autenticación con tu API Key. Google requiere agregar una tarjeta de pago para habilitar el uso de las nuevas claves de formato "AQ." en tu proyecto. \n\n**¿Deseas activar el Modo Simulado (en el botón de configuración de arriba) para probar todo el flujo de inmediato?**';
+      }
+
       setMessages(prev => [...prev, {
         id,
         role: 'assistant',
-        text: 'Lo siento, no pude conectar con el servidor de IA. Asegúrate de que tu conexión sea estable y tu API Key sea correcta.',
+        text: errorText,
         timestamp,
         cardType: 'error'
       }]);
