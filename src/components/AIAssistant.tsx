@@ -48,11 +48,50 @@ export default function AIAssistant() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  // Load premium voice asynchronously (Microsoft Natural > Google > any Spanish)
+  useEffect(() => {
+    const loadBestVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices.length) return;
+
+      // Priority 1: Microsoft Natural Spanish voices (Edge)
+      const msNatural = voices.find(v =>
+        v.lang.startsWith('es') && v.name.includes('Natural') && v.name.includes('Microsoft')
+      );
+      if (msNatural) { bestVoiceRef.current = msNatural; return; }
+
+      // Priority 2: Google Spanish voices (Chrome)
+      const googleVoice = voices.find(v =>
+        v.lang.startsWith('es') && v.name.includes('Google')
+      );
+      if (googleVoice) { bestVoiceRef.current = googleVoice; return; }
+
+      // Priority 3: Any remote/cloud Spanish voice
+      const remoteEs = voices.find(v =>
+        v.lang.startsWith('es') && !v.localService
+      );
+      if (remoteEs) { bestVoiceRef.current = remoteEs; return; }
+
+      // Fallback: any Spanish voice
+      const anyEs = voices.find(v => v.lang.startsWith('es'));
+      if (anyEs) { bestVoiceRef.current = anyEs; }
+    };
+
+    if ('speechSynthesis' in window) {
+      loadBestVoice();
+      window.speechSynthesis.addEventListener('voiceschanged', loadBestVoice);
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', loadBestVoice);
+      };
+    }
+  }, []);
 
   // Load welcome message when chat is opened and empty
   useEffect(() => {
@@ -88,7 +127,7 @@ export default function AIAssistant() {
     };
   }, []);
 
-  // Text to Speech
+  // Text to Speech (with premium voice selection)
   const speakText = (text: string) => {
     if (!voiceEnabled || !('speechSynthesis' in window)) return;
 
@@ -99,24 +138,27 @@ export default function AIAssistant() {
       let cleanText = text
         .replace(/\*\*/g, '')
         .replace(/\*/g, '')
-        .replace(/#/g, '')
+        .replace(/#{1,6}\s?/g, '')
         .replace(/`{1,3}[^`]*`{1,3}/g, '') // remove code blocks
         .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // keep text inside markdown links
+        .replace(/•/g, ',')
+        .replace(/\n{2,}/g, '. ')
+        .replace(/\n/g, ', ')
         .trim();
 
       // Limit length to avoid browser speech timeout
-      if (cleanText.length > 600) {
-        cleanText = cleanText.substring(0, 600) + '...';
+      if (cleanText.length > 800) {
+        cleanText = cleanText.substring(0, 800) + '...';
       }
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'es-PE'; // Spanish - Peru
+      utterance.lang = 'es-PE';
+      utterance.rate = 1.05; // Slightly faster for natural rhythm
+      utterance.pitch = 1.0;
 
-      // Find a suitable Spanish voice
-      const voices = window.speechSynthesis.getVoices();
-      const esVoice = voices.find(v => v.lang.startsWith('es'));
-      if (esVoice) {
-        utterance.voice = esVoice;
+      // Use the best pre-selected voice
+      if (bestVoiceRef.current) {
+        utterance.voice = bestVoiceRef.current;
       }
 
       utterance.onstart = () => setIsSpeaking(true);
@@ -486,25 +528,51 @@ export default function AIAssistant() {
     const timestamp = new Date();
     const id = `msg-${Date.now()}`;
 
-    const systemPrompt = `
-Eres el "Asistente de IA CRL", el agente inteligente integrado en la Plataforma de Mantenimiento del Club de Regatas Lima (CRL).
-Tu misión es facilitar la gestión operativa de mantenimiento respondiendo consultas de soporte o llamando a herramientas (Function Calling) para automatizar el sistema.
+    // OTMs summary for context awareness
+    const otmsSummary = otms.slice(0, 30).map(o => ({
+      code: o.otm_code,
+      status: o.status,
+      desc: o.description?.substring(0, 60),
+      location: o.location,
+      area: o.area_sector
+    }));
 
-DATOS DEL USUARIO ACTUAL EN SESIÓN:
+    const systemPrompt = `
+Eres el "Asistente de IA CRL", un agente de inteligencia artificial avanzado, conversacional y empático, integrado en la Plataforma de Gestión de Mantenimiento del Club de Regatas Lima (CRL).
+
+PERSONALIDAD Y ESTILO:
+- Habla de manera natural, fluida y cercana, como un compañero de trabajo experto y amigable.
+- Usa español latinoamericano profesional pero cálido. Evita sonar robótico o como un bot genérico.
+- Sé proactivo: si detectas que el usuario necesita algo más allá de lo que pidió, sugiere opciones.
+- Responde de forma CONCISA pero COMPLETA. No uses más de 3-4 oraciones a menos que sea necesario.
+- Cuando confirmes una acción exitosa, celebra brevemente (ej: "¡Listo, registrado! 👍").
+- Puedes usar emojis con moderación para dar vida a la conversación.
+
+DATOS DEL USUARIO EN SESIÓN:
 - Nombre: ${user?.full_name}
-- Rol: ${user?.role} (Solicitante=requester, Supervisor=supervisor, Técnico=technician, Administrador=admin)
+- Rol: ${user?.role} (requester=Solicitante, supervisor=Supervisor, technician=Técnico, admin=Administrador)
 - Sector: ${user?.area_sector || 'General'}
 
-RESTRICCIONES Y REGLAS CLAVE:
-1. Sé extremadamente educado, conciso y profesional en español.
-2. Si el usuario te pide realizar una acción que no corresponde a su rol (ej. un requester pidiendo asignar técnicos, o un técnico cancelando OTMs), declina amablemente explicando la jerarquía de roles.
-3. Utiliza las herramientas (Function Calling) provistas cuando el usuario te lo solicite explícitamente en su mensaje. No inventes códigos de OTM ni IDs, usa los provistos en las respuestas de las herramientas.
+CONTEXTO DEL SISTEMA (OTMs recientes):
+${JSON.stringify(otmsSummary)}
 
-CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
-- Áreas Solicitantes válidas: ${JSON.stringify(areas)}
-- Ubicaciones válidas: ${JSON.stringify(locations)}
-- Especialidades (failure_types) válidos: ${JSON.stringify(specialties)}
-- Lista de Técnicos activos (Nombre e ID): ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+REGLAS CRÍTICAS:
+1. SIEMPRE responde en español.
+2. Respeta la jerarquía de roles estrictamente:
+   - Solicitantes: solo pueden crear OTMs y consultar estado.
+   - Supervisores/Admin: pueden asignar, programar y consultar todo.
+   - Técnicos: solo pueden registrar finalización de sus trabajos asignados.
+   Si alguien pide algo fuera de su rol, explica amablemente por qué no puedes hacerlo.
+3. Usa las herramientas (Function Calling) cuando el usuario solicite una ACCIÓN concreta (crear, asignar, finalizar).
+4. NUNCA inventes códigos de OTM. Si no tienes el código, pregúntalo.
+5. Si el usuario te hace una pregunta sobre la plataforma, el proceso o los datos, responde con conocimiento completo del sistema.
+6. Si el usuario te habla de forma informal o te saluda, responde de manera natural y amigable.
+
+CATÁLOGO DEL SISTEMA:
+- Áreas: ${JSON.stringify(areas)}
+- Ubicaciones: ${JSON.stringify(locations)}
+- Especialidades: ${JSON.stringify(specialties)}
+- Técnicos activos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
     `;
 
     const tools = [
@@ -569,7 +637,7 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
     });
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -693,7 +761,7 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
           }
         ];
 
-        const secondResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const secondResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -868,7 +936,7 @@ CATÁLOGO DE DATOS DISPONIBLES EN EL SISTEMA:
                 borderRadius: 4,
                 fontWeight: 600
               }}>
-                {useSimulated ? 'Simulado' : 'Gemini 1.5'}
+                {useSimulated ? 'Simulado' : 'Gemini 2.5 ⚡'}
               </span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
