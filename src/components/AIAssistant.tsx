@@ -556,6 +556,20 @@ export default function AIAssistant() {
 
   // Respaldo local usando Ollama
   const runOllamaAPI = async (userText: string): Promise<boolean> => {
+    // 1. Quick connection check to avoid hanging if Ollama is offline
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
+    
+    try {
+      // Ollama returns a simple text string on its root URL when running
+      await fetch(ollamaUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.log('Ollama is offline or unreachable. Falling back to simulation.');
+      return false;
+    }
+
     setIsLoading(true);
     const timestamp = new Date();
     const id = `msg-${Date.now()}`;
