@@ -117,6 +117,20 @@ export default function AIAssistant() {
     }
   }, [isOpen, messages.length, user]);
 
+  // Pre-load Ollama model in the background when chat is opened to avoid cold-start delays
+  useEffect(() => {
+    if (isOpen && ollamaEnabled) {
+      console.log('Pre-loading Ollama model in background:', ollamaModel);
+      fetch(`${ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: ollamaModel })
+      }).catch(err => {
+        console.log('Ollama background pre-loading ignored or server offline:', err);
+      });
+    }
+  }, [isOpen, ollamaEnabled, ollamaModel, ollamaUrl]);
+
   // Trigger text-to-speech for the last assistant message
   useEffect(() => {
     if (messages.length > 0) {
@@ -615,6 +629,13 @@ Si el usuario te pide registrar una acción concreta (crear una OTM, asignar té
 Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, respetando las comillas simples para los textos. Si te falta información obligatoria (por ejemplo, dónde ocurrió la falla), no pongas la marca, pídele los datos faltantes conversando amablemente.
 `;
 
+    // 2. Chat query with timeout to prevent loading hang if generation is slow/stuck
+    const queryController = new AbortController();
+    const queryTimeoutId = setTimeout(() => {
+      console.log('Ollama chat generation timed out after 12 seconds. Aborting request.');
+      queryController.abort();
+    }, 12000);
+
     try {
       const response = await fetch(`${ollamaUrl}/api/chat`, {
         method: 'POST',
@@ -627,8 +648,11 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
             { role: 'user', content: userText }
           ],
           stream: false
-        })
+        }),
+        signal: queryController.signal
       });
+
+      clearTimeout(queryTimeoutId);
 
       if (!response.ok) {
         throw new Error('Servidor de Ollama no responde');
@@ -743,6 +767,7 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
 
       return true;
     } catch (err) {
+      clearTimeout(queryTimeoutId);
       console.error('Ollama fetch error:', err);
       return false;
     }
@@ -1494,9 +1519,9 @@ CATÁLOGO DEL SISTEMA:
               display: 'flex',
               gap: 4
             }}>
-              <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block', animation: 'bounce 1.4s infinite ease-in-out both' }} />
-              <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
-              <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block', animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
+              <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block', animation: 'jumping-dots 1.2s infinite ease-in-out' }} />
+              <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block', animation: 'jumping-dots 1.2s infinite ease-in-out', animationDelay: '0.2s' }} />
+              <span className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block', animation: 'jumping-dots 1.2s infinite ease-in-out', animationDelay: '0.4s' }} />
             </div>
           </div>
         )}
@@ -1619,9 +1644,9 @@ CATÁLOGO DEL SISTEMA:
       </div>
 
       <style>{`
-        @keyframes bounce {
-          0%, 80%, 100% { transform: scale(0); }
-          40% { transform: scale(1.0); }
+        @keyframes jumping-dots {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
         }
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
