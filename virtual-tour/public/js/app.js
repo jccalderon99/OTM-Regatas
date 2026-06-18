@@ -682,13 +682,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 2000);
 
             // 3. Attach load event listener BEFORE loading the scene to avoid race conditions!
-            viewer.once('load', () => {
+            const loadListener = () => {
+                if (viewer) viewer.off('load', loadListener);
                 clearTimeout(safetyTimeout);
                 setTimeout(() => {
                     transitionOverlay.classList.remove('active');
                     if (viewer) viewer.resize();
                 }, 100);
-            });
+            };
+            viewer.on('load', loadListener);
 
             // 4. Load the scene
             viewer.loadScene(sceneId, pitch, yaw);
