@@ -4,7 +4,8 @@ import type { Project } from './Dashboard';
 import { 
   ArrowLeft, Eye, Edit3, Plus, Trash2, 
   Info, Image as ImageIcon, Link as LinkIcon, MessageSquare, 
-  Maximize2, ZoomIn, ZoomOut, MapPin, Compass, HelpCircle, ArrowDown
+  Maximize2, ZoomIn, ZoomOut, MapPin, Compass, HelpCircle, ArrowDown,
+  ChevronsUp, ChevronUp, ArrowUp, Camera, Play, CircleDot
 } from 'lucide-react';
 import { createRoot } from 'react-dom/client';
 import { savePanoramaBlob, resolvePanoramaUrl, deletePanoramaBlob } from '../lib/clauRvDb';
@@ -147,6 +148,14 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
           if (hs.icon === 'help') IconComponent = HelpCircle;
           if (hs.icon === 'arrow-down') IconComponent = ArrowDown;
           if (hs.icon === 'eye') IconComponent = Eye;
+          if (hs.icon === 'chevrons-up') IconComponent = ChevronsUp;
+          if (hs.icon === 'chevron-up') IconComponent = ChevronUp;
+          if (hs.icon === 'arrow-up') IconComponent = ArrowUp;
+          if (hs.icon === 'camera') IconComponent = Camera;
+          if (hs.icon === 'play') IconComponent = Play;
+          if (hs.icon === 'circle-dot') IconComponent = CircleDot;
+
+          const isFloorCircle = hs.icon === 'floor-circle';
 
           // Apply color
           hotSpotDiv.style.color = 'white';
@@ -154,7 +163,14 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
 
           root.render(
             <>
-              <IconComponent size={18} className="drop-shadow-md" />
+              {isFloorCircle ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5.5 h-5.5 drop-shadow-md">
+                  <ellipse cx="12" cy="12" rx="10" ry="4.5" />
+                  <circle cx="12" cy="12" r="2" fill="currentColor" />
+                </svg>
+              ) : (
+                <IconComponent size={18} className="drop-shadow-md" />
+              )}
               <div className="hotspot-tooltip">
                 {hs.title || hs.text || 'Marcador'}
                 {isEditMode && <span className="block text-[9px] text-amber-300 font-bold mt-1">Hacer clic para editar</span>}
@@ -580,7 +596,14 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
                     { id: 'compass', Icon: Compass },
                     { id: 'help', Icon: HelpCircle },
                     { id: 'arrow-down', Icon: ArrowDown },
-                    { id: 'eye', Icon: Eye }
+                    { id: 'eye', Icon: Eye },
+                    { id: 'chevrons-up', Icon: ChevronsUp },
+                    { id: 'chevron-up', Icon: ChevronUp },
+                    { id: 'arrow-up', Icon: ArrowUp },
+                    { id: 'camera', Icon: Camera },
+                    { id: 'play', Icon: Play },
+                    { id: 'circle-dot', Icon: CircleDot },
+                    { id: 'floor-circle', Icon: null }
                   ].map(({ id, Icon }) => (
                     <button
                       key={id}
@@ -592,7 +615,14 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
                           : 'bg-[#FAF6F0]/40 border-slate-200 text-slate-500 hover:bg-slate-50'
                       }`}
                     >
-                      <Icon size={18} />
+                      {Icon ? (
+                        <Icon size={18} />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]">
+                          <ellipse cx="12" cy="12" rx="10" ry="4.5" />
+                          <circle cx="12" cy="12" r="2" fill="currentColor" />
+                        </svg>
+                      )}
                     </button>
                   ))}
                 </div>
