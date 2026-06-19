@@ -4,7 +4,7 @@ import type { Project } from './Dashboard';
 import { 
   ArrowLeft, Eye, Edit3, Plus, Trash2, 
   Info, Image as ImageIcon, Link as LinkIcon, MessageSquare, 
-  Maximize2, ZoomIn, ZoomOut
+  Maximize2, ZoomIn, ZoomOut, MapPin, Compass, HelpCircle, ArrowDown
 } from 'lucide-react';
 import { createRoot } from 'react-dom/client';
 import { savePanoramaBlob, resolvePanoramaUrl, deletePanoramaBlob } from '../lib/clauRvDb';
@@ -142,6 +142,11 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
           if (hs.icon === 'image') IconComponent = ImageIcon;
           if (hs.icon === 'arrow') IconComponent = LinkIcon;
           if (hs.icon === 'comment') IconComponent = MessageSquare;
+          if (hs.icon === 'pin') IconComponent = MapPin;
+          if (hs.icon === 'compass') IconComponent = Compass;
+          if (hs.icon === 'help') IconComponent = HelpCircle;
+          if (hs.icon === 'arrow-down') IconComponent = ArrowDown;
+          if (hs.icon === 'eye') IconComponent = Eye;
 
           // Apply color
           hotSpotDiv.style.color = 'white';
@@ -565,12 +570,17 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Ícono del Marcador
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {[
                     { id: 'info', Icon: Info },
                     { id: 'arrow', Icon: LinkIcon },
                     { id: 'image', Icon: ImageIcon },
-                    { id: 'comment', Icon: MessageSquare }
+                    { id: 'comment', Icon: MessageSquare },
+                    { id: 'pin', Icon: MapPin },
+                    { id: 'compass', Icon: Compass },
+                    { id: 'help', Icon: HelpCircle },
+                    { id: 'arrow-down', Icon: ArrowDown },
+                    { id: 'eye', Icon: Eye }
                   ].map(({ id, Icon }) => (
                     <button
                       key={id}
