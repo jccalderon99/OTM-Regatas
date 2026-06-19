@@ -779,12 +779,11 @@ export default function ClauRV() {
           cursor: pointer;
           backdrop-filter: blur(4px);
           -webkit-backdrop-filter: blur(4px);
-          transition: transform 0.2s, background 0.2s;
+          transition: background 0.2s, box-shadow 0.2s;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
         .custom-hotspot:hover {
-          transform: scale(1.15) !important;
-          background: rgba(59, 130, 246, 0.4) !important;
+          background: rgba(59, 130, 246, 0.8) !important;
           border-color: #3b82f6 !important;
         }
         .custom-hotspot.edit-mode {
