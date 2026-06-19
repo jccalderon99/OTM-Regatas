@@ -1,55 +1,56 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 export interface User {
-  id: string;
   email: string;
-  name: string;
-  role: 'admin' | 'tecnico' | 'solicitante';
+  role: 'admin' | 'guest';
 }
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  isAdmin: boolean;
+  login: (email: string, pass: string) => boolean;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Read from parent application login if token/user exists in localStorage,
-    // otherwise fallback to a generic admin user for standalone mode
-    const parentAuth = localStorage.getItem('crl_auth_user') || localStorage.getItem('otm_user');
-    if (parentAuth) {
+    const savedUser = localStorage.getItem('claurv_user');
+    if (savedUser) {
       try {
-        const parsed = JSON.parse(parentAuth);
-        setUser(parsed);
-      } catch {
-        setUser({ id: 'admin-1', email: 'admin@regatas.pe', name: 'Administrador ClauRV', role: 'admin' });
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        setUser(null);
       }
-    } else {
-      // Default to admin so they can edit standalone
-      setUser({ id: 'admin-1', email: 'admin@regatas.pe', name: 'Administrador ClauRV', role: 'admin' });
     }
-    setLoading(false);
   }, []);
 
-  const isAdmin = user?.role === 'admin';
+  const login = (email: string, pass: string): boolean => {
+    if (email === 'cpulache@clubregatas.org.pe' && pass === 'admin') {
+      const adminUser: User = { email, role: 'admin' };
+      setUser(adminUser);
+      localStorage.setItem('claurv_user', JSON.stringify(adminUser));
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('claurv_user');
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
-};
+}
