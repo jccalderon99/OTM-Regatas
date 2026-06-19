@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Compass, LogOut, Plus, Trash2, Globe, Lock, ArrowRight } from 'lucide-react';
+import { Compass, LogOut, Plus, Trash2, Globe, Lock, ArrowRight, Upload } from 'lucide-react';
+import { savePanoramaBlob, resolvePanoramaUrl, deletePanoramaBlob } from '../lib/clauRvDb';
 
 interface Scene {
   title: string;
@@ -11,7 +12,7 @@ interface Scene {
 export interface Project {
   id: string;
   title: string;
-  image: string;
+  image: string; // URL or indexeddb://
   createdAt: string;
   isPublic: boolean;
   scenes: Record<string, Scene>;
@@ -22,33 +23,114 @@ interface DashboardProps {
   onOpenProject: (project: Project) => void;
 }
 
-const DEFAULT_PROJECTS: Project[] = [
-  {
-    id: "proj-1",
-    title: "Sede Chorrillos - Principal",
-    image: "https://pannellum.org/images/alma.jpg",
-    createdAt: new Date().toISOString(),
-    isPublic: true,
-    defaultScene: "scene_1",
-    scenes: {
-      "scene_1": {
-        title: "Entrada Principal",
-        image: "https://pannellum.org/images/alma.jpg",
-        hotSpots: [
-          {
-            pitch: -5,
-            yaw: 10,
-            type: "info",
-            text: "Recepción",
-            title: "Info",
-            icon: "info",
-            color: "#3b82f6"
-          }
-        ]
+// Project Card Helper to handle async IndexedDB images
+function ProjectCard({ project, isAdmin, onOpen, onDelete, onToggleVisibility }: {
+  project: Project;
+  isAdmin: boolean;
+  onOpen: () => void;
+  onDelete: () => void;
+  onToggleVisibility: () => void;
+}) {
+  const [imageUrl, setImageUrl] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    resolvePanoramaUrl(project.image).then(url => {
+      if (active) setImageUrl(url);
+    }).catch(() => {
+      if (active) setImageUrl('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%23cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>');
+    });
+    return () => {
+      active = false;
+      if (imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imageUrl);
       }
-    }
-  }
-];
+    };
+  }, [project.image]);
+
+  const sceneCount = Object.keys(project.scenes || {}).length;
+
+  return (
+    <div
+      onClick={onOpen}
+      className="bg-white rounded-3xl overflow-hidden border border-amber-900/5 shadow-md shadow-amber-900/5 group hover:shadow-xl hover:shadow-amber-900/5 transition-all duration-300 cursor-pointer flex flex-col h-full hover:scale-[1.01]"
+    >
+      {/* Card Thumbnail */}
+      <div className="h-48 w-full bg-slate-100 relative overflow-hidden">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={project.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+            Cargando...
+          </div>
+        )}
+        <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider">
+          📷 {sceneCount} Escena(s)
+        </div>
+
+        {/* Visibility indicator */}
+        <div className="absolute top-4 right-4 flex gap-1.5">
+          {isAdmin ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleVisibility();
+              }}
+              className={`p-2 rounded-xl backdrop-blur-md text-white transition ${
+                project.isPublic 
+                  ? 'bg-emerald-600/80 hover:bg-emerald-600' 
+                  : 'bg-rose-600/80 hover:bg-rose-600'
+              }`}
+              title={project.isPublic ? 'Público: Hacer Privado' : 'Privado: Hacer Público'}
+            >
+              {project.isPublic ? <Globe className="w-4.5 h-4.5" /> : <Lock className="w-4.5 h-4.5" />}
+            </button>
+          ) : (
+            <div className="p-2 rounded-xl bg-slate-900/80 backdrop-blur-md text-white">
+              <Globe className="w-4.5 h-4.5" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Card Info */}
+      <div className="p-6 flex-1 flex flex-col justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-slate-800 group-hover:text-amber-600 transition mb-2">
+            {project.title}
+          </h3>
+          <p className="text-xs text-slate-400">
+            Creado: {new Date(project.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-slate-100 mt-5 pt-4">
+          <span className="text-amber-700 font-bold text-xs flex items-center gap-1 group-hover:gap-2 transition-all">
+            <span>Ver Tour</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </span>
+
+          {isAdmin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition"
+              title="Eliminar Proyecto"
+            >
+              <Trash2 className="w-4.5 h-4.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard({ onOpenProject }: DashboardProps) {
   const { user, logout } = useAuth();
@@ -56,9 +138,10 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [newTitle, setNewTitle] = useState('');
-  const [newUrl, setNewUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPublic, setIsPublic] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('claurv_projects');
@@ -66,11 +149,10 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
       try {
         setProjects(JSON.parse(saved));
       } catch (e) {
-        setProjects(DEFAULT_PROJECTS);
+        setProjects([]);
       }
     } else {
-      setProjects(DEFAULT_PROJECTS);
-      localStorage.setItem('claurv_projects', JSON.stringify(DEFAULT_PROJECTS));
+      setProjects([]);
     }
   }, []);
 
@@ -79,47 +161,70 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
     localStorage.setItem('claurv_projects', JSON.stringify(updated));
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || !selectedFile) return;
 
-    // Use default panorama url if not provided
-    const panoramaImage = newUrl.trim() || 'https://pannellum.org/images/alma.jpg';
+    setIsUploading(true);
 
-    const newProject: Project = {
-      id: `proj-${Date.now()}`,
-      title: newTitle.trim(),
-      image: panoramaImage,
-      createdAt: new Date().toISOString(),
-      isPublic: isPublic,
-      defaultScene: "scene_1",
-      scenes: {
-        "scene_1": {
-          title: "Escena Principal",
-          image: panoramaImage,
-          hotSpots: []
+    try {
+      // Save local indexeddb reference
+      const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      await savePanoramaBlob(id, selectedFile);
+      const imageUrl = `indexeddb://${id}`;
+
+      const newProject: Project = {
+        id: `proj-${Date.now()}`,
+        title: newTitle.trim(),
+        image: imageUrl,
+        createdAt: new Date().toISOString(),
+        isPublic: isPublic,
+        defaultScene: "scene_1",
+        scenes: {
+          "scene_1": {
+            title: "Escena Principal",
+            image: imageUrl,
+            hotSpots: []
+          }
         }
-      }
-    };
+      };
 
-    const updated = [newProject, ...projects];
-    saveProjects(updated);
-    setNewTitle('');
-    setNewUrl('');
-    setIsPublic(true);
-    setShowAddModal(false);
+      const updated = [newProject, ...projects];
+      saveProjects(updated);
+      setNewTitle('');
+      setSelectedFile(null);
+      setIsPublic(true);
+      setShowAddModal(false);
+    } catch (err: any) {
+      alert('Error al crear el proyecto: ' + err.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async (id: string) => {
     if (confirm('¿Deseas eliminar permanentemente este proyecto y todas sus escenas?')) {
+      const proj = projects.find(p => p.id === id);
+      if (proj?.scenes) {
+        // Clean up IndexedDB Blobs
+        for (const scene of Object.values(proj.scenes)) {
+          if (scene.image.startsWith('indexeddb://')) {
+            const blobId = scene.image.replace('indexeddb://', '');
+            await deletePanoramaBlob(blobId).catch(console.error);
+          }
+        }
+        if (proj.image.startsWith('indexeddb://')) {
+          const blobId = proj.image.replace('indexeddb://', '');
+          await deletePanoramaBlob(blobId).catch(console.error);
+        }
+      }
+
       const updated = projects.filter(p => p.id !== id);
       saveProjects(updated);
     }
   };
 
-  const toggleVisibility = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleVisibility = (id: string) => {
     const updated = projects.map(p => {
       if (p.id === id) {
         return { ...p, isPublic: !p.isPublic };
@@ -129,7 +234,6 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
     saveProjects(updated);
   };
 
-  // Filter projects based on user role (guests only see public projects)
   const displayedProjects = isAdmin 
     ? projects 
     : projects.filter(p => p.isPublic);
@@ -193,78 +297,16 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {displayedProjects.map(project => {
-              const sceneCount = Object.keys(project.scenes || {}).length;
-              return (
-                <div
-                  key={project.id}
-                  onClick={() => onOpenProject(project)}
-                  className="bg-white rounded-3xl overflow-hidden border border-amber-900/5 shadow-md shadow-amber-900/5 group hover:shadow-xl hover:shadow-amber-900/5 transition-all duration-300 cursor-pointer flex flex-col h-full hover:scale-[1.01]"
-                >
-                  {/* Card Thumbnail */}
-                  <div className="h-48 w-full bg-slate-100 relative overflow-hidden">
-                    <img
-                      src={project.image}
-                      alt={project.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider">
-                      📷 {sceneCount} Escena(s)
-                    </div>
-
-                    {/* Visibility indicator */}
-                    <div className="absolute top-4 right-4 flex gap-1.5">
-                      {isAdmin ? (
-                        <button
-                          onClick={(e) => toggleVisibility(project.id, e)}
-                          className={`p-2 rounded-xl backdrop-blur-md text-white transition ${
-                            project.isPublic 
-                              ? 'bg-emerald-600/80 hover:bg-emerald-600' 
-                              : 'bg-rose-600/80 hover:bg-rose-600'
-                          }`}
-                          title={project.isPublic ? 'Público: Hacer Privado' : 'Privado: Hacer Público'}
-                        >
-                          {project.isPublic ? <Globe className="w-4.5 h-4.5" /> : <Lock className="w-4.5 h-4.5" />}
-                        </button>
-                      ) : (
-                        <div className="p-2 rounded-xl bg-slate-900/80 backdrop-blur-md text-white">
-                          <Globe className="w-4.5 h-4.5" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Card Info */}
-                  <div className="p-6 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800 group-hover:text-amber-600 transition mb-2">
-                        {project.title}
-                      </h3>
-                      <p className="text-xs text-slate-400">
-                        Creado: {new Date(project.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-slate-100 mt-5 pt-4">
-                      <span className="text-amber-700 font-bold text-xs flex items-center gap-1 group-hover:gap-2 transition-all">
-                        <span>Ver Tour</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
-
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => handleDelete(project.id, e)}
-                          className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition"
-                          title="Eliminar Proyecto"
-                        >
-                          <Trash2 className="w-4.5 h-4.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {displayedProjects.map(project => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                isAdmin={isAdmin}
+                onOpen={() => onOpenProject(project)}
+                onDelete={() => handleDelete(project.id)}
+                onToggleVisibility={() => toggleVisibility(project.id)}
+              />
+            ))}
           </div>
         )}
       </main>
@@ -272,9 +314,9 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
       {/* Add Project Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-amber-900/5 max-w-md w-full p-8 relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-amber-900/5 max-w-md w-full p-8 relative animate-in fade-in zoom-in-95 duration-200 text-slate-800">
             <h3 className="text-xl font-bold text-slate-800 mb-2">Crear Nuevo Proyecto</h3>
-            <p className="text-sm text-slate-500 mb-6">Configura los detalles base del tour virtual.</p>
+            <p className="text-sm text-slate-500 mb-6">Carga una imagen panorámica de tu computadora para el proyecto.</p>
 
             <form onSubmit={handleCreate} className="space-y-5">
               <div>
@@ -293,15 +335,30 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  URL de Imagen Panorámica 360°
+                  Imagen Panorámica 360° (Local)
                 </label>
-                <input
-                  type="text"
-                  placeholder="Dejar en blanco para usar imagen por defecto"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  className="block w-full px-4 py-3 bg-[#FAF6F0]/40 border border-slate-200 rounded-xl outline-none focus:border-amber-500 text-slate-800 text-sm transition"
-                />
+                <div 
+                  className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-[#FAF6F0]/20 hover:bg-[#FAF6F0]/50 transition cursor-pointer relative"
+                  onClick={() => document.getElementById('project-file-input')?.click()}
+                >
+                  <input
+                    id="project-file-input"
+                    type="file"
+                    required
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setSelectedFile(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <Upload className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                  <span className="block text-xs font-bold text-slate-700">
+                    {selectedFile ? selectedFile.name : 'Seleccionar Archivo de Imagen'}
+                  </span>
+                  <span className="block text-[10px] text-slate-400 mt-1">JPG, JPEG o PNG en formato equirectangular 2:1</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
@@ -322,14 +379,16 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
                   type="button"
                   onClick={() => setShowAddModal(false)}
                   className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50 transition"
+                  disabled={isUploading}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-600/10 transition"
+                  disabled={isUploading || !selectedFile}
                 >
-                  Crear Proyecto
+                  {isUploading ? 'Creando...' : 'Crear Proyecto'}
                 </button>
               </div>
             </form>

@@ -7,6 +7,7 @@ import {
   Maximize2, ZoomIn, ZoomOut
 } from 'lucide-react';
 import { createRoot } from 'react-dom/client';
+import { savePanoramaBlob, resolvePanoramaUrl, deletePanoramaBlob } from '../lib/clauRvDb';
 
 interface TourViewerProps {
   project: Project;
@@ -19,6 +20,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
 
   const [activeProject, setActiveProject] = useState<Project>(project);
   const [currentSceneId, setCurrentSceneId] = useState<string>(project.defaultScene || Object.keys(project.scenes)[0]);
+  const [currentPanoramaUrl, setCurrentPanoramaUrl] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,6 +43,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
   // Pannellum references
   const viewerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const addSceneInputRef = useRef<HTMLInputElement>(null);
 
   // Local state synchronization
   useEffect(() => {
@@ -77,9 +80,30 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
     }
   };
 
+  // Resolve image URL
+  useEffect(() => {
+    const sceneData = activeProject.scenes[currentSceneId];
+    if (!sceneData) return;
+
+    let active = true;
+    resolvePanoramaUrl(sceneData.image).then(url => {
+      if (active) setCurrentPanoramaUrl(url);
+    }).catch(err => {
+      console.error(err);
+      if (active) setCurrentPanoramaUrl(sceneData.image); // fallback
+    });
+
+    return () => {
+      active = false;
+      if (currentPanoramaUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentPanoramaUrl);
+      }
+    };
+  }, [currentSceneId, activeProject]);
+
   // Initialize/reinitialize Pannellum viewer
   useEffect(() => {
-    if (!containerRef.current || !window.pannellum) return;
+    if (!containerRef.current || !window.pannellum || !currentPanoramaUrl) return;
 
     if (viewerRef.current) {
       viewerRef.current.destroy();
@@ -93,7 +117,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
 
     const config = {
       type: 'equirectangular',
-      panorama: sceneData.image,
+      panorama: currentPanoramaUrl,
       autoLoad: true,
       showControls: false,
       compass: false,
@@ -236,30 +260,53 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
     setTimeout(() => setCurrentSceneId(currentSceneId), 50);
   };
 
-  const handleAddScene = () => {
-    const title = prompt('Título de la nueva escena:');
-    if (!title) return;
-    const url = prompt('URL de la imagen 360°:');
-    if (!url) return;
-
-    const newSceneId = `scene_${Date.now()}`;
-    const updated = { ...activeProject };
-    updated.scenes[newSceneId] = {
-      title: title.trim(),
-      image: url.trim(),
-      hotSpots: []
-    };
-    saveProjectChanges(updated);
-    setCurrentSceneId(newSceneId);
+  const handleAddSceneClick = () => {
+    addSceneInputRef.current?.click();
   };
 
-  const handleDeleteScene = (sceneId: string, e: React.MouseEvent) => {
+  const handleAddSceneFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const defaultName = file.name.substring(0, file.name.lastIndexOf('.')) || 'Nueva Escena';
+    const title = prompt('Título de la nueva escena:', defaultName);
+    if (title === null) return; // Cancelled
+
+    setIsLoading(true);
+    try {
+      const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      await savePanoramaBlob(id, file);
+      const imageUrl = `indexeddb://${id}`;
+
+      const newSceneId = `scene_${Date.now()}`;
+      const updated = { ...activeProject };
+      updated.scenes[newSceneId] = {
+        title: title.trim() || defaultName,
+        image: imageUrl,
+        hotSpots: []
+      };
+      saveProjectChanges(updated);
+      setCurrentSceneId(newSceneId);
+    } catch (err: any) {
+      alert('Error al añadir escena: ' + err.message);
+    } finally {
+      setIsLoading(false);
+      if (addSceneInputRef.current) addSceneInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteScene = async (sceneId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (Object.keys(activeProject.scenes).length <= 1) {
       alert('Un proyecto debe tener al menos una escena.');
       return;
     }
     if (confirm(`¿Estás seguro de eliminar la escena "${activeProject.scenes[sceneId].title}"?`)) {
+      const sceneData = activeProject.scenes[sceneId];
+      if (sceneData.image.startsWith('indexeddb://')) {
+        const id = sceneData.image.replace('indexeddb://', '');
+        await deletePanoramaBlob(id).catch(console.error);
+      }
+
       const updated = { ...activeProject };
       delete updated.scenes[sceneId];
       saveProjectChanges(updated);
@@ -349,12 +396,19 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
 
           <div className="space-y-2 pt-4 border-t border-slate-200 mt-auto">
             <button
-              onClick={handleAddScene}
+              onClick={handleAddSceneClick}
               className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Añadir Escena 360°</span>
             </button>
+            <input
+              type="file"
+              ref={addSceneInputRef}
+              onChange={handleAddSceneFileChange}
+              accept="image/*"
+              className="hidden"
+            />
             <button
               onClick={() => setIsEditMode(false)}
               className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition shadow-md"
