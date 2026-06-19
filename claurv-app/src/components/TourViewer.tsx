@@ -105,13 +105,20 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
   useEffect(() => {
     if (!containerRef.current || !window.pannellum || !currentPanoramaUrl) return;
 
+    const sceneData = activeProject.scenes[currentSceneId];
+    if (!sceneData) return;
+
+    // Check if the resolved url matches the current scene image
+    const isMatching = sceneData.image.startsWith('indexeddb://')
+      ? currentPanoramaUrl.startsWith('blob:')
+      : currentPanoramaUrl === sceneData.image;
+
+    if (!isMatching) return;
+
     if (viewerRef.current) {
       viewerRef.current.destroy();
       viewerRef.current = null;
     }
-
-    const sceneData = activeProject.scenes[currentSceneId];
-    if (!sceneData) return;
 
     setIsLoading(true);
 
@@ -193,7 +200,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
         viewerRef.current = null;
       }
     };
-  }, [currentSceneId, activeProject, isEditMode]);
+  }, [currentPanoramaUrl, currentSceneId, activeProject, isEditMode]);
 
   // Click on panorama to add custom hotspots
   const handlePanoramaClick = (event: React.MouseEvent) => {
