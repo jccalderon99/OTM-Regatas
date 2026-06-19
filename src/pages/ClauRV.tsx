@@ -448,7 +448,22 @@ export default function ClauRV() {
     }
 
     const nativeEvent = event.nativeEvent;
-    const coords = viewerRef.current.mouseEventToCoords(nativeEvent);
+    const container = document.getElementById('pannellum-root');
+    if (!container) return;
+
+    // Get exact bounding rect of the Pannellum container
+    const rect = container.getBoundingClientRect();
+    
+    // Create a client coordinates object relative to the container element
+    const customEvent = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      target: nativeEvent.target,
+      preventDefault: () => {},
+      stopPropagation: () => {}
+    };
+
+    const coords = viewerRef.current.mouseEventToCoords(customEvent);
     if (coords) {
       const [pitch, yaw] = coords;
       setHotspotPitch(pitch);
