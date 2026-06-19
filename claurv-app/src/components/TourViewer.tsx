@@ -26,6 +26,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
 
   // Hotspot modal state
   const [isHotspotModalOpen, setIsHotspotModalOpen] = useState(false);
+  const [editingHotspotIndex, setEditingHotspotIndex] = useState<number | null>(null);
   const [hotspotPitch, setHotspotPitch] = useState(0);
   const [hotspotYaw, setHotspotYaw] = useState(0);
   const [hotspotType, setHotspotType] = useState<'info' | 'scene' | 'media'>('info');
@@ -151,30 +152,32 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
               <IconComponent size={18} className="drop-shadow-md" />
               <div className="hotspot-tooltip">
                 {hs.title || hs.text || 'Marcador'}
-                {isEditMode && <span className="block text-[9px] text-rose-300 font-bold mt-1">Hacer clic para eliminar</span>}
+                {isEditMode && <span className="block text-[9px] text-amber-300 font-bold mt-1">Hacer clic para editar</span>}
               </div>
             </>
           );
         },
         clickHandlerFunc: (_event: any, _args: any) => {
           if (isEditMode) {
-            // Delete hotspot
-            if (confirm('¿Deseas eliminar este marcador permanentemente?')) {
-              const updatedProject = { ...activeProject };
-              updatedProject.scenes[currentSceneId].hotSpots.splice(index, 1);
-              saveProjectChanges(updatedProject);
-              
-              // Force viewer reload
-              setCurrentSceneId('');
-              setTimeout(() => setCurrentSceneId(currentSceneId), 50);
-            }
+            // Open edit modal
+            setEditingHotspotIndex(index);
+            setHotspotPitch(hs.pitch);
+            setHotspotYaw(hs.yaw);
+            setHotspotType(hs.type);
+            setHotspotTitle(hs.title || '');
+            setHotspotText(hs.text || '');
+            setHotspotIcon(hs.icon || 'info');
+            setHotspotColor(hs.color || '#b45309');
+            setHotspotMediaUrl(hs.mediaUrl || '');
+            setHotspotTargetScene(hs.targetScene || '');
+            setIsHotspotModalOpen(true);
           } else {
             // Action
             if (hs.type === 'scene' && hs.targetScene) {
               setCurrentSceneId(hs.targetScene);
             } else if (hs.type === 'media' && hs.mediaUrl) {
               setSelectedMedia(hs.mediaUrl);
-            } else if (hs.type === 'info') {
+            } else if (hs.type === 'info' && hs.text) {
               setInfoPopup({
                 title: hs.title || 'Información',
                 text: hs.text || ''
@@ -213,6 +216,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
     const coords = viewerRef.current.mouseEventToCoords(event.nativeEvent);
     if (coords) {
       const [pitch, yaw] = coords;
+      setEditingHotspotIndex(null);
       setHotspotPitch(pitch);
       setHotspotYaw(yaw);
       setHotspotType('info');
@@ -258,9 +262,16 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
     if (!updated.scenes[currentSceneId].hotSpots) {
       updated.scenes[currentSceneId].hotSpots = [];
     }
-    updated.scenes[currentSceneId].hotSpots.push(newHotspot);
+    
+    if (editingHotspotIndex !== null) {
+      updated.scenes[currentSceneId].hotSpots[editingHotspotIndex] = newHotspot;
+    } else {
+      updated.scenes[currentSceneId].hotSpots.push(newHotspot);
+    }
+
     saveProjectChanges(updated);
     setIsHotspotModalOpen(false);
+    setEditingHotspotIndex(null);
 
     // Force reload
     setCurrentSceneId('');
@@ -676,10 +687,35 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
                 </div>
               )}
 
-              <div className="flex gap-3 justify-end pt-4">
+              <div className="flex gap-3 justify-end items-center pt-4">
+                {editingHotspotIndex !== null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('¿Deseas eliminar este marcador permanentemente?')) {
+                        const updated = { ...activeProject };
+                        updated.scenes[currentSceneId].hotSpots.splice(editingHotspotIndex, 1);
+                        saveProjectChanges(updated);
+                        setIsHotspotModalOpen(false);
+                        setEditingHotspotIndex(null);
+
+                        // Force reload
+                        setCurrentSceneId('');
+                        setTimeout(() => setCurrentSceneId(currentSceneId), 50);
+                      }
+                    }}
+                    className="mr-auto px-4.5 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setIsHotspotModalOpen(false)}
+                  onClick={() => {
+                    setIsHotspotModalOpen(false);
+                    setEditingHotspotIndex(null);
+                  }}
                   className="px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-50 transition"
                 >
                   Cancelar
@@ -688,7 +724,7 @@ export default function TourViewer({ project, onBack }: TourViewerProps) {
                   type="submit"
                   className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-600/10 transition"
                 >
-                  Crear Marcador
+                  {editingHotspotIndex !== null ? 'Guardar Cambios' : 'Crear Marcador'}
                 </button>
               </div>
             </form>
