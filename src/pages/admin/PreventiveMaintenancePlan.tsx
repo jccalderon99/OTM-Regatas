@@ -110,11 +110,7 @@ export default function PreventiveMaintenancePlan() {
 
   return (
     <div style={{ paddingBottom: 40 }} className="fade-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <h1 className="page-title">🛡️ Plan de Mantenimiento Preventivo</h1>
-          <p className="page-subtitle">Cronograma interactivo anual de actividades contratistas y personal de planta</p>
-        </div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20 }}>
         {(user?.role === 'admin' || user?.role === 'supervisor') && (
           <button 
             className="btn btn-primary" 
@@ -127,7 +123,7 @@ export default function PreventiveMaintenancePlan() {
       </div>
 
       {/* KPI GRID */}
-      <div className="grid-4" style={{ marginBottom: 28 }}>
+      <div className="kpi-grid" style={{ marginBottom: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <div className="glass-card hover-glow">
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>
