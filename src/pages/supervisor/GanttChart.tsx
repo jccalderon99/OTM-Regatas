@@ -506,12 +506,14 @@ export default function GanttChart() {
             z-index: 10;
             background: #ffffff;
             overflow-x: hidden;
+            overflow-y: hidden;
           }
           
           /* Scrollable Right Side Grid Calendar */
           .gantt-right-scrollable {
             flex: 1;
             overflow-x: auto;
+            overflow-y: hidden;
             position: relative;
             scrollbar-width: thin;
             scrollbar-color: #cbd5e1 transparent;
