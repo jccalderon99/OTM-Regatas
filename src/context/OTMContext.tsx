@@ -475,7 +475,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
   const getOTMsForCurrentUser = useCallback(() => {
     if (!user) return [];
     if (user.role === 'requester') {
-      return otms.filter(o => o.requester_id === user.id);
+      return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);
     }
     if (user.role === 'jefatura' && user.area_sector !== '22. MANTENIMIENTO') {
       return otms.filter(o => o.requester_id === user.id || o.area_sector === user.area_sector);

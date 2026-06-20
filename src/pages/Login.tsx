@@ -325,13 +325,13 @@ export default function Login() {
                 
                 <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
                 
-                <DemoBtn id="usr-4" role="SOLICITANTE" name="Sonia Masias" area="13. DEPORTES" />
-                <DemoBtn id="usr-5" role="SOLICITANTE" name="Lybe Diaz" area="13. DEPORTES" />
+                <DemoBtn id="usr-3" role="SOLICITANTE" name="Sonia Masias" area="13. DEPORTES" />
+                <DemoBtn id="usr-4" role="SOLICITANTE" name="Lybe Diaz" area="13. DEPORTES" />
 
                 <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
                 
-                <DemoBtn id="usr-10" role="JEFATURA" name="Raul Lozada" area="13. DEPORTES" />
-                <DemoBtn id="usr-2" role="JEFATURA" name="Marco Alvarez" area="22. MANT." />
+                <DemoBtn id="usr-9" role="JEFATURA" name="Raul Lozada" area="13. DEPORTES" />
+                <DemoBtn id="usr-1" role="JEFATURA" name="Marco Alvarez" area="22. MANT." />
 
                 <div style={{ height: 1, background: 'rgba(0,0,0,0.06)', margin: '2px 0' }} />
                 

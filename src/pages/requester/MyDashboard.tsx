@@ -318,7 +318,7 @@ export default function MyDashboard() {
         <div className="dashboard-list-col">
           <div className="glass-card" style={{ marginBottom: 20, padding: 16 }}>
             <div className="flex flex-wrap gap-4 items-center">
-              {user?.role === 'jefatura' && (
+              {(user?.role === 'jefatura' || user?.role === 'requester') && (
                 <div className="form-group" style={{ minWidth: 160 }}>
                   <label className="form-label" style={{ fontSize: '0.75rem' }}>Visualizar</label>
                   <select className="form-select" value={scopeFilter} onChange={e => setScopeFilter(e.target.value as any)}>
