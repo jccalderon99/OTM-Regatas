@@ -361,11 +361,7 @@ export default function BudgetDashboard() {
   const toY = (v: number) => padT + innerH - (v / maxMonthly) * innerH;
 
   return (
-    <div style={{ paddingBottom: 40 }} className="fade-in">
-      <div className="page-header">
-        <h1 className="page-title">💰 Presupuesto</h1>
-        <p className="page-subtitle">Control de gastos operativos (OPEX) y proyectos de inversión (CAPEX) de Infraestructura y Servicios Generales</p>
-      </div>
+    <div style={{ paddingBottom: 40, paddingTop: 10 }} className="fade-in">
 
       {/* KPI GRID */}
       <div className="kpi-grid" style={{ marginBottom: 24, gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>

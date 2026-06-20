@@ -315,7 +315,9 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                       ? 'Visualización y control de solicitudes de suministros y servicios complementarios.' 
                       : currentView === 'preventive-plan'
                         ? 'Cronograma anual de servicios'
-                        : 'Centro de control - Mantenimiento'}
+                        : currentView === 'budget'
+                          ? 'Control de gastos operativos e inversion'
+                          : 'Centro de control - Mantenimiento'}
                   </span>
                 )}
               </span>
