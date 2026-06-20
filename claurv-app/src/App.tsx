@@ -36,8 +36,6 @@ function AppContent() {
       );
     }
     
-    // Default to media manager if opened by admin, but if guest, go straight to viewer?
-    // Actually for guest they should go straight to viewer
     if (viewMode === 'media') {
       if (isGuest) {
         setViewMode('editor');
@@ -50,7 +48,38 @@ function AppContent() {
             setActiveProject(null);
             setViewMode('dashboard');
           }}
-          onGoToEditor={() => setViewMode('editor')}
+          onGoToEditor={async (selectedIds: string[]) => {
+            // Generate scenes for selected images if they don't exist
+            const updated = { ...activeProject };
+            let changed = false;
+            
+            selectedIds.forEach(id => {
+              const media = updated.mediaLibrary.find(m => m.id === id);
+              if (media) {
+                // Find if a scene already uses this media url
+                const exists = Object.values(updated.scenes).some(sc => sc.image === media.url);
+                if (!exists) {
+                  const newSceneId = `scene_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                  updated.scenes[newSceneId] = {
+                    title: media.name,
+                    image: media.url,
+                    type: media.type,
+                    hotSpots: []
+                  };
+                  if (Object.keys(updated.scenes).length === 1) {
+                    updated.defaultScene = newSceneId;
+                  }
+                  changed = true;
+                }
+              }
+            });
+            
+            if (changed) {
+              setActiveProject(updated);
+            }
+            
+            setViewMode('editor');
+          }}
         />
       );
     }
@@ -64,6 +93,7 @@ function AppContent() {
         // Guests bypass media manager
         setViewMode(isGuest ? 'editor' : 'media');
       }} 
+      onExitGuest={() => setIsGuest(false)}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Folder, Image as ImageIcon, Box, UploadCloud, Trash2, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Folder, Image as ImageIcon, Box, UploadCloud, Trash2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import type { Project, MediaItem } from '../types/project';
 import { savePanoramaBlob, deletePanoramaBlob, resolvePanoramaUrl } from '../lib/clauRvDb';
 import { supabase, isSupabaseConfigured, uploadPanoramaToSupabase } from '../lib/supabase';
@@ -7,14 +7,14 @@ import { supabase, isSupabaseConfigured, uploadPanoramaToSupabase } from '../lib
 interface MediaManagerProps {
   project: Project;
   onBack: () => void;
-  onGoToEditor: () => void;
+  onGoToEditor: (selectedIds: string[]) => void;
 }
 
 export default function MediaManager({ project, onBack, onGoToEditor }: MediaManagerProps) {
   const [albums] = useState<string[]>(['Root']);
   const [activeAlbum, setActiveAlbum] = useState('Root');
-  const [activeTab, setActiveTab] = useState<'360' | 'flat'>('360');
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(project.mediaLibrary || []);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const cloudActive = isSupabaseConfigured();
 
@@ -34,7 +34,7 @@ export default function MediaManager({ project, onBack, onGoToEditor }: MediaMan
     }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: '360' | 'flat') => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     
@@ -53,34 +53,53 @@ export default function MediaManager({ project, onBack, onGoToEditor }: MediaMan
         id: `media-${Date.now()}`,
         name: file.name,
         url,
-        type: activeTab,
+        type,
         album: activeAlbum,
         createdAt: new Date().toISOString()
       };
 
       await saveMediaLibrary([newItem, ...mediaItems]);
+      
+      // Auto-select uploaded item
+      setSelectedIds(prev => new Set(prev).add(newItem.id));
     } catch (err) {
       console.error(err);
       alert('Error al subir archivo');
     } finally {
       setIsUploading(false);
-      // Reset input
       e.target.value = '';
     }
   };
 
   const handleDelete = async (id: string, url: string) => {
-    if (!confirm('¿Eliminar esta imagen?')) return;
+    if (!confirm('¿Eliminar esta imagen permanentemente?')) return;
     
     const newMedia = mediaItems.filter(m => m.id !== id);
     await saveMediaLibrary(newMedia);
+
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
 
     if (!cloudActive && url.startsWith('indexeddb://')) {
       await deletePanoramaBlob(url.replace('indexeddb://', ''));
     }
   };
 
-  const currentMedia = mediaItems.filter(m => m.album === activeAlbum && m.type === activeTab);
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const currentMedia = mediaItems.filter(m => m.album === activeAlbum);
+  const media360 = currentMedia.filter(m => m.type === '360');
+  const mediaFlat = currentMedia.filter(m => m.type === 'flat');
 
   return (
     <div className="flex h-screen bg-[#111111] text-slate-300 font-sans">
@@ -121,40 +140,39 @@ export default function MediaManager({ project, onBack, onGoToEditor }: MediaMan
         
         {/* Top bar */}
         <div className="h-16 border-b border-[#333] flex items-center justify-between px-6">
-          <div className="flex items-center gap-6">
-            <h1 className="text-lg font-bold text-white flex items-center gap-2">
-              <Folder className="w-5 h-5 text-[#E91E63]" />
-              {activeAlbum}
-            </h1>
-            
-            <div className="flex bg-[#222] p-1 rounded-lg">
-              <button 
-                onClick={() => setActiveTab('360')}
-                className={`px-4 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeTab === '360' ? 'bg-[#333] text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <Box className="w-4 h-4" /> 360 Image
-              </button>
-              <button 
-                onClick={() => setActiveTab('flat')}
-                className={`px-4 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'flat' ? 'bg-[#333] text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <ImageIcon className="w-4 h-4" /> Flat Image
-              </button>
-            </div>
-          </div>
+          <h1 className="text-lg font-bold text-white flex items-center gap-2">
+            <Folder className="w-5 h-5 text-[#E91E63]" />
+            {activeAlbum}
+          </h1>
 
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition">
-              <UploadCloud className="w-4 h-4" />
-              {isUploading ? 'Subiendo...' : 'Upload'}
-              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={isUploading} />
+            <label className="flex items-center gap-2 bg-[#222] hover:bg-[#333] border border-[#444] text-white px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition">
+              <UploadCloud className="w-4 h-4 text-[#E91E63]" />
+              {isUploading ? 'Subiendo...' : 'Subir 360°'}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(e, '360')} disabled={isUploading} />
             </label>
             
+            <label className="flex items-center gap-2 bg-[#222] hover:bg-[#333] border border-[#444] text-white px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition">
+              <UploadCloud className="w-4 h-4 text-blue-400" />
+              {isUploading ? 'Subiendo...' : 'Subir Flat (Plano)'}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(e, 'flat')} disabled={isUploading} />
+            </label>
+
+            <div className="w-px h-6 bg-[#444] mx-2"></div>
+            
             <button 
-              onClick={onGoToEditor}
-              className="flex items-center gap-2 bg-[#E91E63] hover:bg-[#D81B60] text-white px-5 py-2 rounded-lg text-sm font-bold shadow-lg shadow-[#E91E63]/20 transition"
+              onClick={() => onGoToEditor(Array.from(selectedIds))}
+              disabled={selectedIds.size === 0}
+              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition shadow-lg ${selectedIds.size > 0 ? 'bg-[#E91E63] hover:bg-[#D81B60] text-white shadow-[#E91E63]/20' : 'bg-[#333] text-slate-500 cursor-not-allowed'}`}
             >
-              Generar Escenarios <ArrowRight className="w-4 h-4" />
+              Generar Escenarios ({selectedIds.size})
+            </button>
+
+            <button 
+              onClick={() => onGoToEditor([])}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-blue-500/20 ml-2"
+            >
+              Ingresar <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -169,10 +187,52 @@ export default function MediaManager({ project, onBack, onGoToEditor }: MediaMan
               <p className="text-sm">No hay imágenes en este álbum</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {currentMedia.map(item => (
-                <MediaCard key={item.id} item={item} onDelete={() => handleDelete(item.id, item.url)} />
-              ))}
+            <div className="space-y-8">
+              
+              {/* Seccion 360 */}
+              {media360.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                    <Box className="w-4 h-4 text-[#E91E63]" /> Imágenes 360°
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {media360.map(item => (
+                      <MediaCard 
+                        key={item.id} 
+                        item={item} 
+                        isSelected={selectedIds.has(item.id)}
+                        onToggleSelect={() => toggleSelect(item.id)}
+                        onDelete={() => handleDelete(item.id, item.url)} 
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {media360.length > 0 && mediaFlat.length > 0 && (
+                <hr className="border-[#333] my-6" />
+              )}
+
+              {/* Seccion Flat */}
+              {mediaFlat.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                    <ImageIcon className="w-4 h-4 text-blue-400" /> Imágenes Flat (Planos)
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {mediaFlat.map(item => (
+                      <MediaCard 
+                        key={item.id} 
+                        item={item} 
+                        isSelected={selectedIds.has(item.id)}
+                        onToggleSelect={() => toggleSelect(item.id)}
+                        onDelete={() => handleDelete(item.id, item.url)} 
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
         </div>
@@ -182,7 +242,7 @@ export default function MediaManager({ project, onBack, onGoToEditor }: MediaMan
   );
 }
 
-function MediaCard({ item, onDelete }: { item: MediaItem, onDelete: () => void }) {
+function MediaCard({ item, isSelected, onToggleSelect, onDelete }: { item: MediaItem, isSelected: boolean, onToggleSelect: () => void, onDelete: () => void }) {
   const [src, setSrc] = useState('');
 
   useEffect(() => {
@@ -197,7 +257,10 @@ function MediaCard({ item, onDelete }: { item: MediaItem, onDelete: () => void }
   }, [item.url]);
 
   return (
-    <div className="bg-[#222] rounded-xl overflow-hidden border border-[#333] group relative hover:border-slate-500 transition">
+    <div 
+      onClick={onToggleSelect}
+      className={`bg-[#222] rounded-xl overflow-hidden border-2 group relative cursor-pointer transition ${isSelected ? 'border-[#E91E63] shadow-lg shadow-[#E91E63]/20' : 'border-[#333] hover:border-[#555]'}`}
+    >
       <div className="aspect-video bg-[#111] relative">
         {src ? (
           <img src={src} className="w-full h-full object-cover" alt={item.name} />
@@ -206,14 +269,20 @@ function MediaCard({ item, onDelete }: { item: MediaItem, onDelete: () => void }
             <ImageIcon className="w-6 h-6" />
           </div>
         )}
+        
+        {/* Checkbox Icon */}
+        <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'bg-[#E91E63] border-[#E91E63] text-white' : 'bg-black/50 border-white/30 text-transparent'}`}>
+          <CheckCircle2 className="w-3.5 h-3.5" />
+        </div>
+
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onDelete} className="p-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-sm">
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-md backdrop-blur-sm shadow-md">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
-      <div className="p-3">
-        <h4 className="text-xs font-medium text-slate-300 truncate" title={item.name}>{item.name}</h4>
+      <div className="p-3 bg-[#222]">
+        <h4 className={`text-xs font-medium truncate ${isSelected ? 'text-white' : 'text-slate-300'}`} title={item.name}>{item.name}</h4>
       </div>
     </div>
   );

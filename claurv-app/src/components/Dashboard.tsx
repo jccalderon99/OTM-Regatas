@@ -8,6 +8,7 @@ import type { Project } from '../types/project';
 
 interface DashboardProps {
   onOpenProject: (project: Project) => void;
+  onExitGuest?: () => void;
 }
 
 // Project Card Helper to handle async IndexedDB / Public images
@@ -119,7 +120,7 @@ function ProjectCard({ project, isAdmin, onOpen, onDelete, onToggleVisibility }:
   );
 }
 
-export default function Dashboard({ onOpenProject }: DashboardProps) {
+export default function Dashboard({ onOpenProject, onExitGuest }: DashboardProps) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -341,7 +342,13 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
               </button>
             )}
             <button
-              onClick={logout}
+              onClick={() => {
+                if (!user && onExitGuest) {
+                  onExitGuest();
+                } else {
+                  logout();
+                }
+              }}
               className="flex items-center gap-1.5 px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold text-sm transition"
             >
               <LogOut className="w-4 h-4" />

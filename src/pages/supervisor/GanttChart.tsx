@@ -587,7 +587,7 @@ export default function GanttChart() {
         `}</style>
 
         {/* Dynamic Month Layout Grid */}
-        <div className="gantt-wrapper">
+        <div className="gantt-wrapper" style={{ maxHeight: 'calc(100vh - 290px)', overflowY: 'auto' }}>
           
           {/* ======================================================== */}
           {/* LEFT PANEL: CONGELADO / FROZEN DETAILS TABLE             */}
@@ -595,7 +595,7 @@ export default function GanttChart() {
           <div className="gantt-left-frozen">
             
             {/* Frozen Headers */}
-            <div className="sheet-row sheet-header-row" style={{ height: 76, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+            <div className="sheet-row sheet-header-row" style={{ height: 76, display: 'flex', flexDirection: 'column', alignItems: 'stretch', position: 'sticky', top: 0, zIndex: 30, background: '#f8fafc' }}>
               <div style={{ height: 38, borderBottom: '1px solid rgba(226, 232, 240, 0.7)', display: 'flex', alignItems: 'center', paddingLeft: 12, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 📋 DETALLES DE LA PROGRAMACIÓN
               </div>
@@ -686,7 +686,10 @@ export default function GanttChart() {
                       letterSpacing: '0.04em',
                       color: 'var(--text-primary)',
                       background: '#f1f5f9',
-                      boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.05)'
+                      boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.05)',
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 30
                     }}
                   >
                     {MONTHS_SPANISH[g.monthIndex].toUpperCase()} 2026
@@ -712,7 +715,10 @@ export default function GanttChart() {
                         : day.isHoliday 
                           ? 'rgba(139, 92, 246, 0.12)' 
                           : '#f8fafc',
-                      borderRight: '1px solid rgba(226, 232, 240, 0.7)'
+                      borderRight: '1px solid rgba(226, 232, 240, 0.7)',
+                      position: 'sticky',
+                      top: 38,
+                      zIndex: 30
                     }}
                     title={day.isHoliday ? `Feriado: ${day.formattedDate}` : ''}
                   >

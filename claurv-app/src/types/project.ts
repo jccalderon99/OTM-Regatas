@@ -6,9 +6,16 @@ export interface Hotspot {
   text: string;
   sceneId?: string;
   mediaUrl?: string; // For media popup
+  
   // Custom Icon Properties
-  iconType?: 'arrow' | 'chevron-double' | 'info' | 'camera' | 'play' | 'location' | 'floor-ellipse' | 'image' | 'comment' | 'pin' | 'compass' | 'circle-dot';
+  iconType?: 'arrow' | 'chevron-double' | 'info' | 'camera' | 'play' | 'location' | 'floor-circle' | 'floor-arrow' | 'image' | 'comment' | 'pin' | 'compass' | 'circle-dot';
   iconColor?: string;
+  
+  // Advanced Visuals
+  animation?: 'none' | 'pulse' | 'float';
+  scale?: number;
+  opacity?: number;
+
   // XY coordinates for 'flat' scene types (percentage 0-100)
   x?: number;
   y?: number;
