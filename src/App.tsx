@@ -24,7 +24,6 @@ import PreventiveMaintenancePlan from './pages/admin/PreventiveMaintenancePlan';
 import BudgetDashboard from './pages/admin/BudgetDashboard';
 import { RQProvider } from './context/RQContext';
 import RQLog from './pages/admin/RQLog';
-import ClauRV from './pages/ClauRV';
 
 
 function AppContent() {
@@ -69,7 +68,6 @@ function AppContent() {
       case 'preventive-plan': return <PreventiveMaintenancePlan />;
       case 'budget': return <BudgetDashboard />;
       case 'rq-log': return <RQLog onNavigate={setCurrentView} />;
-      case 'clau-rv': return <ClauRV />;
       default: return defaultView();
     }
   };

@@ -231,7 +231,11 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                   <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
                     style={isComplementos ? { paddingLeft: 28 } : undefined}
                     onClick={() => {
-                      onNavigate(item.id);
+                      if (item.id === 'clau-rv') {
+                        window.open('https://claurv-app.vercel.app/', '_blank');
+                      } else {
+                        onNavigate(item.id);
+                      }
                       setSidebarOpen(false);
                     }}>
                     <span>{item.icon}</span>

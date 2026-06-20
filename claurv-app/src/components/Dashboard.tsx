@@ -1,29 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Compass, LogOut, Plus, Trash2, Globe, Lock, ArrowRight, Upload } from 'lucide-react';
-import { savePanoramaBlob, resolvePanoramaUrl, deletePanoramaBlob } from '../lib/clauRvDb';
+import { LogOut, Plus, Trash2, Globe, Lock, ArrowRight, Compass, CloudLightning, CloudOff } from 'lucide-react';
+import { resolvePanoramaUrl, deletePanoramaBlob } from '../lib/clauRvDb';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-interface Scene {
-  title: string;
-  image: string;
-  hotSpots: any[];
-}
-
-export interface Project {
-  id: string;
-  title: string;
-  image: string; // URL or indexeddb://
-  createdAt: string;
-  isPublic: boolean;
-  scenes: Record<string, Scene>;
-  defaultScene: string;
-}
+import type { Project } from '../types/project';
 
 interface DashboardProps {
   onOpenProject: (project: Project) => void;
 }
 
-// Project Card Helper to handle async IndexedDB images
+// Project Card Helper to handle async IndexedDB / Public images
 function ProjectCard({ project, isAdmin, onOpen, onDelete, onToggleVisibility }: {
   project: Project;
   isAdmin: boolean;
@@ -138,12 +125,48 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [newTitle, setNewTitle] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [newDesc, setNewDesc] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [cloudActive, setCloudActive] = useState(false);
 
+  // Load projects
   useEffect(() => {
+    const isConfigured = isSupabaseConfigured();
+    setCloudActive(isConfigured);
+
+    if (isConfigured) {
+      // Load from Supabase
+      supabase
+        .from('claurv_projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Supabase fetch error, fallback to local:', error);
+            loadLocalProjects();
+          } else if (data) {
+            const mapped: Project[] = data.map(p => ({
+              id: p.id,
+              title: p.title,
+              description: p.description || '',
+              image: p.image || '',
+              createdAt: p.created_at,
+              isPublic: p.is_public,
+              scenes: p.scenes || {},
+              defaultScene: p.default_scene || Object.keys(p.scenes || {})[0] || '',
+              mediaLibrary: p.media_library || []
+            }));
+            setProjects(mapped);
+          }
+        });
+    } else {
+      loadLocalProjects();
+    }
+  }, []);
+
+  const loadLocalProjects = () => {
     const saved = localStorage.getItem('claurv_projects');
     if (saved) {
       try {
@@ -154,49 +177,59 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
     } else {
       setProjects([]);
     }
-  }, []);
+  };
 
-  const saveProjects = (updated: Project[]) => {
+  const saveProjectsState = async (updated: Project[]) => {
     setProjects(updated);
-    localStorage.setItem('claurv_projects', JSON.stringify(updated));
+    if (!cloudActive) {
+      localStorage.setItem('claurv_projects', JSON.stringify(updated));
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !selectedFile) return;
+    if (!newTitle.trim()) return;
 
     setIsUploading(true);
 
     try {
-      // Save local indexeddb reference
-      const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      await savePanoramaBlob(id, selectedFile);
-      const imageUrl = `indexeddb://${id}`;
-
       const newProject: Project = {
         id: `proj-${Date.now()}`,
         title: newTitle.trim(),
-        image: imageUrl,
+        description: newDesc.trim(),
+        image: '',
         createdAt: new Date().toISOString(),
         isPublic: isPublic,
-        defaultScene: "scene_1",
-        scenes: {
-          "scene_1": {
-            title: "Escena Principal",
-            image: imageUrl,
-            hotSpots: []
-          }
-        }
+        defaultScene: "",
+        scenes: {},
+        mediaLibrary: []
       };
 
+      if (cloudActive) {
+        // Save to Supabase Table
+        const { error } = await supabase.from('claurv_projects').insert({
+          id: newProject.id,
+          title: newProject.title,
+          description: newProject.description,
+          image: newProject.image,
+          is_public: newProject.isPublic,
+          scenes: newProject.scenes,
+          default_scene: newProject.defaultScene,
+          media_library: newProject.mediaLibrary
+        });
+        if (error) throw error;
+      }
+
       const updated = [newProject, ...projects];
-      saveProjects(updated);
+      saveProjectsState(updated);
       setNewTitle('');
-      setSelectedFile(null);
-      setIsPublic(true);
+      setNewDesc('');
       setShowAddModal(false);
-    } catch (err: any) {
-      alert('Error al crear el proyecto: ' + err.message);
+      // Panoee flow: go directly to project/media manager
+      onOpenProject(newProject);
+    } catch (err) {
+      console.error('Error creating project:', err);
+      alert('Error al crear el proyecto');
     } finally {
       setIsUploading(false);
     }
@@ -205,8 +238,16 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
   const handleDelete = async (id: string) => {
     if (confirm('¿Deseas eliminar permanentemente este proyecto y todas sus escenas?')) {
       const proj = projects.find(p => p.id === id);
-      if (proj?.scenes) {
-        // Clean up IndexedDB Blobs
+
+      if (cloudActive) {
+        // Delete from Supabase Table
+        const { error } = await supabase.from('claurv_projects').delete().eq('id', id);
+        if (error) {
+          alert('Error al eliminar en la nube: ' + error.message);
+          return;
+        }
+      } else if (proj?.scenes) {
+        // Clean up local IndexedDB Blobs
         for (const scene of Object.values(proj.scenes)) {
           if (scene.image.startsWith('indexeddb://')) {
             const blobId = scene.image.replace('indexeddb://', '');
@@ -220,18 +261,33 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
       }
 
       const updated = projects.filter(p => p.id !== id);
-      saveProjects(updated);
+      saveProjectsState(updated);
     }
   };
 
-  const toggleVisibility = (id: string) => {
+  const toggleVisibility = async (id: string) => {
     const updated = projects.map(p => {
       if (p.id === id) {
         return { ...p, isPublic: !p.isPublic };
       }
       return p;
     });
-    saveProjects(updated);
+
+    if (cloudActive) {
+      const target = projects.find(p => p.id === id);
+      if (target) {
+        const { error } = await supabase
+          .from('claurv_projects')
+          .update({ is_public: !target.isPublic })
+          .eq('id', id);
+        if (error) {
+          alert('Error al cambiar visibilidad en la nube: ' + error.message);
+          return;
+        }
+      }
+    }
+
+    saveProjectsState(updated);
   };
 
   const displayedProjects = isAdmin 
@@ -249,13 +305,32 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-800 leading-none">CLAUVR 360°</h1>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
                 {isAdmin ? 'Panel de Administrador' : 'Modo Invitado'}
               </span>
             </div>
           </div>
 
+          {/* Sync indicator */}
           <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+              cloudActive 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                : 'bg-amber-50 text-amber-700 border border-amber-200'
+            }`}>
+              {cloudActive ? (
+                <>
+                  <CloudLightning className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Sincronizado (Nube)</span>
+                </>
+              ) : (
+                <>
+                  <CloudOff className="w-3.5 h-3.5" />
+                  <span>Modo Local (Sin sincronizar)</span>
+                </>
+              )}
+            </div>
+
             {isAdmin && (
               <button
                 onClick={() => setShowAddModal(true)}
@@ -316,7 +391,7 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
         <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl border border-amber-900/5 max-w-md w-full p-8 relative animate-in fade-in zoom-in-95 duration-200 text-slate-800">
             <h3 className="text-xl font-bold text-slate-800 mb-2">Crear Nuevo Proyecto</h3>
-            <p className="text-sm text-slate-500 mb-6">Carga una imagen panorámica de tu computadora para el proyecto.</p>
+            <p className="text-sm text-slate-500 mb-6">Completa los detalles de tu nuevo proyecto para comenzar.</p>
 
             <form onSubmit={handleCreate} className="space-y-5">
               <div>
@@ -335,30 +410,15 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Imagen Panorámica 360° (Local)
+                  Descripción
                 </label>
-                <div 
-                  className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-[#FAF6F0]/20 hover:bg-[#FAF6F0]/50 transition cursor-pointer relative"
-                  onClick={() => document.getElementById('project-file-input')?.click()}
-                >
-                  <input
-                    id="project-file-input"
-                    type="file"
-                    required
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setSelectedFile(e.target.files[0]);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <Upload className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-                  <span className="block text-xs font-bold text-slate-700">
-                    {selectedFile ? selectedFile.name : 'Seleccionar Archivo de Imagen'}
-                  </span>
-                  <span className="block text-[10px] text-slate-400 mt-1">JPG, JPEG o PNG en formato equirectangular 2:1</span>
-                </div>
+                <textarea
+                  placeholder="Ej: Tour virtual para la sede..."
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  rows={3}
+                  className="block w-full px-4 py-3 bg-[#FAF6F0]/40 border border-slate-200 rounded-xl outline-none focus:border-amber-500 text-slate-800 text-sm transition resize-none"
+                />
               </div>
 
               <div className="flex items-center gap-3">
@@ -386,7 +446,7 @@ export default function Dashboard({ onOpenProject }: DashboardProps) {
                 <button
                   type="submit"
                   className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-600/10 transition"
-                  disabled={isUploading || !selectedFile}
+                  disabled={isUploading}
                 >
                   {isUploading ? 'Creando...' : 'Crear Proyecto'}
                 </button>
