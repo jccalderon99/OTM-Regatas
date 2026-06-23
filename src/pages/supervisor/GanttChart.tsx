@@ -581,7 +581,7 @@ export default function GanttChart() {
         `}</style>
 
         {/* Dynamic Month Layout Grid */}
-        <div className="gantt-wrapper" style={{ maxHeight: 'calc(100vh - 290px)', overflowY: 'auto' }}>
+        <div className="gantt-wrapper" style={{ maxHeight: '480px', overflowY: 'auto' }}>
           
           {/* ======================================================== */}
           {/* LEFT PANEL: CONGELADO / FROZEN DETAILS TABLE             */}

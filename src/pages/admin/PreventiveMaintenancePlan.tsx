@@ -233,8 +233,9 @@ export default function PreventiveMaintenancePlan() {
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mostrando {filteredPlan.length} actividades</span>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+        <div className="scrollable-list-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none', maxHeight: '480px' }}>
+          <div className="data-table-wrapper" style={{ border: 'none' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', background: 'rgba(255,255,255,0.02)' }}>
                 <th style={{ padding: '12px 16px', width: 40 }}>Nº</th>
@@ -316,6 +317,7 @@ export default function PreventiveMaintenancePlan() {
           </table>
         </div>
       </div>
+    </div>
 
       {/* LATERAL DRAWER EDIT FORM */}
       {editingItem && (
