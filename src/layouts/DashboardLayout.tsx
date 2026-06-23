@@ -317,7 +317,9 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                         ? 'Cronograma anual de servicios'
                         : currentView === 'budget'
                           ? 'Control de gastos operativos e inversion'
-                          : 'Centro de control - Mantenimiento'}
+                          : currentView === 'management'
+                            ? 'Administra, asigna y supervisa todas las órdenes de trabajo'
+                            : 'Centro de control - Mantenimiento'}
                   </span>
                 )}
               </span>

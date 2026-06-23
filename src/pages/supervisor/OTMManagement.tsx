@@ -366,8 +366,6 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
 
   return (
     <div>
-      <p className="page-subtitle" style={{ marginBottom: 20 }}>Administra, asigna y supervisa todas las órdenes de trabajo</p>
-
       {/* Filters */}
       <div className="filter-bar responsive-actions" style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
         <input className="form-input" placeholder="🔍 Buscar código, solicitante, área..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 300, flex: '1 1 200px' }} />
