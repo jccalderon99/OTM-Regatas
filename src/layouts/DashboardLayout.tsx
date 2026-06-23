@@ -319,7 +319,9 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
                           ? 'Control de gastos operativos e inversion'
                           : currentView === 'management'
                             ? 'Administra, asigna y supervisa todas las órdenes de trabajo'
-                            : 'Centro de control - Mantenimiento'}
+                            : currentView === 'gantt'
+                              ? 'Visualización cronológica interactiva estilo hoja de cálculo para el año 2026'
+                              : 'Centro de control - Mantenimiento'}
                   </span>
                 )}
               </span>

@@ -351,14 +351,6 @@ export default function GanttChart() {
 
   return (
     <div style={{ maxWidth: '100%', margin: '0 auto', paddingBottom: 40 }}>
-      {/* ─── TITLE & METADATA SECTION ─── */}
-      <div className="flex justify-between items-center py-4" style={{ marginBottom: 12 }}>
-        <div>
-          <h1 className="page-title">Programación de Mantenimiento (Diagrama Gantt)</h1>
-          <p className="page-subtitle">Visualización cronológica interactiva estilo hoja de cálculo para el año 2026</p>
-        </div>
-      </div>
-
       {/* ─── GENERAL STATISTICS SUMMARY CARD ─── */}
       <div className="glass-card fade-in" style={{ padding: '16px 24px', borderRadius: 16, marginBottom: 20, border: '1px solid rgba(255,255,255,0.4)', background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(241,245,249,0.7) 100%)' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, alignItems: 'center', justifyContent: 'space-between' }}>
