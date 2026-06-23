@@ -33,22 +33,32 @@ export default function AIAssistant() {
   const [inputVal, setInputVal] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const defaultApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('crl_gemini_api_key') || defaultApiKey);
+  const defaultApiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',').map((k: string) => k.trim()).filter(Boolean);
+  const [apiKeys, setApiKeys] = useState<string[]>(() => {
+    const stored = localStorage.getItem('crl_gemini_api_keys');
+    if (stored) {
+      try { return JSON.parse(stored); } catch { return defaultApiKeys; }
+    }
+    // Migrate old single key if exists
+    const oldKey = localStorage.getItem('crl_gemini_api_key');
+    if (oldKey) return [oldKey];
+    return defaultApiKeys;
+  });
+  
   const [useSimulated, setUseSimulated] = useState(() => {
-    const stored = localStorage.getItem('crl_gemini_api_key');
+    const stored = localStorage.getItem('crl_gemini_api_keys') || localStorage.getItem('crl_gemini_api_key');
     if (stored) return false;
-    return !defaultApiKey;
+    return apiKeys.length === 0;
   });
 
-  // Ollama redundancy states
-  const [ollamaEnabled, setOllamaEnabled] = useState(() => {
-    const stored = localStorage.getItem('crl_ollama_enabled');
-    return stored !== 'false';
-  });
-  const [ollamaModel, setOllamaModel] = useState(() => localStorage.getItem('crl_ollama_model') || 'llama3.2');
-  const [ollamaUrl, setOllamaUrl] = useState(() => localStorage.getItem('crl_ollama_url') || 'http://localhost:11434');
+  const defaultGroqKey = import.meta.env.VITE_GROQ_API_KEY || '';
+  const [groqKey, setGroqKey] = useState(() => localStorage.getItem('crl_groq_api_key') || defaultGroqKey);
 
+  // Active Model Tracking (Gemini primary)
+  const [activeModel, setActiveModel] = useState<'gemini' | 'groq'>('gemini');
+  const [currentKeyIndex, setCurrentKeyIndex] = useState(0);
+  const geminiCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geminiBlockedUntilRef = useRef<number>(0); // timestamp when Gemini becomes available again
 
   // Voice States
   const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('crl_ai_voice_enabled') === 'true');
@@ -117,20 +127,6 @@ export default function AIAssistant() {
     }
   }, [isOpen, messages.length, user]);
 
-  // Pre-load Ollama model in the background when chat is opened to avoid cold-start delays
-  useEffect(() => {
-    if (isOpen && ollamaEnabled) {
-      console.log('Pre-loading Ollama model in background:', ollamaModel);
-      fetch(`${ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: ollamaModel })
-      }).catch(err => {
-        console.log('Ollama background pre-loading ignored or server offline:', err);
-      });
-    }
-  }, [isOpen, ollamaEnabled, ollamaModel, ollamaUrl]);
-
   // Trigger text-to-speech for the last assistant message
   useEffect(() => {
     if (messages.length > 0) {
@@ -141,11 +137,14 @@ export default function AIAssistant() {
     }
   }, [messages, voiceEnabled]);
 
-  // Cleanup speech synthesis on unmount
+  // Cleanup speech synthesis and cooldown timer on unmount
   useEffect(() => {
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
+      }
+      if (geminiCooldownRef.current) {
+        clearTimeout(geminiCooldownRef.current);
       }
     };
   }, []);
@@ -283,22 +282,22 @@ export default function AIAssistant() {
   }, [user]);
 
   // Update localStorage when settings change
-  const handleSaveSettings = (key: string, simulate: boolean, ollamaOn: boolean, model: string, url: string) => {
-    localStorage.setItem('crl_ollama_enabled', String(ollamaOn));
-    localStorage.setItem('crl_ollama_model', model.trim());
-    localStorage.setItem('crl_ollama_url', url.trim());
-    setOllamaEnabled(ollamaOn);
-    setOllamaModel(model.trim());
-    setOllamaUrl(url.trim());
+  const handleSaveSettings = (keys: string[], simulate: boolean, gKey: string) => {
+    const validKeys = keys.filter(k => k.trim());
+    
+    localStorage.setItem('crl_groq_api_key', gKey.trim());
+    setGroqKey(gKey.trim());
 
-    if (key.trim()) {
-      localStorage.setItem('crl_gemini_api_key', key.trim());
-      setApiKey(key.trim());
+    if (validKeys.length > 0) {
+      localStorage.setItem('crl_gemini_api_keys', JSON.stringify(validKeys));
+      setApiKeys(validKeys);
       setUseSimulated(false);
+      setCurrentKeyIndex(0);
     } else {
+      localStorage.removeItem('crl_gemini_api_keys');
       localStorage.removeItem('crl_gemini_api_key');
-      const defaultKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-      setApiKey(defaultKey);
+      const defaultKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',').map((k: string) => k.trim()).filter(Boolean);
+      setApiKeys(defaultKeys);
       setUseSimulated(simulate);
     }
     setShowSettings(false);
@@ -540,7 +539,7 @@ export default function AIAssistant() {
     }]);
   };
 
-  // Helper to parse arguments from Ollama custom action tags
+  // Helper to parse arguments from action tags
   const parseActionArgs = (argsStr: string) => {
     const args: any = {};
     const regex = /(\w+)\s*=\s*(?:'([^']*)'|"([^"]*)"|(\[.*?\])|([\w\-.]+))/g;
@@ -568,19 +567,12 @@ export default function AIAssistant() {
     return args;
   };
 
-  // Respaldo local usando Ollama
-  const runOllamaAPI = async (userText: string): Promise<boolean> => {
-    // 1. Quick connection check to avoid hanging if Ollama is offline
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
-    
-    try {
-      // Ollama returns a simple text string on its root URL when running
-      await fetch(ollamaUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.log('Ollama is offline or unreachable. Falling back to simulation.');
+  // ----------------------------------------------------
+  // GROQ CLOUD FALLBACK (LLAMA 3 FAST INFERENCE)
+  // ----------------------------------------------------
+  const runGroqAPI = async (userText: string): Promise<boolean> => {
+    if (!groqKey) {
+      console.log('No Groq key configured. Skipping fallback.');
       return false;
     }
 
@@ -595,13 +587,13 @@ export default function AIAssistant() {
         content: m.text
       }));
 
-    const ollamaSystemPrompt = `
-Eres el "Asistente de IA CRL Local", un modelo de inteligencia artificial de respaldo corriendo localmente en la laptop del usuario mediante Ollama.
+    const groqSystemPrompt = `
+Eres el "Asistente de IA CRL", un modelo de inteligencia artificial de respaldo corriendo velozmente en Groq Cloud (Llama 3).
 Tu objetivo es dar soporte en la Plataforma de Gestión de Mantenimiento del Club de Regatas Lima (CRL).
 
 PERSONALIDAD Y ESTILO:
 - Habla en español de manera atenta, fluida y amigable.
-- Sé sumamente conciso. Responde en un máximo de 2 o 3 oraciones, ya que procesas de forma local.
+- Sé sumamente conciso.
 - Agrega emojis amigables.
 
 DATOS DEL USUARIO:
@@ -613,6 +605,10 @@ CATÁLOGO DEL SISTEMA:
 - Ubicaciones válidas: ${JSON.stringify(locations)}
 - Especialidades válidas: ${JSON.stringify(specialties)}
 - Técnicos activos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+
+${localStorage.getItem('crl_ai_custom_rules') ? `REGLAS PERSONALIZADAS DE LA ORGANIZACIÓN (SIGUE ESTAS REGLAS ESTRICTAMENTE):
+${localStorage.getItem('crl_ai_custom_rules')}
+` : ''}
 
 REGLAS DE ACCIÓN CRÍTICAS (PARA EJECUTAR CAMBIOS EN LA PLATAFORMA):
 Si el usuario te pide registrar una acción concreta (crear una OTM, asignar técnicos o finalizar una OTM), debes responder conversando brevemente y obligatoriamente añadir al final de tu mensaje la siguiente línea exacta con corchetes para que el sistema la ejecute:
@@ -626,41 +622,34 @@ Si el usuario te pide registrar una acción concreta (crear una OTM, asignar té
 3. Finalizar OTM (solo si el usuario tiene rol 'technician'):
 [ACCION: finishTechnicianWork(otmId='Código OTM', notes='Notas del técnico')]
 
-Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, respetando las comillas simples para los textos. Si te falta información obligatoria (por ejemplo, dónde ocurrió la falla), no pongas la marca, pídele los datos faltantes conversando amablemente.
+Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, respetando las comillas simples para los textos. Si te falta información obligatoria, no pongas la marca, pídele los datos faltantes conversando.
 `;
 
-    // 2. Chat query with timeout to prevent loading hang if generation is slow/stuck
-    const queryController = new AbortController();
-    const queryTimeoutId = setTimeout(() => {
-      console.log('Ollama chat generation timed out after 12 seconds. Aborting request.');
-      queryController.abort();
-    }, 12000);
-
     try {
-      const response = await fetch(`${ollamaUrl}/api/chat`, {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`
+        },
         body: JSON.stringify({
-          model: ollamaModel,
+          model: 'llama-3.1-8b-instant',
           messages: [
-            { role: 'system', content: ollamaSystemPrompt },
+            { role: 'system', content: groqSystemPrompt },
             ...messagesHistory,
             { role: 'user', content: userText }
           ],
-          stream: false
-        }),
-        signal: queryController.signal
+          temperature: 0.3
+        })
       });
 
-      clearTimeout(queryTimeoutId);
-
       if (!response.ok) {
-        throw new Error('Servidor de Ollama no responde');
+        throw new Error('Groq API Error: ' + response.statusText);
       }
 
       const data = await response.json();
-      let responseText = data.message?.content || '';
-      console.log('Ollama Local Response:', responseText);
+      let responseText = data.choices[0].message?.content || '';
+      console.log('Groq Response:', responseText);
 
       let cardType: any = undefined;
       let cardData: any = null;
@@ -671,7 +660,6 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
         const actionName = actionMatch[1];
         const argsStr = actionMatch[2];
         const args = parseActionArgs(argsStr);
-        console.log('Action parsed from local Ollama model:', actionName, args);
 
         // Strip action tag from chat display text
         responseText = responseText.replace(/\[ACCION:[^\]]*\]/g, '').trim();
@@ -680,49 +668,47 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
           try {
             const newOtm = await createOTM({
               area_sector: args.area || 'General',
-              location: args.location || 'Vía Asistente Local',
-              exact_location: args.exactLocation || 'Vía Asistente Local',
+              location: args.location || 'Vía Asistente Groq',
+              exact_location: args.exactLocation || 'Vía Asistente Groq',
               failure_type: args.specialty || 'General',
-              description: args.description || 'Reporte de falla local',
+              description: args.description || 'Reporte de falla vía Groq',
               urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium',
               status: 'pending'
             });
             cardType = 'otm-created';
             cardData = {
               code: newOtm.otm_code,
-              description: args.description || 'Reporte local',
-              location: args.location || 'Vía Local',
+              description: args.description || 'Reporte Groq',
+              location: args.location || 'Vía Groq',
               specialty: args.specialty || 'General',
               status: 'Pendiente'
             };
-            responseText += ' \n\n*(Ejecutado localmente por Llama: OTM registrada con éxito 👍)*';
           } catch (e: any) {
-            responseText += ` \n\n*(Error local: ${e.message})*`;
+            console.error("Groq OTM creation error", e);
           }
         }
         else if (actionName === 'assignOTM') {
           if (user?.role !== 'supervisor' && user?.role !== 'admin') {
-            responseText += ' \n\n*(Acción rechazada: Tu rol no permite programar asignaciones)*';
+            responseText += ` \n\n*(Acción rechazada: Tu rol no permite programar asignaciones)*`;
           } else {
             try {
-              assignOTM(args.otmId, args.technicianIds || [], args.scheduledDate || '', 'Asignado vía Asistente Local', args.estimatedTime || 2);
+              assignOTM(args.otmId, args.technicianIds || [], args.scheduledDate || '', 'Asignado vía Groq', args.estimatedTime || 2);
               const techNames = (args.technicianIds || []).map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
               cardType = 'otm-assigned';
               cardData = {
                 code: args.otmId,
                 techName: techNames,
                 date: args.scheduledDate,
-                notes: 'Asignado vía Asistente Local'
+                notes: 'Asignado vía Groq'
               };
-              responseText += ' \n\n*(Ejecutado localmente por Llama: Técnico asignado con éxito 👍)*';
             } catch (e: any) {
-              responseText += ` \n\n*(Error local al asignar: ${e.message})*`;
+              console.error("Groq OTM assign error", e);
             }
           }
         }
         else if (actionName === 'finishTechnicianWork') {
           if (user?.role !== 'technician') {
-            responseText += ' \n\n*(Acción rechazada: Tu rol no permite finalizar tareas)*';
+            responseText += ` \n\n*(Acción rechazada: Tu rol no permite finalizar tareas)*`;
           } else {
             try {
               const targetOtm = otms.find(o => o.otm_code === args.otmId || o.id === args.otmId);
@@ -731,11 +717,10 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
               cardType = 'otm-finished';
               cardData = {
                 code: args.otmId,
-                notes: args.notes || 'Completado localmente.'
+                notes: args.notes || 'Completado vía Groq.'
               };
-              responseText += ' \n\n*(Ejecutado localmente por Llama: OTM finalizada con éxito 👍)*';
             } catch (e: any) {
-              responseText += ` \n\n*(Error local: ${e.message})*`;
+              console.error("Groq OTM finish error", e);
             }
           }
         }
@@ -745,30 +730,15 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
       setMessages(prev => [...prev, {
         id,
         role: 'assistant',
-        text: responseText + ' \n\n*(Servicio local activo: Llama 3.2 🏠)*',
+        text: responseText,
         timestamp,
         cardType,
         cardData
       }]);
-
-      // Speak if enabled
-      if (voiceEnabled && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        const cleanText = responseText.replace(/[*#`_]/g, '').substring(0, 800);
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'es-PE';
-        if (bestVoiceRef.current) utterance.voice = bestVoiceRef.current;
-        utterance.rate = 1.05;
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utterance);
-      }
-
+      setActiveModel('groq');
       return true;
     } catch (err) {
-      clearTimeout(queryTimeoutId);
-      console.error('Ollama fetch error:', err);
+      console.error('Groq fetch error:', err);
       return false;
     }
   };
@@ -776,10 +746,18 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
   // ----------------------------------------------------
   // GEMINI LIVE API INTEGRATION (WITH FUNCTION CALLING)
   // ----------------------------------------------------
-  const runGeminiAPI = async (userText: string) => {
+  const runGeminiAPI = async (userText: string, retryCount = 0) => {
     setIsLoading(true);
     const timestamp = new Date();
     const id = `msg-${Date.now()}`;
+
+    if (apiKeys.length === 0) {
+      setIsLoading(false);
+      setMessages(prev => [...prev, { id, role: 'assistant', text: 'No hay API Keys de Gemini configuradas.', timestamp, cardType: 'error' }]);
+      return;
+    }
+
+    const currentKey = apiKeys[currentKeyIndex];
 
     // OTMs summary for context awareness
     const otmsSummary = otms.slice(0, 30).map(o => ({
@@ -826,6 +804,10 @@ CATÁLOGO DEL SISTEMA:
 - Ubicaciones: ${JSON.stringify(locations)}
 - Especialidades: ${JSON.stringify(specialties)}
 - Técnicos activos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+
+${localStorage.getItem('crl_ai_custom_rules') ? `REGLAS PERSONALIZADAS DE LA ORGANIZACIÓN (SIGUE ESTAS REGLAS ESTRICTAMENTE):
+${localStorage.getItem('crl_ai_custom_rules')}
+` : ''}
     `;
 
     const tools = [
@@ -890,7 +872,7 @@ CATÁLOGO DEL SISTEMA:
     });
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: currentKey });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents,
@@ -903,6 +885,14 @@ CATÁLOGO DEL SISTEMA:
       const candidate = response.candidates?.[0];
       const modelParts = candidate?.content?.parts || [];
       
+      // Gemini responded successfully — confirm active model and clear any cooldown
+      setActiveModel('gemini');
+      geminiBlockedUntilRef.current = 0;
+      if (geminiCooldownRef.current) {
+        clearTimeout(geminiCooldownRef.current);
+        geminiCooldownRef.current = null;
+      }
+
       let aiText = response.text || '';
       let functionCall = null;
 
@@ -1038,33 +1028,47 @@ CATÁLOGO DEL SISTEMA:
     } catch (err: any) {
       console.error('Gemini SDK Error:', err);
       
-      if (ollamaEnabled) {
-        console.log('Gemini failed. Attempting failover to local Ollama...');
-        const ollamaSuccess = await runOllamaAPI(userText);
-        if (ollamaSuccess) {
-          return;
-        }
-      }
-
-      setIsLoading(false);
-      
-      let errorText = 'Lo siento, no pude conectar con el servidor de IA. Asegúrate de que tu conexión sea estable y tu API Key sea correcta.';
-      
       const errMsg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
       const isAuthError = errMsg.includes('401') || 
                           errMsg.toLowerCase().includes('unauthenticated') || 
                           errMsg.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') ||
                           errMsg.includes('API_KEY_SERVICE_BLOCKED');
-                          
-      if (isAuthError) {
-        errorText = 'Parece que hay un inconveniente de autenticación con tu API Key. Google requiere agregar una tarjeta de pago para habilitar el uso de las nuevas claves de formato "AQ." en tu proyecto.';
+
+      // Si no hemos agotado las llaves, intentamos con la siguiente
+      if (retryCount < apiKeys.length - 1) {
+        const nextIndex = (currentKeyIndex + 1) % apiKeys.length;
+        console.log(`⚡ Gemini Key ${currentKeyIndex + 1} falló. Rotando a la llave ${nextIndex + 1}...`);
+        setCurrentKeyIndex(nextIndex);
+        // Reintenta automáticamente
+        runGeminiAPI(userText, retryCount + 1);
+        return;
       }
 
-      if (ollamaEnabled) {
-        errorText += '\n\n*(También intenté conectar con tu servidor de Ollama local pero falló. Asegúrate de tener Ollama abierto en tu laptop con el modelo cargado mediante: `ollama run ' + ollamaModel + '`)*';
-      } else {
-        errorText += '\n\n*¿Deseas activar el **Modo Simulado** (en el botón de configuración de arriba) para probar todo el flujo de inmediato?*';
+      // Si todas las llaves fallaron (por Rate Limit, Network Error, etc.), pasamos a Groq
+      console.log('⚡ Todas las llaves de Gemini fallaron. Pasando a Groq Cloud (Llama 3)...');
+      setActiveModel('groq');
+      const groqSuccess = await runGroqAPI(userText);
+      if (groqSuccess) return;
+
+      // Si Groq TAMBIÉN falla, bloqueamos Gemini por 60s y mostramos error final
+      geminiBlockedUntilRef.current = Date.now() + 60000; // block for 60s
+      
+      if (geminiCooldownRef.current) clearTimeout(geminiCooldownRef.current);
+      geminiCooldownRef.current = setTimeout(() => {
+        console.log('🔄 Gemini cooldown expired. Rehabilitando llaves.');
+        setCurrentKeyIndex(0);
+        geminiBlockedUntilRef.current = 0;
+      }, 60000);
+
+      setIsLoading(false);
+      
+      let errorText = 'Lo siento, no pude conectar con el servidor de IA (ni Gemini ni Groq respondieron). Asegúrate de que tu conexión sea estable y tus API Keys sean correctas.';
+                          
+      if (isAuthError) {
+        errorText = `Parece que hay un inconveniente de autenticación con la API Key actual (Llave ${currentKeyIndex + 1}). Verifica que la clave sea válida en Google AI Studio.`;
       }
+
+      errorText += '\n\n*¿Deseas activar el **Modo Simulado** (en el botón de configuración de arriba) para probar el flujo sin usar la API?*';
 
       setMessages(prev => [...prev, {
         id,
@@ -1094,15 +1098,28 @@ CATÁLOGO DEL SISTEMA:
     setInputVal('');
 
     if (useSimulated) {
-      if (ollamaEnabled) {
-        console.log('No Gemini key. Attempting local Ollama API call...');
-        const ollamaSuccess = await runOllamaAPI(text);
-        if (ollamaSuccess) {
-          return;
-        }
-      }
       runSimulation(text);
     } else {
+      // Check if Gemini is currently rate-limited (all keys blocked)
+      const isGeminiBlocked = geminiBlockedUntilRef.current > Date.now();
+      
+      if (isGeminiBlocked) {
+        console.log('⏳ Gemini still in cooldown. Routing to Groq Cloud...');
+        setActiveModel('groq');
+        const groqSuccess = await runGroqAPI(text);
+        if (groqSuccess) return;
+        
+        setMessages(prev => [...prev, {
+          id: `sys-${Date.now()}`,
+          role: 'assistant',
+          text: '⚠️ Las cuentas de Gemini siguen en periodo de enfriamiento y Groq no respondió. Por favor, espera.',
+          timestamp: new Date(),
+          cardType: 'error'
+        }]);
+        return;
+      }
+      
+      setActiveModel('gemini');
       runGeminiAPI(text);
     }
   };
@@ -1188,18 +1205,36 @@ CATÁLOGO DEL SISTEMA:
             width: 38,
             height: 38,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            background: 'linear-gradient(135deg, #4285f4 0%, #1a73e8 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '1.2rem',
-            boxShadow: '0 0 10px rgba(59, 130, 246, 0.4)'
+            boxShadow: '0 0 10px rgba(66, 133, 244, 0.4)',
+            transition: 'all 0.4s ease'
           }}>
-            🤖
+            ✨
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6 }}>
               Mant.ia
+              <span style={{
+                fontSize: '0.6rem',
+                fontWeight: 600,
+                padding: '2px 7px',
+                borderRadius: 8,
+                background: activeModel === 'gemini' 
+                  ? 'linear-gradient(135deg, #4285f4, #34a853, #fbbc04, #ea4335)'
+                  : 'linear-gradient(135deg, #f97316, #ea580c)',
+                color: '#fff',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+                animation: 'pulse 2s ease-in-out infinite',
+                transition: 'all 0.4s ease'
+              }}>
+                {activeModel === 'gemini' ? `GEMINI ${apiKeys.length > 1 ? `(${currentKeyIndex + 1}/${apiKeys.length})` : ''}` : 'GROQ ⚡'}
+              </span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
               Mantenimiento CRL • {user?.role === 'admin' ? 'Admin' : user?.role === 'supervisor' ? 'Supervisor' : user?.role === 'technician' ? 'Técnico' : 'Solicitante'}
@@ -1299,13 +1334,12 @@ CATÁLOGO DEL SISTEMA:
             {!useSimulated && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                  {import.meta.env.VITE_GEMINI_API_KEY ? 'Se ha cargado una API Key global (.env). Puedes ingresar una clave diferente aquí para sobrescribirla:' : 'Ingresa tu Gemini API Key para conectar con el modelo real en vivo:'}
+                  Ingresa tus Gemini API Keys (una por línea). El sistema rotará automáticamente si una llega al límite.
                 </div>
-                <input 
-                  type="password" 
-                  placeholder={import.meta.env.VITE_GEMINI_API_KEY ? "Configurada de forma global (.env)" : "AIzaSy..."}
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
+                <textarea 
+                  placeholder={"AIzaSy...\nAIzaSy...\nAIzaSy..."}
+                  value={apiKeys.join('\n')}
+                  onChange={e => setApiKeys(e.target.value.split('\n'))}
                   style={{
                     width: '100%',
                     background: '#0f172a',
@@ -1314,7 +1348,9 @@ CATÁLOGO DEL SISTEMA:
                     padding: '8px 12px',
                     color: 'white',
                     fontSize: '0.8rem',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    minHeight: '80px',
+                    fontFamily: 'monospace'
                   }}
                 />
                 <div style={{ fontSize: '0.65rem', color: '#3b82f6' }}>
@@ -1325,66 +1361,32 @@ CATÁLOGO DEL SISTEMA:
           </div>
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 4 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', cursor: 'pointer', marginBottom: 8 }}>
-              <input 
-                type="checkbox" 
-                checked={ollamaEnabled}
-                onChange={e => setOllamaEnabled(e.target.checked)}
-              />
-              Redundancia con Ollama Local (Llama 3)
-            </label>
-            {ollamaEnabled && (
-              <div style={{ display: 'flex', gap: 8, flexDirection: 'column', paddingLeft: 16 }}>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: 2 }}>Modelo local:</div>
-                    <input 
-                      type="text" 
-                      value={ollamaModel}
-                      onChange={e => setOllamaModel(e.target.value)}
-                      placeholder="llama3.2"
-                      style={{
-                        width: '100%',
-                        background: '#0f172a',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 6,
-                        padding: '4px 8px',
-                        color: 'white',
-                        fontSize: '0.75rem',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                  <div style={{ flex: 1.5 }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: 2 }}>Dirección API:</div>
-                    <input 
-                      type="text" 
-                      value={ollamaUrl}
-                      onChange={e => setOllamaUrl(e.target.value)}
-                      placeholder="http://localhost:11434"
-                      style={{
-                        width: '100%',
-                        background: '#0f172a',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 6,
-                        padding: '4px 8px',
-                        color: 'white',
-                        fontSize: '0.75rem',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-                <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>
-                  Si Gemini supera su límite de 15 solicitudes/minuto, las consultas se procesarán localmente mediante Ollama.
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                Respaldo con Groq Cloud (Llama 3 Ultra rápido). Solo se usará si todas las llaves de Gemini están agotadas.
               </div>
-            )}
+              <input 
+                type="password" 
+                placeholder="gsk_..."
+                value={groqKey}
+                onChange={e => setGroqKey(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: '#0f172a',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  color: 'white',
+                  fontSize: '0.8rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
             <button 
-              onClick={() => handleSaveSettings(useSimulated ? '' : apiKey, useSimulated, ollamaEnabled, ollamaModel, ollamaUrl)}
+              onClick={() => handleSaveSettings(useSimulated ? [] : apiKeys, useSimulated, groqKey)}
               style={{
                 background: '#2563eb',
                 color: 'white',

@@ -67,6 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
     roles: ['supervisor', 'admin'],
     items: [
       { id: 'users', label: 'Configuración Maestra', icon: '⚙️', roles: ['admin'] },
+      { id: 'ai-rules', label: 'Reglas de IA', icon: '🤖', roles: ['admin'] },
     ]
   },
   {
@@ -110,6 +111,7 @@ export function isViewPermitted(viewId: string, user: { role: string; area_secto
       return isMaintMgmt || user.role === 'technician';
     case 'users':
     case 'clau-rv':
+    case 'ai-rules':
       return user.role === 'admin';
     default:
       return false;
