@@ -115,7 +115,7 @@ ALTER TABLE project_transfers ENABLE ROW LEVEL SECURITY;
 -- Lectura: Solo puedes ver los que enviaste o los que te enviaron a tu correo
 CREATE POLICY "Ver transferencias" ON project_transfers FOR SELECT TO authenticated USING (
     sender_id = auth.uid() 
-    OR receiver_email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    OR receiver_email = auth.jwt() ->> 'email'
 );
 
 -- Inserción: Solo puedes insertar si tú eres el remitente y tu cuenta está aprobada
@@ -126,5 +126,5 @@ CREATE POLICY "Crear transferencia" ON project_transfers FOR INSERT TO authentic
 
 -- Actualización: Solo el receptor puede aceptar/rechazar (cambiar el status)
 CREATE POLICY "Aceptar rechazar transferencia" ON project_transfers FOR UPDATE TO authenticated USING (
-    receiver_email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    receiver_email = auth.jwt() ->> 'email'
 );
