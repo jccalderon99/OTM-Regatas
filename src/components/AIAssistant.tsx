@@ -25,8 +25,12 @@ export default function AIAssistant() {
     cancelOTM,
     areas,
     locations,
-    specialties
+    specialties,
+    opexBudget,
+    capexBudget
   } = useOTM();
+
+  if (!user || user.role === 'technician') return null;
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -331,6 +335,77 @@ export default function AIAssistant() {
     return match ? match[1].toUpperCase() : null;
   };
 
+  const getRolePrompt = (role: string) => {
+    const isMaintMgmt = role === 'supervisor' || role === 'admin' || (role === 'jefatura' && user?.area_sector === '22. MANTENIMIENTO');
+
+    // Calculate budget totals for Mantenimiento Management roles
+    let budgetInfo = '';
+    if (isMaintMgmt) {
+      const totalOpex = opexBudget.reduce((acc, i) => acc + Math.abs(i.importeEEFF || 0), 0);
+      const totalCapex = capexBudget.reduce((acc, i) => acc + (i.importe || 0), 0);
+
+      // Summarize by cost center (top 8)
+      const opexByCentro = opexBudget.reduce((acc: any, i) => {
+        const cc = i.cCosto || 'Otros';
+        if (!acc[cc]) acc[cc] = { cc, pres: 0 };
+        acc[cc].pres += Math.abs(i.importeEEFF || 0);
+        return acc;
+      }, {});
+      const topOpex = Object.values(opexByCentro)
+        .sort((a: any, b: any) => b.pres - a.pres)
+        .slice(0, 8)
+        .map((x: any) => `- CC ${x.cc}: Presupuesto $${x.pres.toLocaleString()}`)
+        .join('\n');
+
+      budgetInfo = `
+CONOCIMIENTO DE PRESUPUESTO (INFORMACIÓN CRÍTICA ACTUALIZADA):
+- Presupuesto OPEX Total Aprobado: $${totalOpex.toLocaleString()}
+- Presupuesto CAPEX Total Aprobado: $${totalCapex.toLocaleString()}
+Top Centros de Costo (OPEX):
+${topOpex}
+- Si el usuario te pregunta sobre montos de presupuesto o saldos, responde usando estos datos reales y exactos.
+`;
+    }
+
+    if (role === 'requester' || (role === 'jefatura' && user?.area_sector !== '22. MANTENIMIENTO')) {
+      // Prompt for requesters and jefaturas of other areas
+      return `
+Eres la Asistente de IA de Mantenimiento CRL. Tu objetivo es ayudar a los Solicitantes y Jefaturas de otras áreas a resolver dudas específicas sobre solicitudes de mantenimiento en el club.
+
+REGLAS DE COMPORTAMIENTO ESTRICTAS:
+1. SOLO debes responder preguntas relacionadas con:
+   - Solicitudes de trabajo de mantenimiento (OTM), el flujo del proceso de solicitudes, o dudas sobre a qué especialidad (Electricidad, Gasfitería, Pintura, Carpintería, Albañilería, Equipos Electromecánicos, Aire Acondicionado) corresponde un problema.
+   - Si un trabajo pertenece al área de Servicios Generales / Maestranza (limpieza profunda, traslado de muebles, basura, toldos, desinfección, jardinería). En este caso, debes indicarle textualmente: "Comprendo, pero los trabajos de limpieza o movimiento de mobiliario pertenecen al área de Servicios Generales (Maestranza). Por favor, comunícate directamente con ellos para que te asistan."
+2. Si el usuario realiza preguntas de cultura general, chistes, preguntas técnicas complejas no relacionadas al club, o cualquier tema fuera de la solicitud de mantenimiento y sus especialidades, dile con cortesía: "Lo siento, como Asistente de Mantenimiento solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza."
+3. ESTÁ ESTRICTAMENTE PROHIBIDO ejecutar acciones, crear órdenes, prellenar formularios o automatizar el envío de solicitudes. Los usuarios deben rellenar y enviar las solicitudes manualmente por sí mismos. No uses formatos de comando \`[ACCION: ...]\`.
+4. Sé una asistente atenta, carismática y amigable en español latino.
+5. Nunca uses emojis. Responde de forma muy concisa (máximo 3-4 oraciones).
+6. Áreas del Club: ${JSON.stringify(areas)}
+7. Ubicaciones: ${JSON.stringify(locations)}
+8. Especialidades: ${JSON.stringify(specialties)}
+`;
+    } else {
+      // Prompt for Supervisors/Admins
+      return `
+Eres la Asistente de IA de Mantenimiento CRL. Tu objetivo es dar soporte al personal de gestión de Mantenimiento (Supervisores, Administradores, Jefatura de Mantenimiento).
+
+REGLAS DE COMPORTAMIENTO ESTRICTAS:
+1. Tu rol es puramente INFORMATIVO y de CONSULTA.
+2. NO debes realizar ninguna acción en el sistema: no puedes asignar OTMs, no puedes crear OTMs, no puedes finalizar trabajos. No uses formatos de comando \`[ACCION: ...]\`. Toda asignación o modificación debe hacerla el supervisor manualmente.
+3. Responde a preguntas y consultas sobre el estado de las OTMs, los técnicos asignados, o estadísticas generales del sistema, basándote en la información provista.
+4. Tienes acceso completo a la información presupuestaria actualizada (OPEX y CAPEX). Responde consultas financieras sobre saldos, montos asignados o ejecutados con total precisión.
+5. Sé carismática, atenta y profesional. Nunca uses emojis. Responde de forma muy concisa.
+
+Catálogos y Datos:
+- Áreas: ${JSON.stringify(areas)}
+- Ubicaciones: ${JSON.stringify(locations)}
+- Especialidades: ${JSON.stringify(specialties)}
+- Técnicos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+${budgetInfo}
+`;
+    }
+  };
+
   // ----------------------------------------------------
   // SIMULATION ENGINE (DEMO FALLBACK)
   // ----------------------------------------------------
@@ -342,209 +417,128 @@ export default function AIAssistant() {
     const timestamp = new Date();
     const id = `msg-${Date.now()}`;
 
-    // A. FAQ / Platform questions
-    if (cleanText.includes('como funciona') || cleanText.includes('proceso') || cleanText.includes('ayuda') || cleanText.includes('guia')) {
+    // A. Role check: Solicitante (Requester) or Jefaturas de otras áreas
+    const isMaintMgmt = user?.role === 'supervisor' || user?.role === 'admin' || (user?.role === 'jefatura' && user?.area_sector === '22. MANTENIMIENTO');
+
+    if (!isMaintMgmt) {
+      // 1. Check for Servicios Generales / Maestranza keywords
+      if (cleanText.includes('limpieza') || cleanText.includes('basura') || cleanText.includes('toldo') || cleanText.includes('muebles') || cleanText.includes('traslado') || cleanText.includes('jardin') || cleanText.includes('desinfecc')) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: 'Comprendo, pero los trabajos de limpieza o movimiento de mobiliario pertenecen al área de Servicios Generales (Maestranza). Por favor, comunícate directamente con ellos para que te asistan.',
+          timestamp
+        }]);
+        return;
+      }
+
+      // 2. Check for specialty doubts
+      if (cleanText.includes('fuga') || cleanText.includes('agua') || cleanText.includes('tuber') || cleanText.includes('caño') || cleanText.includes('inodoro')) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: 'Eso corresponde a la especialidad de Gasfitería. Para registrar la solicitud, por favor dirígete a la sección "Nueva Solicitud" del menú lateral, rellena los campos y adjunta la fotografía obligatoria.',
+          timestamp
+        }]);
+        return;
+      }
+      if (cleanText.includes('luz') || cleanText.includes('toma') || cleanText.includes('cable') || cleanText.includes('electric') || cleanText.includes('lampara') || cleanText.includes('luminaria') || cleanText.includes('enchufe')) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: 'Esa incidencia corresponde a la especialidad de Electricidad. Recuerda rellenar el formulario de "Nueva Solicitud" para reportarlo oficialmente.',
+          timestamp
+        }]);
+        return;
+      }
+      if (cleanText.includes('pintar') || cleanText.includes('pared') || cleanText.includes('pintura')) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: 'Eso corresponde a la especialidad de Pintura. Por favor completa la solicitud manualmente para programar la atención.',
+          timestamp
+        }]);
+        return;
+      }
+      if (cleanText.includes('puerta') || cleanText.includes('cerradura') || cleanText.includes('madera') || cleanText.includes('mueble roto') || cleanText.includes('carpinter')) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: 'Este requerimiento corresponde a la especialidad de Carpintería. Utiliza el formulario de "Nueva Solicitud" para reportarlo.',
+          timestamp
+        }]);
+        return;
+      }
+
+      // 3. Fallback check for general/maintenance questions
+      if (cleanText.includes('proceso') || cleanText.includes('como funciona') || cleanText.includes('ayuda') || cleanText.includes('solicitud') || cleanText.includes('crear') || cleanText.includes('otm')) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: 'El proceso es sencillo: debes ingresar al apartado "Nueva Solicitud", ingresar la ubicación general y específica, seleccionar la especialidad del trabajo, describir el problema y subir la fotografía obligatoria. Los técnicos se encargarán de ejecutarlo una vez el supervisor lo programe.',
+          timestamp
+        }]);
+        return;
+      }
+
+      // 4. Deny out-of-scope questions
       setIsLoading(false);
       setMessages(prev => [...prev, {
         id,
         role: 'assistant',
-        text: 'La plataforma CRL Mantenimiento funciona bajo un flujo de 4 fases:\n\n1. **Solicitud:** Cualquier empleado (Solicitante) registra una OTM detallando la falla.\n2. **Programación:** El supervisor evalúa la prioridad, asigna técnicos y fecha de programación.\n3. **Ejecución:** El técnico asignado inicia, pausa y finaliza la tarea en su calendario, registrando tiempo y materiales.\n4. **Cierre y Conformidad:** El solicitante evalúa de 1 a 5 estrellas la calidad del trabajo cerrado.',
+        text: 'Lo siento, como Asistente de Mantenimiento solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza.',
         timestamp
       }]);
       return;
+    } else {
+      // B. Supervisor/Admin Flow
+      // 1. Budget questions
+      if (cleanText.includes('presupuesto') || cleanText.includes('monto') || cleanText.includes('opex') || cleanText.includes('capex') || cleanText.includes('disponible') || cleanText.includes('saldo')) {
+        const totalOpex = opexBudget.reduce((acc, i) => acc + Math.abs(i.importeEEFF || 0), 0);
+        const totalCapex = capexBudget.reduce((acc, i) => acc + (i.importe || 0), 0);
+
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: `¡Claro! El presupuesto OPEX total aprobado es de $${totalOpex.toLocaleString()} y para CAPEX el monto total es de $${totalCapex.toLocaleString()}.`,
+          timestamp
+        }]);
+        return;
+      }
+
+      // 2. General OTM stats
+      if (cleanText.includes('otm') || cleanText.includes('ordenes') || cleanText.includes('trabajos') || cleanText.includes('retras') || cleanText.includes('pendiente')) {
+        const total = otms.length;
+        const pending = otms.filter(o => o.status === 'pending').length;
+        const scheduled = otms.filter(o => o.status === 'scheduled' || o.status === 'in_progress').length;
+        const closed = otms.filter(o => o.status === 'closed').length;
+
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: `Actualmente en el sistema hay registradas ${total} OTMs en total: ${pending} se encuentran Pendientes por revisar, ${scheduled} están en Programadas/En Progreso de ejecución y ${closed} han sido Completadas/Cerradas de forma exitosa.`,
+          timestamp
+        }]);
+        return;
+      }
+
+      // 3. Fallback for Supervisor
+      setIsLoading(false);
+      setMessages(prev => [...prev, {
+        id,
+        role: 'assistant',
+        text: 'Hola. Como tu asistente virtual, puedo brindarte información en tiempo real sobre el estado de las OTMs y el presupuesto OPEX/CAPEX del club. ¿En qué consulta te puedo asistir hoy?',
+        timestamp
+      }]);
     }
-
-    // B. Requester Flow: Create OTM
-    if (user?.role === 'requester' && (cleanText.includes('registrar') || cleanText.includes('falla') || cleanText.includes('crear') || cleanText.includes('roto') || cleanText.includes('dañ') || cleanText.includes('problema') || cleanText.includes('caño') || cleanText.includes('fuga'))) {
-      const detectedSpecialty = specialties.find(s => cleanText.includes(s.toLowerCase().replace(/^\d+\.\s*/, ''))) || 'Otros';
-      const detectedLocation = locations.find(l => cleanText.includes(l.toLowerCase().replace(/^\d+\.\s*/, ''))) || locations[0] || 'Instalaciones';
-      
-      const isMissingDetails = !cleanText.includes('baño') && !cleanText.includes('oficina') && !cleanText.includes('tuber') && !cleanText.includes('puerta') && !cleanText.includes('luz') && !cleanText.includes('caño') && !cleanText.includes('fuga');
-
-      if (isMissingDetails) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `Entendido. Para reportar una falla, por favor indícame:\n\n1. **¿Qué está fallando?** (ej: fuga de agua, luz quemada, puerta rota).\n2. **¿En qué parte?** (ej: ${detectedLocation}).\n3. **¿Cuál es la especialidad aproximada?** (ej: Gasfitería, Electricidad, Carpintería).`,
-          timestamp
-        }]);
-        return;
-      }
-
-      try {
-        const cleanDesc = userText.charAt(0).toUpperCase() + userText.slice(1);
-        const newOtm = await createOTM({
-          area_sector: user?.area_sector || '13. DEPORTES',
-          location: detectedLocation,
-          exact_location: 'Reportado vía Asistente IA',
-          failure_type: detectedSpecialty,
-          description: cleanDesc,
-          urgency: 'medium',
-          status: 'pending'
-        });
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `¡Listo! Acabo de registrar el requerimiento en el sistema de manera automática.`,
-          timestamp,
-          cardType: 'otm-created',
-          cardData: {
-            code: newOtm.otm_code,
-            description: cleanDesc,
-            location: detectedLocation,
-            specialty: detectedSpecialty,
-            status: 'Pendiente'
-          }
-        }]);
-      } catch (err) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Lo siento, ocurrió un problema al registrar la orden de trabajo.',
-          timestamp,
-          cardType: 'error'
-        }]);
-      }
-      return;
-    }
-
-    // C. Supervisor/Admin Flow: Assign OTM
-    if ((user?.role === 'supervisor' || user?.role === 'admin') && (cleanText.includes('asigna') || cleanText.includes('programa') || cleanText.includes('tecnico'))) {
-      const code = extractOtmCode(userText);
-      const tech = findTechnicianByName(userText);
-
-      if (!code) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Por favor, indícame el código de la OTM que deseas asignar (ej. OTM2703-0003).',
-          timestamp
-        }]);
-        return;
-      }
-
-      if (!tech) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `No logré identificar al técnico en tu mensaje. Aquí tienes los técnicos activos:\n${users.filter(u => u.role === 'technician').map(u => `• ${u.full_name}`).join('\n')}\n\nPor favor, dime: *"Asigna ${code} a [Nombre del Técnico]"*.`,
-          timestamp
-        }]);
-        return;
-      }
-
-      try {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const dateStr = tomorrow.toISOString().slice(0, 10); // YYYY-MM-DD
-
-        assignOTM(code, [tech.id], dateStr, 'Asignado automáticamente por Asistente de IA', 2);
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `Entendido. He procesado la asignación en el plan de actividades.`,
-          timestamp,
-          cardType: 'otm-assigned',
-          cardData: {
-            code,
-            techName: tech.full_name,
-            date: dateStr,
-            notes: 'Asignado vía Asistente de IA'
-          }
-        }]);
-      } catch (err) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `Ocurrió un error al asignar la OTM. Verifica que el código "${code}" exista y esté pendiente.`,
-          timestamp,
-          cardType: 'error'
-        }]);
-      }
-      return;
-    }
-
-    // D. Technician Flow: Finish OTM
-    if (user?.role === 'technician' && (cleanText.includes('termine') || cleanText.includes('finalice') || cleanText.includes('complete') || cleanText.includes('cerrar'))) {
-      const code = extractOtmCode(userText);
-      
-      if (!code) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Para registrar la finalización, por favor menciona el código de la OTM (ej. OTM2703-0003) en tu mensaje.',
-          timestamp
-        }]);
-        return;
-      }
-
-      const targetOtm = otms.find(o => o.otm_code === code || o.id === code);
-      if (!targetOtm) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `No encontré la orden de trabajo ${code} en el sistema. Asegúrate de que el código sea correcto.`,
-          timestamp
-        }]);
-        return;
-      }
-
-      try {
-        const notes = userText.replace(new RegExp(code, 'gi'), '').replace(/(termine|finalice|complete|cerrar|el|trabajo)/gi, '').trim();
-        const cleanNotes = notes ? notes.charAt(0).toUpperCase() + notes.slice(1) : 'Trabajo completado satisfactoriamente.';
-        
-        finishTechnicianWork(targetOtm.id, cleanNotes, []);
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `Excelente labor. La orden ha sido completada en el sistema.`,
-          timestamp,
-          cardType: 'otm-finished',
-          cardData: {
-            code,
-            notes: cleanNotes
-          }
-        }]);
-      } catch (err) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Ocurrió un problema al guardar la finalización. Verifica el estado de la OTM.',
-          timestamp,
-          cardType: 'error'
-        }]);
-      }
-      return;
-    }
-
-    // Default Fallback
-    setIsLoading(false);
-    setMessages(prev => [...prev, {
-      id,
-      role: 'assistant',
-      text: `Entendido. He tomado nota de tu consulta. En el modo Demo, puedo ayudarte a:\n\n${
-        user?.role === 'requester' 
-          ? '• **Crear OTMs**: reportando fallas (ej: *"fuga de agua en vestuarios"*).\n• **Pedir Ayuda**: consultando sobre la plataforma.'
-          : user?.role === 'technician'
-          ? '• **Finalizar OTMs**: registrando materiales y tiempos (ej: *"finalicé OTM2703-0003"*).\n• **Preguntar**: por tus tareas asignadas.'
-          : '• **Asignar OTMs**: programando a técnicos (ej: *"asigna OTM2703-0003 a Ciro Diaz"*).\n• **Pedir reportes**: consultando prioridades y retrasos.'
-      }`,
-      timestamp
-    }]);
   };
 
   // Helper to parse arguments from action tags
@@ -595,53 +589,7 @@ export default function AIAssistant() {
         content: m.text
       }));
 
-    const groqSystemPrompt = `
-Eres el "Asistente de IA CRL", un modelo de inteligencia artificial de respaldo corriendo velozmente en Groq Cloud (Llama 3).
-Tu objetivo es dar soporte en la Plataforma de Gestión de Mantenimiento del Club de Regatas Lima (CRL).
-
-PERSONALIDAD Y ESTILO:
-- Eres una asistente femenina muy carismática, alegre, enérgica y siempre dispuesta a ayudar.
-- Habla en español latinoamericano de manera atenta, fluida y amigable.
-- NUNCA devuelvas tablas Markdown ni listas largas. Resume todo en un solo párrafo conversacional para que el motor de voz te lea de forma natural.
-- Sé sumamente concisa.
-- ESTÁ ESTRICTAMENTE PROHIBIDO USAR EMOJIS. Nunca uses emojis.
-
-DATOS DEL USUARIO:
-- Nombre: ${user?.full_name}
-- Rol: ${user?.role}
-
-CATÁLOGO DEL SISTEMA:
-- Áreas válidas: ${JSON.stringify(areas)}
-- Ubicaciones válidas: ${JSON.stringify(locations)}
-- Especialidades válidas: ${JSON.stringify(specialties)}
-- Técnicos activos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
-
-${localStorage.getItem('crl_ai_custom_rules') ? `REGLAS PERSONALIZADAS DE LA ORGANIZACIÓN (SIGUE ESTAS REGLAS ESTRICTAMENTE):
-${localStorage.getItem('crl_ai_custom_rules')}
-` : ''}
-
-REGLAS DE ACCIÓN CRÍTICAS (CREACIÓN DE OTM):
-Estás ESTRICTAMENTE OBLIGADA a seguir este flujo de 3 pasos para crear una OTM. NUNCA te saltes pasos ni asumas datos:
-
-PASO 1 (RECOPILACIÓN): Si el usuario pide reportar una falla, pregúntale los datos faltantes:
-- Descripción detallada de la falla.
-- Ubicación general (ej. Sede Chorrillos, Sede San Antonio) y Ubicación exacta (ej. Baño de hombres piso 1).
-- Prioridad (Dile que elija entre Alta, Media o Baja). OJO: Si elige Alta pero el problema no representa un riesgo vital o daño inminente, corrígelo amablemente a Media. Solo es Alta si es una emergencia real o si lo pide un Director/VIP (en cuyo caso, agrégalo a la descripción).
-*Nota: La especialidad (Electricidad, Gasfitería, etc.) debes deducirla tú mismo por el contexto. Solo pregúntala si es imposible deducirla.*
-
-PASO 2 (VALIDACIÓN): Cuando tengas TODOS los datos, debes mostrar un resumen breve y preguntar EXPRESAMENTE: "Listo, ¿ahora cargo su OT?".
-
-PASO 3 (EJECUCIÓN): SÓLO si el usuario responde afirmativamente (ej. "sí", "correcto", "dale"), ejecutarás el comando de creación añadiendo al final de tu mensaje:
-[ACCION: createOTM(area='Área', location='Ubicación', exact_location='Ubicación exacta', description='Descripción', specialty='Especialidad', priority='Alto|Medio|Bajo')]
-
-2. Asignar OTM (solo si el usuario tiene rol 'supervisor' o 'admin'):
-[ACCION: assignOTM(otmId='Código OTM', technicianIds=['ID_TECNICO'], scheduledDate='YYYY-MM-DD', estimatedTime=2)]
-
-3. Finalizar OTM (solo si el usuario tiene rol 'technician'):
-[ACCION: finishTechnicianWork(otmId='Código OTM', notes='Notas del técnico')]
-
-Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, respetando las comillas simples para los textos. Si te falta información obligatoria, no pongas la marca, pídele los datos faltantes conversando.
-`;
+    const groqSystemPrompt = getRolePrompt(user?.role || '');
 
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -672,74 +620,8 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
       let cardType: any = undefined;
       let cardData: any = null;
 
-      // Extract Action Tag if present
-      const actionMatch = responseText.match(/\[ACCION:\s*(\w+)\(([^)]*)\)\]/);
-      if (actionMatch) {
-        const actionName = actionMatch[1];
-        const argsStr = actionMatch[2];
-        const args = parseActionArgs(argsStr);
-
-        // Strip action tag from chat display text
-        responseText = responseText.replace(/\[ACCION:[^\]]*\]/g, '').trim();
-
-        if (actionName === 'createOTM') {
-          try {
-            sessionStorage.setItem('crl_ai_prefill_otm', JSON.stringify({
-              location: args.location || '',
-              exact_location: args.exact_location || args.exactLocation || '',
-              description: args.description || '',
-              failure_type: args.specialty || '',
-              urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'
-            }));
-            sessionStorage.setItem('crl_ai_prefill_step', '3'); // Ir directo al paso de Fotos
-            
-            setTimeout(() => {
-              const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
-              window.dispatchEvent(event);
-            }, 1500); // Dar tiempo para que el usuario lea el mensaje
-            
-          } catch (e: any) {
-            console.error("Groq OTM redirect error", e);
-          }
-        }
-        else if (actionName === 'assignOTM') {
-          if (user?.role !== 'supervisor' && user?.role !== 'admin') {
-            responseText += ` \n\n*(Acción rechazada: Tu rol no permite programar asignaciones)*`;
-          } else {
-            try {
-              assignOTM(args.otmId, args.technicianIds || [], args.scheduledDate || '', 'Asignado vía Groq', args.estimatedTime || 2);
-              const techNames = (args.technicianIds || []).map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
-              cardType = 'otm-assigned';
-              cardData = {
-                code: args.otmId,
-                techName: techNames,
-                date: args.scheduledDate,
-                notes: 'Asignado vía Groq'
-              };
-            } catch (e: any) {
-              console.error("Groq OTM assign error", e);
-            }
-          }
-        }
-        else if (actionName === 'finishTechnicianWork') {
-          if (user?.role !== 'technician') {
-            responseText += ` \n\n*(Acción rechazada: Tu rol no permite finalizar tareas)*`;
-          } else {
-            try {
-              const targetOtm = otms.find(o => o.otm_code === args.otmId || o.id === args.otmId);
-              if (!targetOtm) throw new Error('OTM no encontrada.');
-              finishTechnicianWork(targetOtm.id, args.notes || 'Trabajo completado.', []);
-              cardType = 'otm-finished';
-              cardData = {
-                code: args.otmId,
-                notes: args.notes || 'Completado vía Groq.'
-              };
-            } catch (e: any) {
-              console.error("Groq OTM finish error", e);
-            }
-          }
-        }
-      }
+      // Strip action tag if any was generated
+      responseText = responseText.replace(/\[ACCION:[^\]]*\]/g, '').trim();
 
       setIsLoading(false);
       setMessages(prev => [...prev, {
@@ -783,102 +665,7 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
       area: o.area_sector
     }));
 
-    const systemPrompt = `
-Eres el "Asistente de IA CRL", un agente de inteligencia artificial avanzado, conversacional y empático, integrado en la Plataforma de Gestión de Mantenimiento del Club de Regatas Lima (CRL).
-
-PERSONALIDAD Y ESTILO:
-- Eres una asistente femenina muy carismática, alegre, enérgica y siempre dispuesta a ayudar.
-- Habla de manera natural, fluida y muy cercana, como una compañera de trabajo súper amigable.
-- Usa español latinoamericano cálido y expresiones amigables (ej. "¡Claro que sí!", "¡Manos a la obra!", "¡Con mucho gusto!").
-- Evita sonar robótica, aburrida o como un bot genérico. Eres parte del equipo de Mantenimiento.
-- Sé proactiva: si detectas que el usuario necesita algo más allá de lo que pidió, sugiere opciones con entusiasmo.
-- Responde de forma CONCISA pero COMPLETA. No uses más de 3-4 oraciones a menos que sea estrictamente necesario.
-- NUNCA devuelvas tablas Markdown ni listas largas. Resume todo en un solo párrafo conversacional para que el motor de voz te lea de forma natural.
-- Cuando confirmes una acción exitosa, celebra brevemente con alegría.
-- IMPORTANTE: ESTÁ ESTRICTAMENTE PROHIBIDO USAR EMOJIS (😊, 👍, etc). El sintetizador de voz los lee en voz alta (ej. "carita sonriente") y arruina la experiencia. NUNCA uses emojis.
-
-DATOS DEL USUARIO EN SESIÓN:
-- Nombre: ${user?.full_name}
-- Rol: ${user?.role} (requester=Solicitante, supervisor=Supervisor, technician=Técnico, admin=Administrador)
-- Sector: ${user?.area_sector || 'General'}
-
-CONTEXTO DEL SISTEMA (OTMs recientes):
-${JSON.stringify(otmsSummary)}
-
-REGLAS CRÍTICAS:
-1. SIEMPRE responde en español.
-2. Respeta la jerarquía de roles estrictamente:
-   - Solicitantes: solo pueden crear OTMs y consultar estado.
-   - Supervisores/Admin: pueden asignar, programar y consultar todo.
-   - Técnicos: solo pueden registrar finalización de sus trabajos asignados.
-   Si alguien pide algo fuera de su rol, explica amablemente por qué no puedes hacerlo.
-3. REGLA ESTRICTA PARA CREAR OTM (FLUJO DE 3 PASOS):
-   - PASO 1 (RECOPILAR): Nunca crees una OTM al primer intento. Debes tener: Descripción detallada, Ubicación general + Ubicación exacta, y Prioridad. Si el usuario pide prioridad Alta por algo trivial, corrígelo a Media (solo es Alta para emergencias o si lo pide un Director, en cuyo caso ponlo en la descripción). Deduce la especialidad por tu cuenta, no la preguntes a menos que sea muy confuso.
-   - PASO 2 (VALIDAR): Cuando tengas los datos, resume brevemente y pregunta EXPRESAMENTE: "Listo, ¿ahora cargo su OT?".
-   - PASO 3 (EJECUTAR): SOLO usa la herramienta de \`createOTM\` si el usuario responde "sí" a tu pregunta de validación.
-4. NUNCA inventes códigos de OTM. Si no tienes el código, pregúntalo.
-5. Si el usuario te hace una pregunta sobre la plataforma, el proceso o los datos, responde con conocimiento completo del sistema.
-6. Si el usuario te habla de forma informal o te saluda, responde de manera natural y amigable.
-
-CATÁLOGO DEL SISTEMA:
-- Áreas: ${JSON.stringify(areas)}
-- Ubicaciones: ${JSON.stringify(locations)}
-- Especialidades: ${JSON.stringify(specialties)}
-- Técnicos activos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
-
-${localStorage.getItem('crl_ai_custom_rules') ? `REGLAS PERSONALIZADAS DE LA ORGANIZACIÓN (SIGUE ESTAS REGLAS ESTRICTAMENTE):
-${localStorage.getItem('crl_ai_custom_rules')}
-` : ''}
-    `;
-
-    const tools = [
-      {
-        functionDeclarations: [
-          {
-            name: "createOTM",
-            description: "Crea un nuevo requerimiento u Orden de Trabajo de Mantenimiento (OTM) en el sistema.",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                area: { type: "STRING", description: "El área que solicita el trabajo (debe coincidir o ser similar a las áreas válidas)." },
-                location: { type: "STRING", description: "Ubicación del problema (debe coincidir con ubicaciones válidas)." },
-                exactLocation: { type: "STRING", description: "Detalle específico de la ubicación (ej: Baño de damas, Cancha 2)." },
-                description: { type: "STRING", description: "Detalle de lo que ocurre o lo que se necesita reparar." },
-                specialty: { type: "STRING", description: "Especialidad técnica (debe ser similar a las especialidades válidas)." },
-                priority: { type: "STRING", enum: ["Alto", "Medio", "Bajo"], description: "Prioridad requerida." }
-              },
-              required: ["area", "location", "description", "specialty"]
-            }
-          },
-          {
-            name: "assignOTM",
-            description: "Programa y asigna una OTM pendiente a técnicos (Solo disponible para Supervisor y Admin).",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                otmId: { type: "STRING", description: "Código o ID de la OTM a asignar (ej. OTM2703-0003)." },
-                technicianIds: { type: "ARRAY", items: { type: "STRING" }, description: "Lista de IDs de los técnicos asignados (usa los IDs del catálogo)." },
-                scheduledDate: { type: "STRING", description: "Fecha de programación en formato YYYY-MM-DD." },
-                estimatedTime: { type: "NUMBER", description: "Tiempo estimado en horas para la ejecución." }
-              },
-              required: ["otmId", "technicianIds", "scheduledDate"]
-            }
-          },
-          {
-            name: "finishTechnicianWork",
-            description: "Registra la finalización del trabajo de una OTM por parte de un Técnico (Solo disponible para Técnicos).",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                otmId: { type: "STRING", description: "Código o ID de la OTM finalizada." },
-                notes: { type: "STRING", description: "Detalle del trabajo realizado, materiales usados u observaciones finales." }
-              },
-              required: ["otmId", "notes"]
-            }
-          }
-        ]
-      }
-    ];
+    const systemPrompt = getRolePrompt(user?.role || '');
 
     const contents = messages
       .filter(m => m.id !== 'welcome')
@@ -898,8 +685,7 @@ ${localStorage.getItem('crl_ai_custom_rules')}
         model: 'gemini-2.5-flash',
         contents,
         config: {
-          systemInstruction: systemPrompt,
-          tools: tools as any
+          systemInstruction: systemPrompt
         }
       });
 
@@ -915,133 +701,13 @@ ${localStorage.getItem('crl_ai_custom_rules')}
       }
 
       let aiText = response.text || '';
-      let functionCall = null;
-
-      for (const part of modelParts) {
-        if (part.functionCall) {
-          functionCall = part.functionCall;
-        }
-      }
-
-      if (functionCall) {
-        const { name, args } = functionCall;
-        const typedArgs = (args || {}) as any;
-        console.log('Gemini Function Call requested:', name, typedArgs);
-
-        let resultData = null;
-        let cardType = undefined;
-        let cardData = null;
-
-        if (name === 'createOTM') {
-          try {
-            sessionStorage.setItem('crl_ai_prefill_otm', JSON.stringify({
-              location: typedArgs.location || '',
-              exact_location: typedArgs.exactLocation || typedArgs.exact_location || '',
-              description: typedArgs.description || '',
-              failure_type: typedArgs.specialty || '',
-              urgency: typedArgs.priority?.toLowerCase() === 'alto' ? 'high' : typedArgs.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'
-            }));
-            sessionStorage.setItem('crl_ai_prefill_step', '3');
-            
-            setTimeout(() => {
-              const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
-              window.dispatchEvent(event);
-            }, 1500);
-            
-            resultData = { status: 'redirected_to_form', message: 'Dile al usuario que lo estás redirigiendo al formulario para que suba la foto.' };
-          } catch (e: any) {
-            resultData = { status: 'error', message: e.message };
-          }
-        }
-        else if (name === 'assignOTM') {
-          if (user?.role !== 'supervisor' && user?.role !== 'admin') {
-            resultData = { status: 'error', message: 'Permiso denegado. Solo supervisores pueden asignar tareas.' };
-          } else {
-            try {
-              assignOTM(typedArgs.otmId, typedArgs.technicianIds, typedArgs.scheduledDate, 'Asignado vía Asistente de IA', typedArgs.estimatedTime || 2);
-              const techNames = typedArgs.technicianIds.map((tid: string) => users.find(u => u.id === tid)?.full_name || 'Técnico').join(', ');
-              
-              resultData = { status: 'success', message: 'OTM asignada con éxito.' };
-              cardType = 'otm-assigned' as const;
-              cardData = {
-                code: typedArgs.otmId,
-                techName: techNames,
-                date: typedArgs.scheduledDate,
-                notes: 'Asignado vía Asistente de IA'
-              };
-            } catch (e: any) {
-              resultData = { status: 'error', message: e.message };
-            }
-          }
-        } 
-        else if (name === 'finishTechnicianWork') {
-          if (user?.role !== 'technician') {
-            resultData = { status: 'error', message: 'Permiso denegado. Solo técnicos pueden finalizar tareas.' };
-          } else {
-            try {
-              const targetOtm = otms.find(o => o.otm_code === typedArgs.otmId || o.id === typedArgs.otmId);
-              if (!targetOtm) {
-                throw new Error(`OTM ${typedArgs.otmId} no encontrada.`);
-              }
-              finishTechnicianWork(targetOtm.id, typedArgs.notes, []);
-              
-              resultData = { status: 'success', message: 'OTM finalizada con éxito.' };
-              cardType = 'otm-finished' as const;
-              cardData = {
-                code: typedArgs.otmId,
-                notes: typedArgs.notes
-              };
-            } catch (e: any) {
-              resultData = { status: 'error', message: e.message };
-            }
-          }
-        }
-
-        const secondContents = [
-          ...contents,
-          {
-            role: 'model',
-            parts: [{ functionCall }]
-          },
-          {
-            role: 'user',
-            parts: [{
-              functionResponse: {
-                name,
-                response: resultData
-              }
-            }]
-          }
-        ];
-
-        const secondResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: secondContents as any,
-          config: {
-            systemInstruction: systemPrompt
-          }
-        });
-
-        aiText = secondResponse.text || 'Acción procesada con éxito en la plataforma.';
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: aiText,
-          timestamp,
-          cardType,
-          cardData
-        }]);
-      } else {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: aiText || 'Entendido, ¿deseas realizar otra consulta?',
-          timestamp
-        }]);
-      }
+      setIsLoading(false);
+      setMessages(prev => [...prev, {
+        id,
+        role: 'assistant',
+        text: aiText || 'Entendido, ¿deseas realizar otra consulta?',
+        timestamp
+      }]);
     } catch (err: any) {
       console.error('Gemini SDK Error:', err);
       
@@ -1254,7 +920,7 @@ ${localStorage.getItem('crl_ai_custom_rules')}
               </span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-              Mantenimiento CRL • {user?.role === 'admin' ? 'Admin' : user?.role === 'supervisor' ? 'Supervisor' : user?.role === 'technician' ? 'Técnico' : 'Solicitante'}
+              Mantenimiento CRL • {user?.role === 'admin' ? 'Admin' : user?.role === 'supervisor' ? 'Supervisor' : 'Solicitante'}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { OTMRequest, URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
@@ -12,6 +12,51 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
   const [notes, setNotes] = useState(otm.technician_notes || '');
   const [supplies, setSupplies] = useState<SupplyUsed[]>([]);
   const [photos, setPhotos] = useState<{ name: string; type: string; url: string; file?: File }[]>([]);
+  
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleDictation = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("El dictado por voz no es compatible con este navegador. Por favor usa Google Chrome o Safari.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-PE';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setNotes(prev => prev ? `${prev.trim()} ${transcript}` : transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
   const [completing, setCompleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -142,8 +187,40 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
           
           {/* Notes */}
           <div className="glass-card" style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12 }}>📝 Notas Técnicas</h3>
-            <textarea className="form-textarea" placeholder="Describe el trabajo realizado, piezas reemplazadas, observaciones..." value={notes} onChange={e => setNotes(e.target.value)} style={{ minHeight: 120 }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0 }}>📝 Notas Técnicas</h3>
+              <button 
+                type="button"
+                className={`btn btn-sm ${isListening ? 'mic-active' : ''}`}
+                onClick={toggleDictation}
+                style={{ 
+                  padding: '4px 10px', 
+                  fontSize: '0.75rem', 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: 6,
+                  borderRadius: 20,
+                  transition: 'all 0.3s ease',
+                  background: isListening ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)',
+                  color: isListening ? '#ef4444' : 'var(--text-primary)',
+                  borderColor: isListening ? '#ef4444' : 'var(--border)',
+                  boxShadow: isListening ? '0 0 8px rgba(239,68,68,0.4)' : 'none'
+                }}
+              >
+                {isListening ? '🛑 Detener Dictado' : '🎤 Dictar por Voz'}
+              </button>
+            </div>
+            <textarea className="form-textarea" placeholder={isListening ? "Escuchando... hable ahora." : "Describe el trabajo realizado, piezas reemplazadas, observaciones..."} value={notes} onChange={e => setNotes(e.target.value)} style={{ minHeight: 120 }} />
+            <style>{`
+              @keyframes micPulse {
+                0% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.05); opacity: 0.8; }
+                100% { transform: scale(1); opacity: 1; }
+              }
+              .mic-active {
+                animation: micPulse 1.2s infinite ease-in-out;
+              }
+            `}</style>
           </div>
 
           {/* Suministros Usados */}
