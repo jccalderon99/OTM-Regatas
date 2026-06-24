@@ -683,25 +683,22 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
 
         if (actionName === 'createOTM') {
           try {
-            const newOtm = await createOTM({
-              area_sector: args.area || 'General',
-              location: args.location || 'Vía Asistente Groq',
-              exact_location: args.exactLocation || 'Vía Asistente Groq',
-              failure_type: args.specialty || 'General',
-              description: args.description || 'Reporte de falla vía Groq',
-              urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium',
-              status: 'pending'
-            });
-            cardType = 'otm-created';
-            cardData = {
-              code: newOtm.otm_code,
-              description: args.description || 'Reporte Groq',
-              location: args.location || 'Vía Groq',
-              specialty: args.specialty || 'General',
-              status: 'Pendiente'
-            };
+            sessionStorage.setItem('crl_ai_prefill_otm', JSON.stringify({
+              location: args.location || '',
+              exact_location: 'Vía Asistente IA',
+              description: args.description || '',
+              failure_type: args.specialty || '',
+              urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'
+            }));
+            sessionStorage.setItem('crl_ai_prefill_step', '3'); // Ir directo al paso de Fotos
+            
+            const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
+            window.dispatchEvent(event);
+            
+            setIsOpen(false); // Cerramos el chat para que el usuario suba la foto
+            return true;
           } catch (e: any) {
-            console.error("Groq OTM creation error", e);
+            console.error("Groq OTM redirect error", e);
           }
         }
         else if (actionName === 'assignOTM') {
@@ -936,29 +933,22 @@ ${localStorage.getItem('crl_ai_custom_rules')}
 
         if (name === 'createOTM') {
           try {
-            const newOtm = await createOTM({
-              area_sector: typedArgs.area,
-              location: typedArgs.location,
+            sessionStorage.setItem('crl_ai_prefill_otm', JSON.stringify({
+              location: typedArgs.location || '',
               exact_location: typedArgs.exactLocation || 'Vía Asistente IA',
-              failure_type: typedArgs.specialty,
-              description: typedArgs.description,
-              urgency: typedArgs.priority?.toLowerCase() === 'alto' ? 'high' : typedArgs.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium',
-              status: 'pending'
-            });
-
-            resultData = { status: 'success', code: newOtm.otm_code, details: newOtm };
-            cardType = 'otm-created' as const;
-            cardData = {
-              code: newOtm.otm_code,
-              description: typedArgs.description,
-              location: typedArgs.location,
-              specialty: typedArgs.specialty,
-              status: 'Pendiente'
-            };
+              description: typedArgs.description || '',
+              failure_type: typedArgs.specialty || '',
+              urgency: typedArgs.priority?.toLowerCase() === 'alto' ? 'high' : typedArgs.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'
+            }));
+            sessionStorage.setItem('crl_ai_prefill_step', '3');
+            const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
+            window.dispatchEvent(event);
+            setIsOpen(false);
+            resultData = { status: 'redirected_to_form', message: 'Usuario redirigido al formulario.' };
           } catch (e: any) {
             resultData = { status: 'error', message: e.message };
           }
-        } 
+        }
         else if (name === 'assignOTM') {
           if (user?.role !== 'supervisor' && user?.role !== 'admin') {
             resultData = { status: 'error', message: 'Permiso denegado. Solo supervisores pueden asignar tareas.' };

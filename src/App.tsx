@@ -37,6 +37,16 @@ function AppContent() {
     setCurrentView('portal');
   }, [user?.id, user?.role]);
 
+  useEffect(() => {
+    const handleAINav = (e: any) => {
+      if (e.detail?.view) {
+        setCurrentView(e.detail.view);
+      }
+    };
+    window.addEventListener('navigate_from_ai', handleAINav);
+    return () => window.removeEventListener('navigate_from_ai', handleAINav);
+  }, []);
+
   if (!user) return <Login />;
 
   const defaultView = () => {

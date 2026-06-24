@@ -19,8 +19,26 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
   const { user } = useAuth();
   const { createOTM, specialties, locations } = useOTM();
   const [images, setImages] = useState<File[]>([]);
-  const [form, setForm] = useState<FormData>({ ...INITIAL, area_sector: user?.area_sector || '' });
-  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<FormData>(() => {
+    const saved = sessionStorage.getItem('crl_ai_prefill_otm');
+    if (saved) {
+      sessionStorage.removeItem('crl_ai_prefill_otm');
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...INITIAL, area_sector: user?.area_sector || '', ...parsed };
+      } catch { }
+    }
+    return { ...INITIAL, area_sector: user?.area_sector || '' };
+  });
+
+  const [step, setStep] = useState(() => {
+    const savedStep = sessionStorage.getItem('crl_ai_prefill_step');
+    if (savedStep) {
+      sessionStorage.removeItem('crl_ai_prefill_step');
+      return Number(savedStep);
+    }
+    return 0;
+  });
   const [submitted, setSubmitted] = useState(false);
   const [createdCode, setCreatedCode] = useState('');
   const [uploading, setUploading] = useState(false);
