@@ -388,6 +388,82 @@ for (let i = 1; i <= 50; i++) {
     });
   }
 
+  // Generate mock supplies for executed tasks (closed, awaiting_conformity, awaiting_supervisor)
+  let supplies: any[] | null = null;
+  if (['closed', 'awaiting_conformity', 'awaiting_supervisor'].includes(status)) {
+    supplies = [];
+    if (specialty === '03. Electricista') {
+      supplies.push({
+        itemCode: 10500000,
+        name: "CINTA AISLANTE TEMPLEX DE VINIL C/NEGRO 1700 DE 3/4\" X 18 MET 3M-MIL",
+        unit: "ROLLO",
+        unitPrice: 4.87,
+        quantity: (i % 2) + 1,
+        totalCost: 4.87 * ((i % 2) + 1)
+      });
+      supplies.push({
+        itemCode: 10200002,
+        name: "CABLE CONDUCTOR L/HALOG. NH80 450/750V 2.5MM C/NEGRO",
+        unit: "METROS",
+        unitPrice: 0.88,
+        quantity: (i % 10) + 5,
+        totalCost: 0.88 * ((i % 10) + 5)
+      });
+    } else if (specialty === '08. Pintor') {
+      supplies.push({
+        itemCode: 40400011,
+        name: "PINTURA ESMALTE SINTETICO BRILLANTE COLOR BLANCO 1/1",
+        unit: "GALONES",
+        unitPrice: 37.98,
+        quantity: (i % 3) + 1,
+        totalCost: 37.98 * ((i % 3) + 1)
+      });
+      supplies.push({
+        itemCode: 100400022,
+        name: "RODILLO P/PINTAR DE 9\" X 3/4\" (PELUCHE 100% POLYESTER)",
+        unit: "PIEZA",
+        unitPrice: 9.22,
+        quantity: 1,
+        totalCost: 9.22
+      });
+    } else if (specialty === '06. Gasfitero') {
+      supplies.push({
+        itemCode: 50800001,
+        name: "TUBO DE ABASTO 1/2\" X 1/2\" X 40 CM HILO ALUMINO TRENZADO",
+        unit: "PIEZA",
+        unitPrice: 8.72,
+        quantity: (i % 2) + 1,
+        totalCost: 8.72 * ((i % 2) + 1)
+      });
+      supplies.push({
+        itemCode: 50300001,
+        name: "CINTA TEFLON C/ROJO 0.08 X 1/2\" X 12 MET.",
+        unit: "ROLLO",
+        unitPrice: 1.62,
+        quantity: (i % 2) + 1,
+        totalCost: 1.62 * ((i % 2) + 1)
+      });
+    } else if (specialty === '04. Carpintero') {
+      supplies.push({
+        itemCode: 90150020,
+        name: "CERRADURA T/PERILLA P/DORMITORIO C/TAMBOR LLAVE Y BOTON (CA5137)",
+        unit: "PIEZA",
+        unitPrice: 19.59,
+        quantity: 1,
+        totalCost: 19.59
+      });
+    } else if (specialty === '07. Albañil') {
+      supplies.push({
+        itemCode: 31350019,
+        name: "SIKAFLEX -11 FC+ C/GRIS HORMIGON SELLADOR Y ADHESIVO (300 ML/390G)",
+        unit: "TUBO",
+        unitPrice: 13.18,
+        quantity: (i % 2) + 1,
+        totalCost: 13.18 * ((i % 2) + 1)
+      });
+    }
+  }
+
   const otm: OTMRequest = {
     id,
     otm_code: code,
@@ -437,6 +513,7 @@ for (let i = 1; i <= 50; i++) {
     cancellation_detail: null,
     created_at: createdAt.toISOString(),
     updated_at: updatedAt.toISOString(),
+    supplies_used: supplies,
   };
   
   generatedOTMs.push(otm);

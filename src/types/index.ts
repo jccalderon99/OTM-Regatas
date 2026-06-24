@@ -130,6 +130,17 @@ export interface OTMRequest {
   derived_response_at?: string | null;
   // Comentarios
   comments?: OTMComment[];
+  // Suministros Usados (Regularización/Ejecución)
+  supplies_used?: SupplyUsed[] | null;
+}
+
+export interface SupplyUsed {
+  itemCode?: number | string;
+  name: string;
+  unit: string;
+  unitPrice?: number;
+  quantity: number;
+  totalCost?: number;
 }
 
 export interface OTMStatusLog {

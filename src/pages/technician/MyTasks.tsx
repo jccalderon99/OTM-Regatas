@@ -4,6 +4,7 @@ import StatusBadge from '../../components/StatusBadge';
 import { URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import TaskExecution from './TaskExecution';
 import TechRequestModal from '../../components/TechRequestModal';
+import ManualExecutionForm from '../../components/ManualExecutionForm';
 
 const OtiStatusBadge = ({ status }: { status: string }) => {
   const configs: Record<string, { label: string, bg: string, color: string }> = {
@@ -30,8 +31,9 @@ const OtiStatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function MyTasks() {
-  const { getOTMsForCurrentUser, getOTIsForCurrentUser, updateOTIStatus, getTechRequestsForCurrentUser } = useOTM();
+  const { getOTMsForCurrentUser, getOTIsForCurrentUser, updateOTIStatus, getTechRequestsForCurrentUser, registerManualExecution } = useOTM();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [manualOtmId, setManualOtmId] = useState<string | null>(null);
   const [tab, setTab] = useState<'active' | 'completed' | 'requests'>('active');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
@@ -53,6 +55,23 @@ export default function MyTasks() {
   if (activeTaskId) {
     const otm = otms.find(o => o.id === activeTaskId);
     if (otm) return <TaskExecution otm={otm} onBack={() => setActiveTaskId(null)} />;
+  }
+
+  if (manualOtmId) {
+    const otm = otms.find(o => o.id === manualOtmId);
+    if (otm) {
+      return (
+        <ManualExecutionForm 
+          otm={otm} 
+          role="technician"
+          onSubmit={async (data) => {
+            await registerManualExecution(otm.id, data);
+            setManualOtmId(null);
+          }}
+          onCancel={() => setManualOtmId(null)}
+        />
+      );
+    }
   }
 
   const urgencyColors = { high: '#f43f5e', medium: '#f97316', low: '#10b981' };
@@ -232,7 +251,23 @@ export default function MyTasks() {
                           </div>
                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 6 }}>{otm.description.slice(0, 100)}{otm.description.length > 100 ? '...' : ''}</p>
                         </div>
-                        {tab === 'active' && <span style={{ fontSize: '1.2rem', color: '#0ea5e9', fontWeight: 700 }}>→</span>}
+                        {tab === 'active' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                            <span style={{ fontSize: '1.2rem', color: '#0ea5e9', fontWeight: 700 }}>→</span>
+                            {otm.status === 'scheduled' && (
+                              <button 
+                                className="btn btn-secondary btn-sm" 
+                                style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setManualOtmId(otm.id);
+                                }}
+                              >
+                                Regularizar
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {otm.supervisor_notes && (
                         <div style={{ marginTop: 12, padding: 10, background: 'rgba(139,92,246,0.08)', borderRadius: 8, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>

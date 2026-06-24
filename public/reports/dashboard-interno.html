@@ -1163,6 +1163,7 @@
             <div class="nav-tab active" data-tab="overview">📊 Resumen General</div>
             <div class="nav-tab" data-tab="technicians">👷 Técnicos</div>
             <div class="nav-tab" data-tab="pending">🔴 OTs Pendientes</div>
+            <div class="nav-tab" data-tab="supplies">🔧 Gastos Materiales</div>
             <div class="nav-tab" data-tab="efficiency">⏱️ Eficiencia / SLA</div>
         </div>
 
@@ -1630,6 +1631,94 @@
                 </div>
             </div>
         </div>
+
+        <!-- TAB: Gastos Materiales -->
+        <div class="tab-content" id="tab-supplies">
+            <div class="section-title"><span>💰</span> Reporte de Gastos en Materiales</div>
+
+            <!-- KPIs Grid -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">💸</div>
+                    <div class="kpi-label">Gasto Total Materiales</div>
+                    <div class="kpi-value" style="color: var(--accent-amber)" id="suppliesKpiTotalCost">S/. 0.00</div>
+                    <div class="kpi-sub" id="suppliesKpiTotalCostSub">Consumo acumulado</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📦</div>
+                    <div class="kpi-label">Total Suministros Usados</div>
+                    <div class="kpi-value" style="color: var(--accent-blue)" id="suppliesKpiTotalQty">0.00 und</div>
+                    <div class="kpi-sub" id="suppliesKpiTotalQtySub">Cantidad total de unidades</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-label">OTs con Materiales</div>
+                    <div class="kpi-value" style="color: var(--accent-green)" id="suppliesKpiOtCount">0</div>
+                    <div class="kpi-sub" id="suppliesKpiOtCountSub">Órdenes de trabajo</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📊</div>
+                    <div class="kpi-label">Costo Promedio por OT</div>
+                    <div class="kpi-value" style="color: var(--accent-purple)" id="suppliesKpiAvgCost">S/. 0.00</div>
+                    <div class="kpi-sub" id="suppliesKpiAvgCostSub">Por orden con consumos</div>
+                </div>
+            </div>
+
+            <!-- Charts & Lists Row -->
+            <div class="charts-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 28px;">
+                <!-- Chart: Expense by Specialty -->
+                <div class="chart-card">
+                    <h3><span>📈</span> Gasto de Materiales por Especialidad</h3>
+                    <div class="chart-wrapper" style="height: 350px;">
+                        <canvas id="chartSuppliesSpecialty"></canvas>
+                    </div>
+                </div>
+                <!-- List: Top 5 Materials -->
+                <div class="chart-card">
+                    <h3><span>🔥</span> Top 5 Materiales de Mayor Gasto</h3>
+                    <div id="suppliesTopMaterialsList" style="margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Top items injected dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table Card -->
+            <div class="table-card">
+                <div class="table-card-header">
+                    <h3><span>🔎</span> Detalle de Consumo de Materiales</h3>
+                    <div class="no-print" style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="suppliesSearchInput" placeholder="Buscar material o código..." style="background: rgba(15,23,42,0.6); border: 1px solid var(--border-subtle); color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; outline: none; font-family: 'Inter', sans-serif; min-width: 250px;">
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>OTM</th>
+                                <th>Fecha</th>
+                                <th>Supervisor</th>
+                                <th>Especialidad</th>
+                                <th>Material</th>
+                                <th style="text-align: right;">Cantidad</th>
+                                <th style="text-align: right;">P. Unit (S/.)</th>
+                                <th style="text-align: right;">Total (S/.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="suppliesTableBody">
+                            <!-- Rows injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination controls -->
+                <div class="table-card-header" style="border-top: 1px solid var(--border-subtle); border-bottom: none; display: flex; justify-content: space-between; align-items: center; padding: 12px 24px;">
+                    <span id="suppliesTablePaginationInfo" style="font-size: 12px; color: var(--text-secondary);">Mostrando 0 de 0 consumos</span>
+                    <div style="display: flex; gap: 6px;">
+                        <button id="suppliesTableBtnPrev" class="zoom-btn" style="padding: 6px 12px; border-radius: 6px;">Anterior</button>
+                        <button id="suppliesTableBtnNext" class="zoom-btn" style="padding: 6px 12px; border-radius: 6px;">Siguiente</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 </div>
 
@@ -1901,7 +1990,8 @@ function loadOtData() {
                 tiempoMin: Math.round((act.execution_time_hours || 0) * 60),
                 tiempo: act.execution_time_hours ? `${Math.floor(act.execution_time_hours)} h ${Math.round((act.execution_time_hours % 1) * 60)} min` : '',
                 riesgo: descLower.includes('suministro') ? '⚠️ Suministros' : '',
-                responseTimeDays: responseTimeDays
+                responseTimeDays: responseTimeDays,
+                supplies_used: act.supplies_used || null
             };
         });
     } catch (e) {
@@ -2172,6 +2262,7 @@ function updateDashboard() {
     renderTechniciansTab(filteredData);
     renderPendingTab(filteredData);
     renderEfficiencyTab(filteredData);
+    renderSuppliesTab(filteredData);
 }
 
 // RENDER TAB: Resumen General
@@ -3975,6 +4066,172 @@ function renderEfficiencyTab(data) {
     });
 }
 
+// Supplies global state
+let suppliesTableCurrentPage = 1;
+const suppliesTablePageSize = 10;
+let suppliesSearchQuery = '';
+
+function renderSuppliesTab(filteredData) {
+    const allSupplies = [];
+    filteredData.forEach(o => {
+        if (o.supplies_used && Array.isArray(o.supplies_used)) {
+            o.supplies_used.forEach(s => {
+                allSupplies.push({
+                    otmCode: o.id,
+                    fecha: o.fecha,
+                    supervisor: o.supervisor || 'Sin Asignar',
+                    especialidad: o.especialidad || 'Otros',
+                    name: s.name || '',
+                    quantity: s.quantity || 0,
+                    unit: s.unit || '',
+                    unitPrice: s.unitPrice || 0,
+                    totalCost: s.totalCost || 0
+                });
+            });
+        }
+    });
+
+    const totalCost = allSupplies.reduce((sum, s) => sum + s.totalCost, 0);
+    const totalQty = allSupplies.reduce((sum, s) => sum + s.quantity, 0);
+    const uniqueOtms = new Set(allSupplies.map(s => s.otmCode)).size;
+    const avgCostPerOt = uniqueOtms > 0 ? totalCost / uniqueOtms : 0;
+
+    document.getElementById('suppliesKpiTotalCost').textContent = `S/. ${totalCost.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('suppliesKpiTotalQty').textContent = `${totalQty.toFixed(2)} und`;
+    document.getElementById('suppliesKpiOtCount').textContent = uniqueOtms;
+    document.getElementById('suppliesKpiAvgCost').textContent = `S/. ${avgCostPerOt.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const specialtyCosts = {};
+    allSupplies.forEach(s => {
+        specialtyCosts[s.especialidad] = (specialtyCosts[s.especialidad] || 0) + s.totalCost;
+    });
+
+    const specialtyLabels = ['Carpintería', 'Electricidad', 'Gasfitería', 'Albañilería', 'Pintura', 'Otros'];
+    const specialtyData = specialtyLabels.map(lbl => specialtyCosts[lbl] || 0);
+
+    safeCreateChart('chartSuppliesSpecialty', {
+        type: 'bar',
+        data: {
+            labels: specialtyLabels,
+            datasets: [{
+                label: 'Costo de Materiales (S/.)',
+                data: specialtyData,
+                backgroundColor: 'rgba(251, 191, 36, 0.65)',
+                borderColor: '#fbbf24',
+                borderWidth: 1.5,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    color: '#ffffff',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: (val) => val > 0 ? `S/. ${val.toFixed(2)}` : null,
+                    anchor: 'end',
+                    align: 'top',
+                    offset: 4
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grace: '15%',
+                    title: { display: true, text: 'Costo (S/.)', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    const materialSummary = {};
+    allSupplies.forEach(s => {
+        const key = s.name;
+        if (!materialSummary[key]) {
+            materialSummary[key] = { name: s.name, quantity: 0, unit: s.unit, totalCost: 0 };
+        }
+        materialSummary[key].quantity += s.quantity;
+        materialSummary[key].totalCost += s.totalCost;
+    });
+
+    const sortedMaterials = Object.values(materialSummary).sort((a, b) => b.totalCost - a.totalCost).slice(0, 5);
+
+    const topListEl = document.getElementById('suppliesTopMaterialsList');
+    if (topListEl) {
+        if (sortedMaterials.length === 0) {
+            topListEl.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">
+                    No hay consumos de materiales registrados en este período.
+                </div>
+            `;
+        } else {
+            topListEl.innerHTML = sortedMaterials.map((item, index) => `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); transition: all 0.2s;">
+                    <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 70%;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis;" title="${item.name}">${index + 1}. ${item.name}</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">${item.quantity.toFixed(2)} ${item.unit} usados</span>
+                    </div>
+                    <span style="font-size: 14px; font-weight: 800; color: var(--accent-amber); white-space: nowrap;">S/. ${item.totalCost.toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    const query = (suppliesSearchQuery || '').toLowerCase();
+    const searchedSupplies = allSupplies.filter(s => 
+        s.name.toLowerCase().includes(query) || 
+        s.otmCode.toLowerCase().includes(query)
+    );
+
+    const totalRecords = searchedSupplies.length;
+    const totalPages = Math.ceil(totalRecords / suppliesTablePageSize) || 1;
+    if (suppliesTableCurrentPage > totalPages) suppliesTableCurrentPage = totalPages;
+
+    const startIndex = (suppliesTableCurrentPage - 1) * suppliesTablePageSize;
+    const endIndex = Math.min(startIndex + suppliesTablePageSize, totalRecords);
+    const paginatedSupplies = searchedSupplies.slice(startIndex, endIndex);
+
+    const tableBodyEl = document.getElementById('suppliesTableBody');
+    if (tableBodyEl) {
+        if (paginatedSupplies.length === 0) {
+            tableBodyEl.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        No se encontraron registros de consumos.
+                    </td>
+                </tr>
+            `;
+        } else {
+            tableBodyEl.innerHTML = paginatedSupplies.map(s => `
+                <tr>
+                    <td><strong style="color: var(--text-primary); font-size:12px;">${s.otmCode}</strong></td>
+                    <td>${s.fecha}</td>
+                    <td>${s.supervisor}</td>
+                    <td><span class="badge badge-blue">${s.especialidad}</span></td>
+                    <td style="color: var(--text-primary); font-weight: 500;">${s.name}</td>
+                    <td style="text-align: right; font-weight: 600;">${s.quantity.toFixed(2)} ${s.unit}</td>
+                    <td style="text-align: right; color: var(--text-muted);">S/. ${s.unitPrice.toFixed(2)}</td>
+                    <td style="text-align: right; font-weight: 700; color: var(--accent-amber);">S/. ${s.totalCost.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    const pageInfoEl = document.getElementById('suppliesTablePaginationInfo');
+    if (pageInfoEl) {
+        pageInfoEl.textContent = totalRecords > 0 
+            ? `Mostrando ${startIndex + 1} - ${endIndex} de ${totalRecords} consumos` 
+            : 'Mostrando 0 de 0 consumos';
+    }
+
+    document.getElementById('suppliesTableBtnPrev').disabled = suppliesTableCurrentPage === 1;
+    document.getElementById('suppliesTableBtnNext').disabled = suppliesTableCurrentPage === totalPages;
+}
+
 // ========================== NAVIGATION & FILTERS LISTENERS ==========================
 document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -3984,6 +4241,54 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
         document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
     });
 });
+
+// Supplies Table Search & Pagination Listeners
+const searchInput = document.getElementById('suppliesSearchInput');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        suppliesSearchQuery = e.target.value;
+        suppliesTableCurrentPage = 1;
+        renderSuppliesTab(applyGlobalFilters(otData));
+    });
+}
+
+const btnPrev = document.getElementById('suppliesTableBtnPrev');
+if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+        if (suppliesTableCurrentPage > 1) {
+            suppliesTableCurrentPage--;
+            renderSuppliesTab(applyGlobalFilters(otData));
+        }
+    });
+}
+
+const btnNext = document.getElementById('suppliesTableBtnNext');
+if (btnNext) {
+    btnNext.addEventListener('click', () => {
+        const allSupplies = [];
+        applyGlobalFilters(otData).forEach(o => {
+            if (o.supplies_used && Array.isArray(o.supplies_used)) {
+                o.supplies_used.forEach(s => {
+                    allSupplies.push({
+                        otmCode: o.id,
+                        name: s.name || ''
+                    });
+                });
+            }
+        });
+        const query = (suppliesSearchQuery || '').toLowerCase();
+        const searchedSupplies = allSupplies.filter(s => 
+            s.name.toLowerCase().includes(query) || 
+            s.otmCode.toLowerCase().includes(query)
+        );
+        const totalPages = Math.ceil(searchedSupplies.length / suppliesTablePageSize) || 1;
+        if (suppliesTableCurrentPage < totalPages) {
+            suppliesTableCurrentPage++;
+            renderSuppliesTab(applyGlobalFilters(otData));
+        }
+    });
+}
+
 
 // Global Date Range filters
 document.querySelectorAll('#globalDateFilters .filter-btn').forEach(btn => {

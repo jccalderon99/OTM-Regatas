@@ -79,7 +79,8 @@ export default function Reports() {
         rating: o.conformity_rating || 0,
         urgency: getOTMUrgency(o.urgency),
         assignment_type: o.assignment_type || 'own',
-        cancellation_reason: o.cancellation_reason || null
+        cancellation_reason: o.cancellation_reason || null,
+        supplies_used: o.supplies_used || null
       };
     });
 

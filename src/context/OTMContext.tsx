@@ -44,7 +44,8 @@ interface OTMContextType {
   startTechnicianWork: (otmId: string) => void;
   pauseTechnicianWork: (otmId: string) => void;
   resumeTechnicianWork: (otmId: string) => void;
-  finishTechnicianWork: (otmId: string, notes: string, photos: { file_url: string, file_name: string }[]) => void;
+  finishTechnicianWork: (otmId: string, notes: string, photos: { file_url: string, file_name: string }[], supplies_used?: import('../types').SupplyUsed[]) => void;
+  registerManualExecution: (otmId: string, data: { job_start_time: string; job_end_time: string; technician_notes: string; supplies_used: import('../types').SupplyUsed[]; photos: { file_url: string; file_name: string }[] }) => void;
   approveWork: (otmId: string, notes?: string, start_time?: string, end_time?: string) => void;
   submitConformity: (otmId: string, rating: number, notes: string, signatureUrl?: string | null) => void;
   refreshOTMs: () => void;
@@ -705,7 +706,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
     addLog(otmId, otm.status, otm.status, 'Técnico retomó el trabajo (En Ejecución)');
   }, [otms, isLive, user]);
 
-  const finishTechnicianWork = useCallback(async (otmId: string, notes: string, photos: { file_url: string, file_name: string }[]) => {
+  const finishTechnicianWork = useCallback(async (otmId: string, notes: string, photos: { file_url: string, file_name: string }[], supplies_used?: import('../types').SupplyUsed[]) => {
     const otm = otms.find(o => o.id === otmId);
     if (!otm) return;
     if (isLive && photos.length > 0) {
@@ -727,6 +728,10 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       net_execution_time: netTime
     };
 
+    if (supplies_used && supplies_used.length > 0) {
+      fields.supplies_used = supplies_used;
+    }
+
     if (!isLive) {
       const newAttachments = photos.map((p, i) => ({
         id: `att-tech-${Date.now()}-${i}`, otm_id: otmId, uploaded_by: user!.id,
@@ -742,6 +747,57 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       patchOTM(otmId, fields);
     }
     addLog(otmId, otm.status, 'awaiting_supervisor', 'Trabajo finalizado por técnico, esperando visto bueno');
+  }, [otms, user, isLive]);
+
+  const registerManualExecution = useCallback(async (otmId: string, data: { job_start_time: string; job_end_time: string; technician_notes: string; supplies_used: import('../types').SupplyUsed[]; photos: { file_url: string; file_name: string }[] }) => {
+    const otm = otms.find(o => o.id === otmId);
+    if (!otm || !user) return;
+
+    if (isLive && data.photos.length > 0) {
+      const atts = data.photos.map(p => ({
+        otm_id: otmId, uploaded_by: user.id,
+        file_url: p.file_url, file_name: p.file_name,
+        file_type: 'other', phase: 'execution',
+      }));
+      await supabase.from('otm_attachments').insert(atts);
+    }
+
+    const netTime = calculateNetTime(data.job_start_time, data.job_end_time, []);
+    // Si es supervisor y la está registrando él mismo, que pase a awaiting_conformity
+    const nextStatus: OTMStatus = (user.role === 'supervisor' || user.role === 'admin') ? 'awaiting_conformity' : 'awaiting_supervisor';
+
+    const fields: any = {
+      technician_notes: data.technician_notes,
+      status: nextStatus,
+      job_start_time: data.job_start_time,
+      job_end_time: data.job_end_time,
+      net_execution_time: netTime
+    };
+
+    if (data.supplies_used && data.supplies_used.length > 0) {
+      fields.supplies_used = data.supplies_used;
+    }
+
+    if (!isLive) {
+      const newAttachments = data.photos.map((p, i) => ({
+        id: `att-tech-${Date.now()}-${i}`, otm_id: otmId, uploaded_by: user.id,
+        file_url: p.file_url, file_name: p.file_name,
+        file_type: 'other' as const, phase: 'execution' as const,
+        created_at: new Date().toISOString(),
+      }));
+      setOTMs(prev => prev.map(o => o.id !== otmId ? o : {
+        ...o, ...fields, attachments: [...(o.attachments || []), ...newAttachments],
+        updated_at: new Date().toISOString(),
+      }));
+    } else {
+      patchOTM(otmId, fields);
+    }
+
+    const logMessage = user.role === 'supervisor' || user.role === 'admin' 
+      ? 'Regularización: Trabajo registrado y validado por supervisor'
+      : 'Regularización: Trabajo registrado manualmente por técnico';
+      
+    addLog(otmId, otm.status, nextStatus, logMessage);
   }, [otms, user, isLive]);
 
   const approveWork = useCallback((otmId: string, notes?: string, start_time?: string, end_time?: string) => {
@@ -1037,7 +1093,7 @@ export function OTMProvider({ children }: { children: ReactNode }) {
       otms, statusLogs, getOTMsForCurrentUser, getOTMById,
       createOTM, updateOTMStatus, assignOTM, assignSupervisor, assignContractor,
       createRQ, cancelOTM, updateOTMFields,
-      startTechnicianWork, pauseTechnicianWork, resumeTechnicianWork, finishTechnicianWork, approveWork, submitConformity, refreshOTMs,
+      startTechnicianWork, pauseTechnicianWork, resumeTechnicianWork, finishTechnicianWork, registerManualExecution, approveWork, submitConformity, refreshOTMs,
       users, supervisors, addUser, updateUser,
       areas, addArea, updateArea,
       specialties, addSpecialty, updateSpecialty,

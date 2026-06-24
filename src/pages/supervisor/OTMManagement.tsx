@@ -3,8 +3,9 @@ import { useOTM } from '../../context/OTMContext';
 import { useAuth } from '../../context/AuthContext';
 import { useRQ } from '../../context/RQContext';
 import StatusBadge from '../../components/StatusBadge';
-import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS, RQ_STATUS_LABELS, AREAS } from '../../types';
+import { OTMRequest, OTMStatus, Urgency, URGENCY_LABELS, STATUS_LABELS, CANCELLATION_LABELS, MAINTENANCE_LABELS, RQ_STATUS_LABELS, AREAS, FAILURE_TYPES } from '../../types';
 import ConformityActa from '../../components/ConformityActa';
+import ManualExecutionForm from '../../components/ManualExecutionForm';
 
 type ManageAction = 'none' | 'assign' | 'rq' | 'cancel' | 'derive';
 type AssignSubAction = 'none' | 'own' | 'contractor';
@@ -15,7 +16,7 @@ interface OTMManagementProps {
 }
 
 export default function OTMManagement({ onNavigate }: OTMManagementProps) {
-  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs, deriveOTM, addOTMComment, markAsRead, isOTMUnread } = useOTM();
+  const { otms, assignOTM, assignContractor, assignSupervisor, createRQ, cancelOTM, updateOTMFields, approveWork, users, supervisors, statusLogs, deriveOTM, addOTMComment, markAsRead, isOTMUnread, registerManualExecution } = useOTM();
   const { user } = useAuth();
   const { createRQRecord, getRQByOtmId } = useRQ();
   const [statusFilter, setStatusFilter] = useState<OTMStatus | ''>('');
@@ -35,6 +36,7 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
   const [action, setAction] = useState<ManageAction>('none');
   const [assignSub, setAssignSub] = useState<AssignSubAction>('none');
   const [rqSub, setRQSub] = useState<RQSubAction>('none');
+  const [showManualForm, setShowManualForm] = useState(false);
 
   // Assign own fields
   const [assignTech, setAssignTech] = useState('');
@@ -180,6 +182,7 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
     setDeriveArea('');
     setDeriveNotes('');
     setNewCommentText('');
+    setShowManualForm(false);
   };
 
   useEffect(() => {
@@ -410,12 +413,25 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
               {new Date(otm.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
             </td>
             <td style={{ fontSize: '0.85rem' }}>{otm.requester_name}</td>
-            <td style={{ fontSize: '0.8rem' }}>{otm.failure_type}</td>
-            <td title={URGENCY_LABELS[otm.urgency]}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {otm.urgency === 'high' ? 'Alta' : otm.urgency === 'medium' ? 'Media' : 'Baja'}
-                <span style={{ fontSize: '1.2rem' }}>{urgencyIcons[otm.urgency] || '❓'}</span>
-              </span>
+            <td>
+              <select className="form-select" style={{ fontSize: '0.75rem', padding: '4px 8px', minWidth: 155 }}
+                value={otm.failure_type}
+                onChange={e => updateOTMFields(otm.id, { failure_type: e.target.value })}>
+                {FAILURE_TYPES.map(ft => (
+                  <option key={ft} value={ft}>{ft}</option>
+                ))}
+              </select>
+            </td>
+            <td>
+              <select className="form-select" style={{ fontSize: '0.75rem', padding: '4px 8px', minWidth: 155, fontWeight: 600 }}
+                value={otm.urgency}
+                onChange={e => updateOTMFields(otm.id, { urgency: e.target.value as Urgency })}>
+                {Object.entries(URGENCY_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v} {k === 'high' ? '💥' : k === 'medium' ? '👷' : '🛠️'}
+                  </option>
+                ))}
+              </select>
             </td>
             <td><StatusBadge status={otm.status} /></td>
             <td>
@@ -1006,9 +1022,27 @@ export default function OTMManagement({ onNavigate }: OTMManagementProps) {
                           )}
                         </div>
                       ) : (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          Esperando que el técnico inicie o finalice las labores.
-                        </div>
+                        showManualForm ? (
+                          <ManualExecutionForm 
+                            otm={manageOTM}
+                            role="supervisor"
+                            onSubmit={async (data) => {
+                              await registerManualExecution(manageOTM.id, data);
+                              setShowManualForm(false);
+                              setManageOTM(null); // or refresh data
+                            }}
+                            onCancel={() => setShowManualForm(false)}
+                          />
+                        ) : (
+                          <div className="flex-col gap-3">
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              Esperando que el técnico inicie o finalice las labores.
+                            </div>
+                            <button className="btn btn-secondary w-full" onClick={() => setShowManualForm(true)}>
+                              ✏️ Completar Datos (Regularizar)
+                            </button>
+                          </div>
+                        )
                       )}
                     </div>
                   ) : (

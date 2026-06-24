@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useOTM } from '../../context/OTMContext';
 import { Urgency, URGENCY_LABELS } from '../../types';
@@ -39,6 +39,30 @@ export default function NewOTM({ onCreated }: { onCreated?: () => void }) {
     }
     return 0;
   });
+
+  useEffect(() => {
+    const handlePrefill = () => {
+      const saved = sessionStorage.getItem('crl_ai_prefill_otm');
+      if (saved) {
+        sessionStorage.removeItem('crl_ai_prefill_otm');
+        try {
+          const parsed = JSON.parse(saved);
+          setForm(f => ({ ...INITIAL, area_sector: user?.area_sector || '', ...parsed }));
+        } catch (e) {
+          console.error('Error parsing prefill data:', e);
+        }
+      }
+      const savedStep = sessionStorage.getItem('crl_ai_prefill_step');
+      if (savedStep) {
+        sessionStorage.removeItem('crl_ai_prefill_step');
+        setStep(Number(savedStep));
+      }
+    };
+
+    window.addEventListener('navigate_from_ai', handlePrefill);
+    return () => window.removeEventListener('navigate_from_ai', handlePrefill);
+  }, [user]);
+
   const [submitted, setSubmitted] = useState(false);
   const [createdCode, setCreatedCode] = useState('');
   const [uploading, setUploading] = useState(false);

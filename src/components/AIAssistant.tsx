@@ -632,7 +632,7 @@ PASO 1 (RECOPILACIÓN): Si el usuario pide reportar una falla, pregúntale los d
 PASO 2 (VALIDACIÓN): Cuando tengas TODOS los datos, debes mostrar un resumen breve y preguntar EXPRESAMENTE: "Listo, ¿ahora cargo su OT?".
 
 PASO 3 (EJECUCIÓN): SÓLO si el usuario responde afirmativamente (ej. "sí", "correcto", "dale"), ejecutarás el comando de creación añadiendo al final de tu mensaje:
-[ACCION: createOTM(area='Área', location='Ubicación', description='Descripción', specialty='Especialidad', priority='Alto|Medio|Bajo')]
+[ACCION: createOTM(area='Área', location='Ubicación', exact_location='Ubicación exacta', description='Descripción', specialty='Especialidad', priority='Alto|Medio|Bajo')]
 
 2. Asignar OTM (solo si el usuario tiene rol 'supervisor' o 'admin'):
 [ACCION: assignOTM(otmId='Código OTM', technicianIds=['ID_TECNICO'], scheduledDate='YYYY-MM-DD', estimatedTime=2)]
@@ -686,7 +686,7 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
           try {
             sessionStorage.setItem('crl_ai_prefill_otm', JSON.stringify({
               location: args.location || '',
-              exact_location: 'Vía Asistente IA',
+              exact_location: args.exact_location || args.exactLocation || '',
               description: args.description || '',
               failure_type: args.specialty || '',
               urgency: args.priority?.toLowerCase() === 'alto' ? 'high' : args.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'
@@ -936,7 +936,7 @@ ${localStorage.getItem('crl_ai_custom_rules')}
           try {
             sessionStorage.setItem('crl_ai_prefill_otm', JSON.stringify({
               location: typedArgs.location || '',
-              exact_location: typedArgs.exactLocation || 'Vía Asistente IA',
+              exact_location: typedArgs.exactLocation || typedArgs.exact_location || '',
               description: typedArgs.description || '',
               failure_type: typedArgs.specialty || '',
               urgency: typedArgs.priority?.toLowerCase() === 'alto' ? 'high' : typedArgs.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'

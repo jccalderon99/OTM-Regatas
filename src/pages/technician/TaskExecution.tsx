@@ -3,11 +3,14 @@ import { OTMRequest, URGENCY_LABELS, MAINTENANCE_LABELS } from '../../types';
 import { useOTM } from '../../context/OTMContext';
 import StatusBadge from '../../components/StatusBadge';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import { SupplyUsed } from '../../types';
+import SupplySelector from '../../components/SupplySelector';
 import TechRequestModal from '../../components/TechRequestModal';
 
 export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack: () => void }) {
   const { startTechnicianWork, pauseTechnicianWork, resumeTechnicianWork, finishTechnicianWork } = useOTM();
   const [notes, setNotes] = useState(otm.technician_notes || '');
+  const [supplies, setSupplies] = useState<SupplyUsed[]>([]);
   const [photos, setPhotos] = useState<{ name: string; type: string; url: string; file?: File }[]>([]);
   const [completing, setCompleting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -51,7 +54,7 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
           return { file_url: p.url, file_name: p.name };
         })
       );
-      await finishTechnicianWork(otm.id, notes, uploaded);
+      await finishTechnicianWork(otm.id, notes, uploaded, supplies);
       setCompleting(true);
     } catch (err) {
       console.error('Error al completar:', err);
@@ -143,13 +146,16 @@ export default function TaskExecution({ otm, onBack }: { otm: OTMRequest; onBack
             <textarea className="form-textarea" placeholder="Describe el trabajo realizado, piezas reemplazadas, observaciones..." value={notes} onChange={e => setNotes(e.target.value)} style={{ minHeight: 120 }} />
           </div>
 
+          {/* Suministros Usados */}
+          <SupplySelector supplies={supplies} onChange={setSupplies} />
+
           {/* Photos */}
           <div className="glass-card" style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12 }}>📷 Fotografías</h3>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 12 }}>📷 Fotografías (Evidencia del Trabajo Realizado)</h3>
             <label className="file-drop-zone" style={{ display: 'block' }}>
               <input type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: 'none' }} />
               <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Click para subir fotos (antes/después)</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Click para subir fotos del trabajo finalizado (Opcional)</div>
             </label>
             {photos.length > 0 && (
               <div className="file-preview-grid">

@@ -195,8 +195,8 @@ function MultiSelectDropdown({ label, options, selectedValues, onChange, placeho
 }
 
 export default function BudgetDashboard() {
-  const { opexBudget, capexBudget, preventivePlan } = useOTM();
-  const [activeTab, setActiveTab] = useState<'overview' | 'opex' | 'capex'>('overview');
+  const { opexBudget, capexBudget, preventivePlan, otms, users } = useOTM();
+  const [activeTab, setActiveTab] = useState<'overview' | 'opex' | 'capex' | 'supplies'>('overview');
   
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -205,6 +205,8 @@ export default function BudgetDashboard() {
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [opexPage, setOpexPage] = useState(1);
   const [capexPage, setCapexPage] = useState(1);
+  const [suppliesPage, setSuppliesPage] = useState(1);
+  const [selectedSpecialtyFilter, setSelectedSpecialtyFilter] = useState('');
   
   const ITEMS_PER_PAGE = 15;
 
@@ -274,6 +276,137 @@ export default function BudgetDashboard() {
   const totalProjected = useMemo(() => {
     return filteredPreventive.reduce((sum, item) => sum + (item.presupuesto_proyectado || 0), 0);
   }, [filteredPreventive]);
+
+  // --- MATERIAL EXPENSES LOGIC & KPIs ---
+  const allSupplies = useMemo(() => {
+    const list: Array<{
+      id: string;
+      otmId: string;
+      otmCode: string;
+      description: string;
+      specialty: string;
+      location: string;
+      area: string;
+      date: string;
+      itemCode: string | number;
+      name: string;
+      unit: string;
+      unitPrice: number;
+      quantity: number;
+      totalCost: number;
+      technicianName: string;
+    }> = [];
+
+    otms.forEach(otm => {
+      if (otm.supplies_used && otm.supplies_used.length > 0) {
+        otm.supplies_used.forEach((s, idx) => {
+          let techName = 'Sin Asignar';
+          if (otm.technician) {
+            techName = otm.technician.full_name;
+          } else if (otm.technician_id) {
+            const u = users.find(x => x.id === otm.technician_id);
+            techName = u ? u.full_name : 'Técnico';
+          }
+
+          // Format clean specialty name
+          let cleanSpec = 'Otros';
+          const fVal = (otm.failure_type || '').toLowerCase();
+          if (fVal.includes('electric') || fVal.includes('03.')) cleanSpec = 'Electricidad';
+          else if (fVal.includes('carpinter') || fVal.includes('04.')) cleanSpec = 'Carpintería';
+          else if (fVal.includes('gasfiter') || fVal.includes('06.')) cleanSpec = 'Gasfitería';
+          else if (fVal.includes('albañil') || fVal.includes('07.')) cleanSpec = 'Albañilería';
+          else if (fVal.includes('pint') || fVal.includes('08.')) cleanSpec = 'Pintura';
+          else if (fVal.includes('jardin') || fVal.includes('05.')) cleanSpec = 'Jardinería';
+          else if (fVal.includes('pisc') || fVal.includes('02.')) cleanSpec = 'Piscina';
+          else if (fVal.includes('calder') || fVal.includes('01.')) cleanSpec = 'Calderos';
+
+          list.push({
+            id: `${otm.id}-supply-${idx}`,
+            otmId: otm.id,
+            otmCode: otm.otm_code,
+            description: otm.description,
+            specialty: cleanSpec,
+            location: otm.location ? otm.location.replace(/^\d+\.\s*/, "") : 'General',
+            area: otm.area_sector || '',
+            date: otm.job_end_time ? otm.job_end_time.slice(0, 10) : otm.created_at.slice(0, 10),
+            itemCode: s.itemCode || '—',
+            name: s.name,
+            unit: s.unit,
+            unitPrice: s.unitPrice || 0,
+            quantity: s.quantity,
+            totalCost: s.totalCost || ((s.unitPrice || 0) * s.quantity),
+            technicianName: techName,
+          });
+        });
+      }
+    });
+    return list;
+  }, [otms, users]);
+
+  // Filter supplies list
+  const filteredSupplies = useMemo(() => {
+    return allSupplies.filter(item => {
+      const matchSearch = searchTerm === '' || 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        item.otmCode.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        item.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const otmMonth = item.date.slice(0, 7); // e.g. "2026-05"
+      const matchPeriod = selectedPeriod === '' || otmMonth === selectedPeriod;
+      
+      const matchArea = selectedAreas.length === 0 || selectedAreas.includes(item.area);
+      const matchSpecialty = selectedSpecialtyFilter === '' || item.specialty === selectedSpecialtyFilter;
+
+      return matchSearch && matchPeriod && matchArea && matchSpecialty;
+    });
+  }, [allSupplies, searchTerm, selectedPeriod, selectedAreas, selectedSpecialtyFilter]);
+
+  // KPIs
+  const suppliesTotalCost = useMemo(() => filteredSupplies.reduce((sum, s) => sum + s.totalCost, 0), [filteredSupplies]);
+  const suppliesTotalQuantity = useMemo(() => filteredSupplies.reduce((sum, s) => sum + s.quantity, 0), [filteredSupplies]);
+  const suppliesUniqueOtmsCount = useMemo(() => {
+    const set = new Set(filteredSupplies.map(s => s.otmId));
+    return set.size;
+  }, [filteredSupplies]);
+  const suppliesAvgCostPerOtm = useMemo(() => {
+    return suppliesUniqueOtmsCount > 0 ? (suppliesTotalCost / suppliesUniqueOtmsCount) : 0;
+  }, [suppliesTotalCost, suppliesUniqueOtmsCount]);
+
+  // Specialty breakdown for supplies chart
+  const suppliesSpecialtyBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredSupplies.forEach(s => {
+      map[s.specialty] = (map[s.specialty] || 0) + s.totalCost;
+    });
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredSupplies]);
+
+  // Top 5 materials used
+  const suppliesTopMaterials = useMemo(() => {
+    const map: Record<string, { totalCost: number; quantity: number; unit: string }> = {};
+    filteredSupplies.forEach(s => {
+      if (!map[s.name]) {
+        map[s.name] = { totalCost: 0, quantity: 0, unit: s.unit };
+      }
+      map[s.name].totalCost += s.totalCost;
+      map[s.name].quantity += s.quantity;
+    });
+    return Object.entries(map)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, 5);
+  }, [filteredSupplies]);
+
+  // Paginated supplies
+  const paginatedSupplies = useMemo(() => {
+    const start = (suppliesPage - 1) * ITEMS_PER_PAGE;
+    return filteredSupplies.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredSupplies, suppliesPage]);
+
+  const suppliesTotalPages = Math.ceil(filteredSupplies.length / ITEMS_PER_PAGE) || 1;
+
 
   // Unique Filter Values
   const periods = useMemo(() => {
@@ -418,9 +551,14 @@ export default function BudgetDashboard() {
           <label className="form-label" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Búsqueda General</label>
           <input 
             className="form-input" 
-            placeholder="Buscar por concepto, artículo o cuenta..." 
+            placeholder={activeTab === 'supplies' ? "Buscar por material, código o OTM..." : "Buscar por concepto, artículo o cuenta..."} 
             value={searchTerm} 
-            onChange={e => { setSearchTerm(e.target.value); setOpexPage(1); setCapexPage(1); }} 
+            onChange={e => { 
+              setSearchTerm(e.target.value); 
+              setOpexPage(1); 
+              setCapexPage(1); 
+              setSuppliesPage(1);
+            }} 
           />
         </div>
 
@@ -429,34 +567,61 @@ export default function BudgetDashboard() {
           <select 
             className="form-select" 
             value={selectedPeriod} 
-            onChange={e => { setSelectedPeriod(e.target.value); setOpexPage(1); setCapexPage(1); }}
+            onChange={e => { 
+              setSelectedPeriod(e.target.value); 
+              setOpexPage(1); 
+              setCapexPage(1); 
+              setSuppliesPage(1);
+            }}
           >
-            <option value="">Todos los Meses</option>
+            <option value="">{activeTab === 'supplies' ? "Todos los meses" : "Todos los Meses"}</option>
             {periods.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
 
-        <MultiSelectDropdown 
-          label="Centro de Costo"
-          options={costCenters}
-          selectedValues={selectedCostCenters}
-          onChange={vals => { setSelectedCostCenters(vals); setOpexPage(1); setCapexPage(1); }}
-          placeholder="Todos los Centros"
-        />
+        {activeTab === 'supplies' ? (
+          <div style={{ minWidth: 160 }}>
+            <label className="form-label" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Especialidad</label>
+            <select
+              className="form-select"
+              value={selectedSpecialtyFilter}
+              onChange={e => { setSelectedSpecialtyFilter(e.target.value); setSuppliesPage(1); }}
+            >
+              <option value="">Todas las especialidades</option>
+              {['Electricidad', 'Pintura', 'Gasfitería', 'Carpintería', 'Albañilería', 'Otros'].map(esp => (
+                <option key={esp} value={esp}>{esp}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <MultiSelectDropdown 
+            label="Centro de Costo"
+            options={costCenters}
+            selectedValues={selectedCostCenters}
+            onChange={vals => { setSelectedCostCenters(vals); setOpexPage(1); setCapexPage(1); }}
+            placeholder="Todos los Centros"
+          />
+        )}
 
         <MultiSelectDropdown 
           label="Area"
           options={budgetAreas}
           selectedValues={selectedAreas}
-          onChange={vals => { setSelectedAreas(vals); setOpexPage(1); setCapexPage(1); }}
+          onChange={vals => { setSelectedAreas(vals); setOpexPage(1); setCapexPage(1); setSuppliesPage(1); }}
           placeholder="Todas las Áreas"
         />
 
-        {(searchTerm || selectedPeriod || selectedCostCenters.length > 0 || selectedAreas.length > 0) && (
+        {(searchTerm || selectedPeriod || selectedCostCenters.length > 0 || selectedAreas.length > 0 || selectedSpecialtyFilter) && (
           <button 
             className="btn btn-secondary" 
             style={{ alignSelf: 'flex-end', height: 38, padding: '0 16px' }}
-            onClick={() => { setSearchTerm(''); setSelectedPeriod(''); setSelectedCostCenters([]); setSelectedAreas([]); }}
+            onClick={() => { 
+              setSearchTerm(''); 
+              setSelectedPeriod(''); 
+              setSelectedCostCenters([]); 
+              setSelectedAreas([]); 
+              setSelectedSpecialtyFilter('');
+            }}
           >
             Limpiar Filtros
           </button>
@@ -464,9 +629,10 @@ export default function BudgetDashboard() {
       </div>
 
       {/* TAB NAVIGATION */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 12, overflowX: 'auto' }}>
         {[
           { id: 'overview', label: '📊 Resumen General', desc: 'Distribución y gráficos' },
+          { id: 'supplies', label: '🛠️ Gastos de Materiales', desc: `S/ ${suppliesTotalCost.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} en materiales` },
           { id: 'opex', label: '⚙️ OPEX (Data Operativa)', desc: `${filteredOpex.length} partidas filtradas` },
           { id: 'capex', label: '🧱 CAPEX (Data Inversión)', desc: `${filteredCapex.length} partidas filtradas` }
         ].map(tab => (
@@ -482,7 +648,8 @@ export default function BudgetDashboard() {
               cursor: 'pointer',
               fontWeight: activeTab === tab.id ? 700 : 500,
               textAlign: 'left',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
             }}
           >
             <div style={{ fontSize: '0.85rem' }}>{tab.label}</div>
@@ -723,6 +890,239 @@ export default function BudgetDashboard() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB CONTENT: SUPPLIES */}
+      {activeTab === 'supplies' && (
+        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* SUPPLIES KPI CARDS */}
+          <div className="kpi-grid" style={{ gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <div className="glass-card hover-glow" style={{ '--kpi-color': 'var(--accent-purple)', borderLeft: '4px solid var(--accent-purple)', padding: '12px 16px' } as any}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Costo Total Suministros Usados</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>{formatSoles(suppliesTotalCost)}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>En OTMs finalizadas/cerradas</div>
+                </div>
+                <span style={{ fontSize: '1.4rem' }}>🔧</span>
+              </div>
+            </div>
+
+            <div className="glass-card hover-glow" style={{ '--kpi-color': 'var(--accent-blue)', borderLeft: '4px solid var(--accent-blue)', padding: '12px 16px' } as any}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Cantidad de Materiales Usados</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: 4, color: 'var(--accent-blue)' }}>{suppliesTotalQuantity.toFixed(1)}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>Suma de todas las unidades</div>
+                </div>
+                <span style={{ fontSize: '1.4rem' }}>📦</span>
+              </div>
+            </div>
+
+            <div className="glass-card hover-glow" style={{ '--kpi-color': '#06b6d4', borderLeft: '4px solid #06b6d4', padding: '12px 16px' } as any}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Costo Promedio por OTM</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: 4, color: '#06b6d4' }}>{formatSoles(suppliesAvgCostPerOtm)}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>De OTMs con materiales</div>
+                </div>
+                <span style={{ fontSize: '1.4rem' }}>📈</span>
+              </div>
+            </div>
+
+            <div className="glass-card hover-glow" style={{ '--kpi-color': 'var(--accent-green)', borderLeft: '4px solid var(--accent-green)', padding: '12px 16px' } as any}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>OTMs con Materiales Registrados</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: 4, color: 'var(--accent-green)' }}>{suppliesUniqueOtmsCount}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>Ordenes de Trabajo</div>
+                </div>
+                <span style={{ fontSize: '1.4rem' }}>📋</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SUPPLIES CHARTS SECTION */}
+          <div className="grid-2">
+            {/* SPECIALTY EXPENSES BAR CHART */}
+            <div className="glass-card hover-glow" style={{ padding: 24, display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 4 }}>Gastos en Materiales por Especialidad</h3>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 20 }}>Distribución del costo de suministros consumidos por cada rama técnica</p>
+              
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 180, justifyContent: 'center' }}>
+                {suppliesSpecialtyBreakdown.length > 0 ? (
+                  suppliesSpecialtyBreakdown.map((sb, idx) => {
+                    const maxVal = Math.max(...suppliesSpecialtyBreakdown.map(x => x.value), 1);
+                    const percentWidth = (sb.value / maxVal) * 100;
+                    const colors = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899'];
+                    const barColor = colors[idx % colors.length];
+
+                    return (
+                      <div key={sb.name} style={{ fontSize: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontWeight: 600 }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>{sb.name}</span>
+                          <span style={{ color: 'var(--text-primary)' }}>{formatSoles(sb.value)}</span>
+                        </div>
+                        <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div 
+                            style={{ 
+                              width: `${percentWidth}%`, 
+                              height: '100%', 
+                              background: barColor, 
+                              borderRadius: 4,
+                              transition: 'width 0.5s ease-out'
+                            }} 
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                    No hay datos de especialidades con los filtros seleccionados.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* TOP 5 MOST COSTLY MATERIALS */}
+            <div className="glass-card hover-glow" style={{ padding: 24 }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 4 }}>Top 5 Materiales de Mayor Gasto</h3>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 20 }}>Suministros del almacén que representan el mayor desembolso económico</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {suppliesTopMaterials.length > 0 ? (
+                  suppliesTopMaterials.map((m, idx) => (
+                    <div 
+                      key={m.name} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 12, 
+                        padding: '10px 14px', 
+                        background: 'rgba(255,255,255,0.02)', 
+                        border: '1px solid var(--border)', 
+                        borderRadius: 8 
+                      }}
+                    >
+                      <div 
+                        style={{ 
+                          width: 24, 
+                          height: 24, 
+                          borderRadius: '50%', 
+                          background: 'rgba(139, 92, 246, 0.15)', 
+                          color: '#8b5cf6', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontSize: '0.8rem', 
+                          fontWeight: 700 
+                        }}
+                      >
+                        {idx + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={m.name}>
+                          {m.name}
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                          Consumo: {m.quantity.toFixed(1)} {m.unit}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#8b5cf6', textAlign: 'right' }}>
+                        {formatSoles(m.totalCost)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+                    No hay registros de suministros.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* DETAILED LOGS TABLE */}
+          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Detalle de Consumos de Materiales en OTMs</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mostrando {filteredSupplies.length} registros</span>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', background: 'rgba(255,255,255,0.02)' }}>
+                    <th style={{ padding: '12px 16px' }}>Código OTM</th>
+                    <th style={{ padding: '12px 16px' }}>Fecha</th>
+                    <th style={{ padding: '12px 16px' }}>Cod. Item</th>
+                    <th style={{ padding: '12px 16px' }}>Material</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>Cant.</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Precio Unit.</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Costo Total</th>
+                    <th style={{ padding: '12px 16px' }}>Especialidad</th>
+                    <th style={{ padding: '12px 16px' }}>Técnico</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedSupplies.length > 0 ? (
+                    paginatedSupplies.map((s) => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--accent-blue)' }}>
+                          {s.otmCode}
+                        </td>
+                        <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{s.date}</td>
+                        <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{s.itemCode}</td>
+                        <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--text-primary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
+                          {s.name}
+                        </td>
+                        <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>{s.quantity} {s.unit}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>S/ {s.unitPrice.toFixed(2)}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: '#8b5cf6' }}>S/ {s.totalCost.toFixed(2)}</td>
+                        <td style={{ padding: '10px 16px' }}>
+                          <span className={`role-badge`} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: '0.65rem' }}>
+                            {s.specialty}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{s.technicianName}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                        No se encontraron registros de consumos con los filtros activos.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* PAGINATION FOOTER */}
+            {suppliesTotalPages > 1 && (
+              <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  disabled={suppliesPage === 1} 
+                  onClick={() => setSuppliesPage(p => p - 1)}
+                >
+                  ← Anterior
+                </button>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Página {suppliesPage} de {suppliesTotalPages}
+                </span>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  disabled={suppliesPage === suppliesTotalPages} 
+                  onClick={() => setSuppliesPage(p => p + 1)}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
