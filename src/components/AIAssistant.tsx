@@ -623,12 +623,13 @@ ${localStorage.getItem('crl_ai_custom_rules')}
 REGLAS DE ACCIÓN CRÍTICAS (CREACIÓN DE OTM):
 Estás ESTRICTAMENTE OBLIGADA a seguir este flujo de 3 pasos para crear una OTM. NUNCA te saltes pasos ni asumas datos:
 
-PASO 1 (RECOPILACIÓN): Si el usuario pide crear un reporte, pregúntale UNO POR UNO los datos que falten:
+PASO 1 (RECOPILACIÓN): Si el usuario pide reportar una falla, pregúntale los datos faltantes:
 - Descripción detallada de la falla.
-- Ubicación exacta (ej. Baño de hombres piso 1).
-- Especialidad requerida (ej. Electricidad, Gasfitería). Si el usuario no sabe, sugiérele una.
+- Ubicación general (ej. Sede Chorrillos, Sede San Antonio) y Ubicación exacta (ej. Baño de hombres piso 1).
+- Prioridad (Dile que elija entre Alta, Media o Baja). OJO: Si elige Alta pero el problema no representa un riesgo vital o daño inminente, corrígelo amablemente a Media. Solo es Alta si es una emergencia real o si lo pide un Director/VIP (en cuyo caso, agrégalo a la descripción).
+*Nota: La especialidad (Electricidad, Gasfitería, etc.) debes deducirla tú mismo por el contexto. Solo pregúntala si es imposible deducirla.*
 
-PASO 2 (VALIDACIÓN): Cuando tengas TODOS los datos, debes mostrar un resumen breve y preguntar EXPRESAMENTE: "¿Es correcto todo para proceder a generar la orden de trabajo?".
+PASO 2 (VALIDACIÓN): Cuando tengas TODOS los datos, debes mostrar un resumen breve y preguntar EXPRESAMENTE: "Listo, ¿ahora cargo su OT?".
 
 PASO 3 (EJECUCIÓN): SÓLO si el usuario responde afirmativamente (ej. "sí", "correcto", "dale"), ejecutarás el comando de creación añadiendo al final de tu mensaje:
 [ACCION: createOTM(area='Área', location='Ubicación', description='Descripción', specialty='Especialidad', priority='Alto|Medio|Bajo')]
@@ -692,11 +693,11 @@ Asegúrate de escribir la [ACCION: ...] en una sola línea completa al final, re
             }));
             sessionStorage.setItem('crl_ai_prefill_step', '3'); // Ir directo al paso de Fotos
             
-            const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
-            window.dispatchEvent(event);
+            setTimeout(() => {
+              const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
+              window.dispatchEvent(event);
+            }, 1500); // Dar tiempo para que el usuario lea el mensaje
             
-            setIsOpen(false); // Cerramos el chat para que el usuario suba la foto
-            return true;
           } catch (e: any) {
             console.error("Groq OTM redirect error", e);
           }
@@ -812,9 +813,9 @@ REGLAS CRÍTICAS:
    - Técnicos: solo pueden registrar finalización de sus trabajos asignados.
    Si alguien pide algo fuera de su rol, explica amablemente por qué no puedes hacerlo.
 3. REGLA ESTRICTA PARA CREAR OTM (FLUJO DE 3 PASOS):
-   - PASO 1 (RECOPILAR): Nunca crees una OTM al primer intento. Pregunta los datos faltantes: Descripción detallada, Ubicación exacta y Especialidad requerida.
-   - PASO 2 (VALIDAR): Cuando tengas los 3 datos, resume y pregunta explícitamente: "¿Deseas que genere la orden de trabajo con estos datos?".
-   - PASO 3 (EJECUTAR): SOLO usa la herramienta (Function Calling) de \`createOTM\` si el usuario responde "sí" a tu pregunta de validación.
+   - PASO 1 (RECOPILAR): Nunca crees una OTM al primer intento. Debes tener: Descripción detallada, Ubicación general + Ubicación exacta, y Prioridad. Si el usuario pide prioridad Alta por algo trivial, corrígelo a Media (solo es Alta para emergencias o si lo pide un Director, en cuyo caso ponlo en la descripción). Deduce la especialidad por tu cuenta, no la preguntes a menos que sea muy confuso.
+   - PASO 2 (VALIDAR): Cuando tengas los datos, resume brevemente y pregunta EXPRESAMENTE: "Listo, ¿ahora cargo su OT?".
+   - PASO 3 (EJECUTAR): SOLO usa la herramienta de \`createOTM\` si el usuario responde "sí" a tu pregunta de validación.
 4. NUNCA inventes códigos de OTM. Si no tienes el código, pregúntalo.
 5. Si el usuario te hace una pregunta sobre la plataforma, el proceso o los datos, responde con conocimiento completo del sistema.
 6. Si el usuario te habla de forma informal o te saluda, responde de manera natural y amigable.
@@ -941,10 +942,13 @@ ${localStorage.getItem('crl_ai_custom_rules')}
               urgency: typedArgs.priority?.toLowerCase() === 'alto' ? 'high' : typedArgs.priority?.toLowerCase() === 'bajo' ? 'low' : 'medium'
             }));
             sessionStorage.setItem('crl_ai_prefill_step', '3');
-            const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
-            window.dispatchEvent(event);
-            setIsOpen(false);
-            resultData = { status: 'redirected_to_form', message: 'Usuario redirigido al formulario.' };
+            
+            setTimeout(() => {
+              const event = new CustomEvent('navigate_from_ai', { detail: { view: 'new-otm' } });
+              window.dispatchEvent(event);
+            }, 1500);
+            
+            resultData = { status: 'redirected_to_form', message: 'Dile al usuario que lo estás redirigiendo al formulario para que suba la foto.' };
           } catch (e: any) {
             resultData = { status: 'error', message: e.message };
           }
