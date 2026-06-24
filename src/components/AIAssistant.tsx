@@ -80,15 +80,15 @@ export default function AIAssistant() {
       const voices = window.speechSynthesis.getVoices();
       if (!voices.length) return;
 
-      // Priority 1: Specific high-quality Latin American Female voices (Windows/Edge/Chrome/Mac)
+      // Priority 1: Specific high-quality Latin American Female voices (Windows/Edge/Chrome/Mac/iOS/Android)
       const premiumFemale = voices.find(v => 
-        /dalia|sabina|mia|monica|paulina|lucia|gloria/i.test(v.name) && v.lang.startsWith('es')
+        /(femenino|female|mujer|chica|dalia|sabina|mia|monica|paulina|lucia|gloria|marisol|angelica|victoria|helena|laura|isabel)/i.test(v.name) && v.lang.startsWith('es')
       );
       if (premiumFemale) { bestVoiceRef.current = premiumFemale; return; }
 
       // Priority 2: Microsoft Natural Spanish voices (Edge) - fallback to any female or natural
       const msNatural = voices.find(v =>
-        v.lang.startsWith('es') && v.name.includes('Natural') && v.name.includes('Microsoft') && /female|mujer/i.test(v.name)
+        v.lang.startsWith('es') && v.name.includes('Natural') && v.name.includes('Microsoft') && /(female|mujer)/i.test(v.name)
       ) || voices.find(v =>
         v.lang.startsWith('es') && v.name.includes('Natural') && v.name.includes('Microsoft')
       );
