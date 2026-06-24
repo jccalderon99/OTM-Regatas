@@ -340,6 +340,8 @@ export default function AIAssistant() {
 
     // Calculate budget totals for Mantenimiento Management roles
     let budgetInfo = '';
+    let personnelHoursInfo = '';
+    
     if (isMaintMgmt) {
       const totalOpex = opexBudget.reduce((acc, i) => acc + Math.abs(i.importeEEFF || 0), 0);
       const totalCapex = capexBudget.reduce((acc, i) => acc + (i.importe || 0), 0);
@@ -364,6 +366,45 @@ CONOCIMIENTO DE PRESUPUESTO (INFORMACIÓN CRÍTICA ACTUALIZADA):
 Top Centros de Costo (OPEX):
 ${topOpex}
 - Si el usuario te pregunta sobre montos de presupuesto o saldos, responde usando estos datos reales y exactos.
+`;
+
+      // Compile working hours for technicians
+      const technicians = users.filter(u => u.role === 'technician');
+      const techHoursList = technicians.map(tech => {
+        const techOtms = otms.filter(o => 
+          o.technician_id === tech.id || 
+          (o.assigned_technicians && o.assigned_technicians.some(at => at.technician_id === tech.id))
+        );
+        const finishedOtms = techOtms.filter(o => ['closed', 'awaiting_supervisor', 'awaiting_conformity'].includes(o.status));
+        const totalFinishedHours = finishedOtms.reduce((sum, o) => {
+          let hrs = 0;
+          if (o.net_execution_time !== null && o.net_execution_time !== undefined) {
+            hrs = o.net_execution_time / 60;
+          } else if (o.job_start_time && o.job_end_time) {
+            const start = new Date(o.job_start_time).getTime();
+            const end = new Date(o.job_end_time).getTime();
+            hrs = Math.max(0, (end - start) / 3600000);
+          }
+          return sum + hrs;
+        }, 0);
+        const activeOtms = techOtms.filter(o => ['in_progress', 'scheduled'].includes(o.status));
+        return {
+          name: tech.full_name,
+          specialty: tech.position || 'General',
+          totalHours: Number(totalFinishedHours.toFixed(1)),
+          finishedCount: finishedOtms.length,
+          activeCount: activeOtms.length
+        };
+      });
+
+      const formattedTechHours = techHoursList
+        .map(t => `- ${t.name} (${t.specialty}): ${t.totalHours} horas acumuladas en ${t.finishedCount} tareas finalizadas (${t.activeCount} tareas activas/programadas)`)
+        .join('\n');
+
+      personnelHoursInfo = `
+CONOCIMIENTO DE HORAS DE TRABAJO DEL PERSONAL TÉCNICO (INFORMACIÓN EN TIEMPO REAL):
+${formattedTechHours}
+- Si el usuario te pregunta sobre las horas de trabajo acumuladas, horas de ejecución, tareas realizadas o pendientes por técnico, responde usando esta información exacta y concisa.
 `;
     }
 
@@ -394,7 +435,8 @@ REGLAS DE COMPORTAMIENTO ESTRICTAS:
 2. NO debes realizar ninguna acción en el sistema: no puedes asignar OTMs, no puedes crear OTMs, no puedes finalizar trabajos. No uses formatos de comando \`[ACCION: ...]\`. Toda asignación o modificación debe hacerla el supervisor manualmente.
 3. Responde a preguntas y consultas sobre el estado de las OTMs, los técnicos asignados, o estadísticas generales del sistema, basándote en la información provista.
 4. Tienes acceso completo a la información presupuestaria actualizada (OPEX y CAPEX). Responde consultas financieras sobre saldos, montos asignados o ejecutados con total precisión.
-5. Sé carismática, atenta y profesional. Nunca uses emojis. Responde de forma muy concisa.
+5. Tienes acceso completo a las horas de trabajo del personal técnico. Si te preguntan sobre las horas acumuladas, horas de ejecución o tareas realizadas por técnico, responde con total precisión usando los datos reales.
+6. Sé carismática, atenta y profesional. Nunca uses emojis. Responde de forma muy concisa.
 
 Catálogos y Datos:
 - Áreas: ${JSON.stringify(areas)}
@@ -402,6 +444,7 @@ Catálogos y Datos:
 - Especialidades: ${JSON.stringify(specialties)}
 - Técnicos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
 ${budgetInfo}
+${personnelHoursInfo}
 `;
     }
   };
@@ -513,7 +556,41 @@ ${budgetInfo}
         return;
       }
 
-      // 2. General OTM stats
+      // 2. Personnel hours questions
+      if (cleanText.includes('hora') || cleanText.includes('trabajo') || cleanText.includes('técnico') || cleanText.includes('tecnico') || cleanText.includes('personal') || cleanText.includes('tiempo')) {
+        const technicians = users.filter(u => u.role === 'technician');
+        const techHoursList = technicians.map(tech => {
+          const techOtms = otms.filter(o => 
+            o.technician_id === tech.id || 
+            (o.assigned_technicians && o.assigned_technicians.some(at => at.technician_id === tech.id))
+          );
+          const finishedOtms = techOtms.filter(o => ['closed', 'awaiting_supervisor', 'awaiting_conformity'].includes(o.status));
+          const totalFinishedHours = finishedOtms.reduce((sum, o) => {
+            let hrs = 0;
+            if (o.net_execution_time !== null && o.net_execution_time !== undefined) {
+              hrs = o.net_execution_time / 60;
+            } else if (o.job_start_time && o.job_end_time) {
+              const start = new Date(o.job_start_time).getTime();
+              const end = new Date(o.job_end_time).getTime();
+              hrs = Math.max(0, (end - start) / 3600000);
+            }
+            return sum + hrs;
+          }, 0);
+          const activeOtms = techOtms.filter(o => ['in_progress', 'scheduled'].includes(o.status));
+          return `- ${tech.full_name} (${tech.position || 'Técnico'}): ${totalFinishedHours.toFixed(1)} horas (${finishedOtms.length} tareas completadas, ${activeOtms.length} en curso)`;
+        });
+
+        setIsLoading(false);
+        setMessages(prev => [...prev, {
+          id,
+          role: 'assistant',
+          text: `Las horas de trabajo registradas por técnico son:\n\n${techHoursList.join('\n')}\n\n¿Deseas consultar el detalle de algún técnico en particular?`,
+          timestamp
+        }]);
+        return;
+      }
+
+      // 3. General OTM stats
       if (cleanText.includes('otm') || cleanText.includes('ordenes') || cleanText.includes('trabajos') || cleanText.includes('retras') || cleanText.includes('pendiente')) {
         const total = otms.length;
         const pending = otms.filter(o => o.status === 'pending').length;
@@ -530,12 +607,12 @@ ${budgetInfo}
         return;
       }
 
-      // 3. Fallback for Supervisor
+      // 4. Fallback for Supervisor
       setIsLoading(false);
       setMessages(prev => [...prev, {
         id,
         role: 'assistant',
-        text: 'Hola. Como tu asistente virtual, puedo brindarte información en tiempo real sobre el estado de las OTMs y el presupuesto OPEX/CAPEX del club. ¿En qué consulta te puedo asistir hoy?',
+        text: 'Hola. Como tu asistente virtual, puedo brindarte información en tiempo real sobre el estado de las OTMs, el presupuesto OPEX/CAPEX y las horas de trabajo del personal técnico del club. ¿En qué consulta te puedo asistir hoy?',
         timestamp
       }]);
     }
