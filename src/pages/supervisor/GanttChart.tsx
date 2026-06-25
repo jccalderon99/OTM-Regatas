@@ -506,12 +506,8 @@ export default function GanttChart() {
           .gantt-left-frozen {
             width: 530px;
             flex-shrink: 0;
-            border-right: 2px solid var(--border);
-            box-shadow: 4px 0 10px rgba(0,0,0,0.03);
-            z-index: 40;
+            position: relative;
             background: #ffffff;
-            position: sticky;
-            left: 0;
           }
           
           /* Scrollable Right Side Grid Calendar */
@@ -589,7 +585,7 @@ export default function GanttChart() {
           <div className="gantt-left-frozen">
             
             {/* Frozen Headers */}
-            <div className="sheet-row sheet-header-row" style={{ height: 76, display: 'flex', flexDirection: 'column', alignItems: 'stretch', position: 'sticky', top: 0, zIndex: 30, background: '#f8fafc' }}>
+            <div className="sheet-row sheet-header-row" style={{ height: 76, display: 'flex', flexDirection: 'column', alignItems: 'stretch', position: 'sticky', top: 0, left: 0, zIndex: 50, background: '#f8fafc', borderRight: '2px solid var(--border)', boxShadow: '4px 0 10px rgba(0,0,0,0.03)', boxSizing: 'border-box', width: 530, flexShrink: 0 }}>
               <div style={{ height: 38, borderBottom: '1px solid rgba(226, 232, 240, 0.7)', display: 'flex', alignItems: 'center', paddingLeft: 12, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 📋 DETALLES DE LA PROGRAMACIÓN
               </div>
@@ -604,7 +600,21 @@ export default function GanttChart() {
 
             {/* Frozen Rows */}
             {filteredData.map((item) => (
-              <div key={item.id} className="sheet-row" style={{ background: hoveredItem?.id === item.id ? 'rgba(78, 181, 230, 0.05)' : '#ffffff' }}>
+              <div 
+                key={item.id} 
+                className="sheet-row" 
+                style={{ 
+                  background: hoveredItem?.id === item.id ? 'rgba(78, 181, 230, 0.05)' : '#ffffff',
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 10,
+                  borderRight: '2px solid var(--border)',
+                  boxShadow: '4px 0 10px rgba(0,0,0,0.03)',
+                  boxSizing: 'border-box',
+                  width: 530,
+                  flexShrink: 0
+                }}
+              >
                 
                 {/* Code (colored indicators by OTM/OTI source) */}
                 <div className="sheet-cell" style={{ width: 90 }}>
@@ -650,7 +660,18 @@ export default function GanttChart() {
 
             {/* Empty State */}
             {filteredData.length === 0 && (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div style={{ 
+                padding: '60px 20px', 
+                textAlign: 'center', 
+                color: 'var(--text-muted)',
+                position: 'sticky',
+                left: 0,
+                zIndex: 10,
+                width: 530,
+                boxSizing: 'border-box',
+                borderRight: '2px solid var(--border)',
+                background: '#ffffff'
+              }}>
                 🔍 Ningún registro coincide con los filtros aplicados.
               </div>
             )}
