@@ -508,6 +508,7 @@ export default function GanttChart() {
             flex-shrink: 0;
             position: relative;
             background: #ffffff;
+            align-self: flex-start;
           }
           
           /* Scrollable Right Side Grid Calendar */
@@ -515,6 +516,7 @@ export default function GanttChart() {
             flex: 1;
             position: relative;
             min-width: 0;
+            align-self: flex-start;
           }
 
           /* Spreadsheet Table Rows */
