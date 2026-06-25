@@ -484,9 +484,22 @@ export default function GanttChart() {
           .gantt-wrapper {
             display: flex;
             width: 100%;
-            overflow: hidden;
+            overflow: auto;
             background: #ffffff;
             position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+          }
+          .gantt-wrapper::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+          }
+          .gantt-wrapper::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+          }
+          .gantt-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
           }
           
           /* Frozen Left Side Table Details */
@@ -495,30 +508,17 @@ export default function GanttChart() {
             flex-shrink: 0;
             border-right: 2px solid var(--border);
             box-shadow: 4px 0 10px rgba(0,0,0,0.03);
-            z-index: 10;
+            z-index: 40;
             background: #ffffff;
-            overflow-x: hidden;
-            overflow-y: hidden;
+            position: sticky;
+            left: 0;
           }
           
           /* Scrollable Right Side Grid Calendar */
           .gantt-right-scrollable {
             flex: 1;
-            overflow-x: auto;
-            overflow-y: hidden;
             position: relative;
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 transparent;
-          }
-          .gantt-right-scrollable::-webkit-scrollbar {
-            height: 8px;
-          }
-          .gantt-right-scrollable::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-          }
-          .gantt-right-scrollable::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+            min-width: 0;
           }
 
           /* Spreadsheet Table Rows */
@@ -581,7 +581,7 @@ export default function GanttChart() {
         `}</style>
 
         {/* Dynamic Month Layout Grid */}
-        <div className="gantt-wrapper" style={{ maxHeight: '480px', overflowY: 'auto' }}>
+        <div className="gantt-wrapper" style={{ maxHeight: '480px', overflow: 'auto' }}>
           
           {/* ======================================================== */}
           {/* LEFT PANEL: CONGELADO / FROZEN DETAILS TABLE             */}
