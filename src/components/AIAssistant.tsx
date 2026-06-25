@@ -265,7 +265,7 @@ export default function AIAssistant() {
   // Welcome message based on user role
   const getWelcomeMessage = (currentUser: Profile) => {
     const name = currentUser.full_name.split(' ')[0];
-    return `Hola ${name}, soy tu asistente virtual, ¿En qué puedo ayudarte?`;
+    return `Hola ${name}, soy Megan, tu asistente virtual. ¿En qué puedo ayudarte?`;
   };
 
   // Quick Action pills
@@ -411,13 +411,13 @@ ${formattedTechHours}
     if (role === 'requester' || (role === 'jefatura' && user?.area_sector !== '22. MANTENIMIENTO')) {
       // Prompt for requesters and jefaturas of other areas
       return `
-Eres la Asistente de IA de Mantenimiento CRL. Tu objetivo es ayudar a los Solicitantes y Jefaturas de otras áreas a resolver dudas específicas sobre solicitudes de mantenimiento en el club.
+Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es ayudar a los Solicitantes y Jefaturas de otras áreas a resolver dudas específicas sobre solicitudes de mantenimiento en el club. Siempre debes presentarte y responder bajo el nombre de Megan.
 
 REGLAS DE COMPORTAMIENTO ESTRICTAS:
 1. SOLO debes responder preguntas relacionadas con:
    - Solicitudes de trabajo de mantenimiento (OTM), el flujo del proceso de solicitudes, o dudas sobre a qué especialidad (Electricidad, Gasfitería, Pintura, Carpintería, Albañilería, Equipos Electromecánicos, Aire Acondicionado) corresponde un problema.
    - Si un trabajo pertenece al área de Servicios Generales / Maestranza (limpieza profunda, traslado de muebles, basura, toldos, desinfección, jardinería). En este caso, debes indicarle textualmente: "Comprendo, pero los trabajos de limpieza o movimiento de mobiliario pertenecen al área de Servicios Generales (Maestranza). Por favor, comunícate directamente con ellos para que te asistan."
-2. Si el usuario realiza preguntas de cultura general, chistes, preguntas técnicas complejas no relacionadas al club, o cualquier tema fuera de la solicitud de mantenimiento y sus especialidades, dile con cortesía: "Lo siento, como Asistente de Mantenimiento solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza."
+2. Si el usuario realiza preguntas de cultura general, chistes, preguntas técnicas complejas no relacionadas al club, o cualquier tema fuera de la solicitud de mantenimiento y sus especialidades, dile con cortesía: "Lo siento, como Megan, tu asistente de mantenimiento, solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza."
 3. ESTÁ ESTRICTAMENTE PROHIBIDO ejecutar acciones, crear órdenes, prellenar formularios o automatizar el envío de solicitudes. Los usuarios deben rellenar y enviar las solicitudes manualmente por sí mismos. No uses formatos de comando \`[ACCION: ...]\`.
 4. Sé una asistente atenta, carismática y amigable en español latino.
 5. Nunca uses emojis. Responde de forma muy concisa (máximo 3-4 oraciones).
@@ -428,7 +428,7 @@ REGLAS DE COMPORTAMIENTO ESTRICTAS:
     } else {
       // Prompt for Supervisors/Admins
       return `
-Eres la Asistente de IA de Mantenimiento CRL. Tu objetivo es dar soporte al personal de gestión de Mantenimiento (Supervisores, Administradores, Jefatura de Mantenimiento).
+Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es dar soporte al personal de gestión de Mantenimiento (Supervisores, Administradores, Jefatura de Mantenimiento). Siempre debes presentarte y responder bajo el nombre de Megan.
 
 REGLAS DE COMPORTAMIENTO ESTRICTAS:
 1. Tu rol es puramente INFORMATIVO y de CONSULTA.
@@ -535,7 +535,7 @@ ${personnelHoursInfo}
       setMessages(prev => [...prev, {
         id,
         role: 'assistant',
-        text: 'Lo siento, como Asistente de Mantenimiento solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza.',
+        text: 'Lo siento, como Megan, tu asistente de mantenimiento, solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza.',
         timestamp
       }]);
       return;
@@ -612,7 +612,7 @@ ${personnelHoursInfo}
       setMessages(prev => [...prev, {
         id,
         role: 'assistant',
-        text: 'Hola. Como tu asistente virtual, puedo brindarte información en tiempo real sobre el estado de las OTMs, el presupuesto OPEX/CAPEX y las horas de trabajo del personal técnico del club. ¿En qué consulta te puedo asistir hoy?',
+        text: 'Hola, soy Megan, tu asistente virtual. Puedo brindarte información en tiempo real sobre el estado de las OTMs, el presupuesto OPEX/CAPEX y las horas de trabajo del personal técnico del club. ¿En qué consulta te puedo asistir hoy?',
         timestamp
       }]);
     }
@@ -922,7 +922,7 @@ ${personnelHoursInfo}
           e.currentTarget.style.transform = 'scale(1) translateY(0)';
           e.currentTarget.style.boxShadow = '0 4px 20px rgba(37, 99, 235, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.1)';
         }}
-        title="Asistente de IA CRL"
+        title="Megan - Asistente de IA CRL"
       >
         💬
       </button>
@@ -977,7 +977,7 @@ ${personnelHoursInfo}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-              Mant.ia
+              Megan
               <span style={{
                 fontSize: '0.6rem',
                 fontWeight: 600,
@@ -1080,7 +1080,7 @@ ${personnelHoursInfo}
           gap: 12
         }}>
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-            ⚙️ Configuración del Agente de IA
+            ⚙️ Configuración de Megan (IA)
           </h3>
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', cursor: 'pointer', marginBottom: 8 }}>
