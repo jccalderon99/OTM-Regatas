@@ -124,18 +124,31 @@ export default function AIAssistant() {
     }
   }, []);
 
-  // Load welcome message when chat is opened and empty
+  // Load welcome message when chat is opened and empty, checking for 30 minutes inactivity first
   useEffect(() => {
-    if (isOpen && messages.length === 0 && user) {
-      const welcome = getWelcomeMessage(user);
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'assistant',
-          text: welcome,
-          timestamp: new Date()
+    if (isOpen && user) {
+      if (messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        const lastActiveTime = new Date(lastMsg.timestamp).getTime();
+        const now = Date.now();
+        const inactivityLimit = 30 * 60 * 1000; // 30 minutes
+        
+        if (now - lastActiveTime > inactivityLimit) {
+          // Clears history due to inactivity
+          setMessages([]);
+          return;
         }
-      ]);
+      } else {
+        const welcome = getWelcomeMessage(user);
+        setMessages([
+          {
+            id: 'welcome',
+            role: 'assistant',
+            text: welcome,
+            timestamp: new Date()
+          }
+        ]);
+      }
     }
   }, [isOpen, messages.length, user]);
 
@@ -411,7 +424,7 @@ ${formattedTechHours}
     if (role === 'requester' || (role === 'jefatura' && user?.area_sector !== '22. MANTENIMIENTO')) {
       // Prompt for requesters and jefaturas of other areas
       return `
-Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es ayudar a los Solicitantes y Jefaturas de otras áreas a resolver dudas específicas sobre solicitudes de mantenimiento en el club. Siempre debes presentarte y responder bajo el nombre de Megan.
+Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es ayudar a los Solicitantes y Jefaturas de otras áreas a resolver dudas específicas sobre solicitudes de mantenimiento en el club. Debes responder bajo el nombre de Megan (no saludes ni repitas "Hola, soy Megan" en cada respuesta, solo responde la consulta directamente ya que el saludo inicial de bienvenida ya se dio).
 
 REGLAS DE COMPORTAMIENTO ESTRICTAS:
 1. SOLO debes responder preguntas relacionadas con:
@@ -428,7 +441,7 @@ REGLAS DE COMPORTAMIENTO ESTRICTAS:
     } else {
       // Prompt for Supervisors/Admins
       return `
-Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es dar soporte al personal de gestión de Mantenimiento (Supervisores, Administradores, Jefatura de Mantenimiento). Siempre debes presentarte y responder bajo el nombre de Megan.
+Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es dar soporte al personal de gestión de Mantenimiento (Supervisores, Administradores, Jefatura de Mantenimiento). Debes responder bajo el nombre de Megan (no saludes ni repitas "Hola, soy Megan" en cada respuesta, solo responde la consulta directamente ya que el saludo inicial de bienvenida ya se dio).
 
 REGLAS DE COMPORTAMIENTO ESTRICTAS:
 1. Tu rol es puramente INFORMATIVO y de CONSULTA.
