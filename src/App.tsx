@@ -12,6 +12,7 @@ import UserManagement from './pages/admin/UserManagement';
 import TechnicianCalendar from './pages/technician/TechnicianCalendar';
 import SupervisorCalendar from './pages/supervisor/SupervisorCalendar';
 import RoutineActivitiesAdmin from './pages/admin/RoutineActivitiesAdmin';
+import GerminadorSimulator from './pages/admin/GerminadorSimulator';
 import RoutineRegister from './pages/technician/RoutineRegister';
 import { RoutineActivityProvider } from './context/RoutineActivityContext';
 import { useRealtimeOTM } from './hooks/useRealtimeOTM';
@@ -80,6 +81,7 @@ function AppContent() {
       case 'budget': return <BudgetDashboard />;
       case 'rq-log': return <RQLog onNavigate={setCurrentView} />;
       case 'ai-rules': return <AIRulesAdmin />;
+      case 'germinador': return <GerminadorSimulator />;
       default: return defaultView();
     }
   };

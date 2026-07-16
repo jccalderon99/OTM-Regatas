@@ -77,6 +77,14 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'clau-rv', label: 'ClauRV (Tours 360°)', icon: '🌐', roles: ['admin'] },
     ]
+  },
+  {
+    id: 'proyectos',
+    title: 'Proyectos I+D',
+    roles: ['admin'],
+    items: [
+      { id: 'germinador', label: 'Simulador Germinador UTP', icon: '🌱', roles: ['admin'] },
+    ]
   }
 ];
 
