@@ -71,14 +71,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
-    id: 'complementos',
-    title: 'Complementos',
-    roles: ['admin'],
-    items: [
-      { id: 'clau-rv', label: 'ClauRV (Tours 360°)', icon: '🌐', roles: ['admin'] },
-    ]
-  },
-  {
     id: 'proyectos',
     title: 'Proyectos I+D',
     roles: ['admin'],
@@ -118,8 +110,8 @@ export function isViewPermitted(viewId: string, user: { role: string; area_secto
     case 'calendar':
       return isMaintMgmt || user.role === 'technician';
     case 'users':
-    case 'clau-rv':
     case 'ai-rules':
+    case 'germinador':
       return user.role === 'admin';
     default:
       return false;
@@ -135,7 +127,6 @@ interface Props {
 export default function DashboardLayout({ currentView, onNavigate, children }: Props) {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [complementosExpanded, setComplementosExpanded] = useState(false);
   const { toasts, removeToast, otms, isOTMUnread } = useOTM();
   const isEmbeddedDashboard = currentView === 'dashboard' && (user?.role === 'admin' || user?.role === 'supervisor');
 
@@ -200,52 +191,14 @@ export default function DashboardLayout({ currentView, onNavigate, children }: P
             const groupItems = group.items.filter(item => isViewPermitted(item.id, user));
             if (groupItems.length === 0) return null;
 
-            const isComplementos = group.id === 'complementos';
-
             return (
               <div key={group.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                {isComplementos ? (
-                  <button 
-                    onClick={() => setComplementosExpanded(!complementosExpanded)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      outline: 'none',
-                      width: '100%',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: 'pointer',
-                      paddingRight: 14
-                    }}
-                  >
-                    <div className="sidebar-nav-group-title" style={{ paddingRight: 0 }}>
-                      🧩 {group.title}
-                    </div>
-                    <span style={{ 
-                      fontSize: '0.55rem', 
-                      color: 'var(--text-muted)', 
-                      transform: complementosExpanded ? 'rotate(90deg)' : 'rotate(0deg)', 
-                      transition: 'transform 0.2s',
-                      display: 'inline-block'
-                    }}>
-                      ▶
-                    </span>
-                  </button>
-                ) : (
-                  <div className="sidebar-nav-group-title">{group.title}</div>
-                )}
+                <div className="sidebar-nav-group-title">{group.title}</div>
 
-                {(!isComplementos || complementosExpanded) && groupItems.map(item => (
+                {groupItems.map(item => (
                   <button key={item.id} className={`sidebar-link ${currentView === item.id ? 'active' : ''}`}
-                    style={isComplementos ? { paddingLeft: 28 } : undefined}
                     onClick={() => {
-                      if (item.id === 'clau-rv') {
-                        window.open('https://claurv-app.vercel.app/', '_blank');
-                      } else {
-                        onNavigate(item.id);
-                      }
+                      onNavigate(item.id);
                       setSidebarOpen(false);
                     }}>
                     <span>{item.icon}</span>

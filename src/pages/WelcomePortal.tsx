@@ -115,13 +115,7 @@ export default function WelcomePortal({ onNavigate }: Props) {
            {permittedItems.map(item => (
             <button
               key={item.id}
-              onClick={() => {
-                if (item.id === 'clau-rv') {
-                  window.open('https://claurv-app.vercel.app/', '_blank');
-                } else {
-                  onNavigate(item.id);
-                }
-              }}
+              onClick={() => onNavigate(item.id)}
               style={{
                 background: 'rgba(255, 255, 255, 0.1)',
                 backdropFilter: 'blur(16px)',
