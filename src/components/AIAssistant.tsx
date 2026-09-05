@@ -3,7 +3,30 @@ import { GoogleGenAI } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { useOTM } from '../context/OTMContext';
 import { useRQ } from '../context/RQContext';
-import { OTMRequest, Profile } from '../types';
+import { OTMRequest, Profile, Urgency, OTMStatus } from '../types';
+
+export interface OTMActionDraft {
+  type: 'create' | 'modify';
+  targetOtmId?: string;
+  targetOtmCode?: string;
+  data: {
+    area_sector?: string;
+    exact_location?: string;
+    failure_type?: string;
+    description?: string;
+    urgency?: Urgency;
+    technician_ids?: string[];
+    technician_names?: string[];
+    scheduled_date?: string;
+    status?: OTMStatus;
+    supervisor_notes?: string;
+    photo_url?: string;
+    photo_name?: string;
+  };
+  missingFields: string[];
+  isReadyToConfirm: boolean;
+  candidateOtms?: OTMRequest[];
+}
 
 interface Message {
   id: string;
@@ -25,6 +48,8 @@ export default function AIAssistant() {
     finishTechnicianWork, 
     submitConformity, 
     cancelOTM,
+    updateOTMFields,
+    updateOTMStatus,
     areas,
     locations,
     specialties,
@@ -77,6 +102,8 @@ export default function AIAssistant() {
   const recognitionRef = useRef<any>(null);
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [activeDraft, setActiveDraft] = useState<OTMActionDraft | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -518,6 +545,302 @@ PLAN DE MANTENIMIENTO PREVENTIVO INTERNO (OTIs):
 `;
   };
 
+  // Helper to process [ACCION_OTM: {...}] in AI responses
+  const processActionIntent = (
+    rawText: string,
+    currentDraft: OTMActionDraft | null
+  ): { cleanText: string; updatedDraft: OTMActionDraft | null | undefined; shouldExecuteConfirm: boolean } => {
+    const match = rawText.match(/\[ACCION_OTM:\s*(\{[\s\S]*?\})\s*\]/i);
+    if (!match) {
+      return { cleanText: rawText, updatedDraft: undefined, shouldExecuteConfirm: false };
+    }
+
+    const cleanText = rawText.replace(/\[ACCION_OTM:[\s\S]*?\]/gi, '').trim();
+
+    try {
+      const action = JSON.parse(match[1]);
+
+      if (action.type === 'cancel') {
+        return { cleanText, updatedDraft: null, shouldExecuteConfirm: false };
+      }
+
+      if (action.type === 'confirm') {
+        return { cleanText, updatedDraft: currentDraft, shouldExecuteConfirm: true };
+      }
+
+      if (action.type === 'create') {
+        const existingData = currentDraft?.type === 'create' ? currentDraft.data : {};
+        const incomingData = action.data || {};
+
+        const mergedData = {
+          ...existingData,
+          ...incomingData,
+          urgency: (incomingData.urgency || existingData.urgency || 'medium') as Urgency
+        };
+
+        const missing: string[] = [];
+        if (!mergedData.area_sector) missing.push('Área / Sector');
+        if (!mergedData.failure_type) missing.push('Especialidad');
+        if (!mergedData.description) missing.push('Descripción del trabajo');
+
+        return {
+          cleanText,
+          updatedDraft: {
+            type: 'create',
+            data: mergedData,
+            missingFields: missing,
+            isReadyToConfirm: missing.length === 0
+          },
+          shouldExecuteConfirm: false
+        };
+      }
+
+      if (action.type === 'modify') {
+        const q = (action.query || action.otm_code || '').toLowerCase().trim();
+        let matchedOtm: OTMRequest | undefined;
+        let candidates: OTMRequest[] = [];
+
+        if (q) {
+          const cleanCode = q.replace(/[^a-z0-9]/gi, '');
+          matchedOtm = otms.find(o => o.otm_code.replace(/[^a-z0-9]/gi, '').toLowerCase() === cleanCode);
+
+          if (!matchedOtm) {
+            candidates = otms.filter(o => 
+              o.otm_code.toLowerCase().includes(q) ||
+              (o.description && o.description.toLowerCase().includes(q)) ||
+              (o.area_sector && o.area_sector.toLowerCase().includes(q))
+            ).slice(0, 5);
+
+            if (candidates.length === 1) {
+              matchedOtm = candidates[0];
+              candidates = [];
+            }
+          }
+        } else if (currentDraft?.targetOtmId) {
+          matchedOtm = otms.find(o => o.id === currentDraft.targetOtmId);
+        }
+
+        if (matchedOtm) {
+          let techIds = currentDraft?.data?.technician_ids || (matchedOtm.technician_id ? [matchedOtm.technician_id] : []);
+          let techNames = currentDraft?.data?.technician_names || [];
+
+          if (action.data?.technician_name) {
+            const tName = action.data.technician_name.toLowerCase();
+            const foundTech = users.find(u => u.role === 'technician' && u.full_name.toLowerCase().includes(tName));
+            if (foundTech) {
+              techIds = [foundTech.id];
+              techNames = [foundTech.full_name];
+            }
+          }
+
+          const mergedData = {
+            area_sector: action.data?.area_sector || currentDraft?.data?.area_sector || matchedOtm.area_sector,
+            exact_location: action.data?.exact_location || currentDraft?.data?.exact_location || matchedOtm.exact_location || undefined,
+            failure_type: action.data?.failure_type || currentDraft?.data?.failure_type || matchedOtm.failure_type,
+            description: action.data?.description || currentDraft?.data?.description || matchedOtm.description,
+            urgency: (action.data?.urgency || currentDraft?.data?.urgency || matchedOtm.urgency) as Urgency,
+            scheduled_date: action.data?.scheduled_date || currentDraft?.data?.scheduled_date || (matchedOtm.scheduled_date ? matchedOtm.scheduled_date.slice(0, 10) : undefined),
+            status: (action.data?.status || currentDraft?.data?.status || matchedOtm.status) as OTMStatus,
+            supervisor_notes: action.data?.supervisor_notes || currentDraft?.data?.supervisor_notes || matchedOtm.supervisor_notes || undefined,
+            technician_ids: techIds,
+            technician_names: techNames
+          };
+
+          return {
+            cleanText,
+            updatedDraft: {
+              type: 'modify',
+              targetOtmId: matchedOtm.id,
+              targetOtmCode: matchedOtm.otm_code,
+              data: mergedData,
+              missingFields: [],
+              isReadyToConfirm: true
+            },
+            shouldExecuteConfirm: false
+          };
+        } else if (candidates.length > 1) {
+          return {
+            cleanText,
+            updatedDraft: {
+              type: 'modify',
+              candidateOtms: candidates,
+              data: action.data || {},
+              missingFields: ['Seleccionar orden a modificar'],
+              isReadyToConfirm: false
+            },
+            shouldExecuteConfirm: false
+          };
+        }
+      }
+
+      if (action.type === 'search') {
+        const q = (action.query || '').toLowerCase().trim();
+        const candidates = otms.filter(o => 
+          o.otm_code.toLowerCase().includes(q) ||
+          (o.description && o.description.toLowerCase().includes(q)) ||
+          (o.area_sector && o.area_sector.toLowerCase().includes(q))
+        ).slice(0, 5);
+
+        return {
+          cleanText,
+          updatedDraft: {
+            type: 'modify',
+            candidateOtms: candidates,
+            data: {},
+            missingFields: ['Seleccionar orden'],
+            isReadyToConfirm: false
+          },
+          shouldExecuteConfirm: false
+        };
+      }
+    } catch (err) {
+      console.error('Error parsing ACCION_OTM JSON:', err);
+    }
+
+    return { cleanText, updatedDraft: undefined, shouldExecuteConfirm: false };
+  };
+
+  // Execute confirmed OTM action in real time
+  const executeConfirmedAction = async (draftToExecute: OTMActionDraft | null) => {
+    if (!draftToExecute) return;
+
+    if (draftToExecute.type === 'create') {
+      const { area_sector, exact_location, failure_type, description, urgency, photo_url, photo_name } = draftToExecute.data;
+      if (!description || !area_sector || !failure_type) {
+        alert('Faltan campos obligatorios para crear la OTM.');
+        return;
+      }
+
+      try {
+        const attachments = photo_url ? [{ file_url: photo_url, file_name: photo_name || 'adjunto-chat.jpg', phase: 'request' }] : [];
+        const newOtm = await createOTM({
+          area_sector,
+          exact_location: exact_location || null,
+          failure_type,
+          description,
+          urgency: urgency || 'medium',
+          attachments: attachments as any
+        });
+
+        if (draftToExecute.data.technician_ids && draftToExecute.data.technician_ids.length > 0) {
+          await assignOTM(
+            newOtm.id, 
+            draftToExecute.data.technician_ids, 
+            draftToExecute.data.scheduled_date || new Date().toISOString().slice(0, 10),
+            draftToExecute.data.supervisor_notes
+          );
+        }
+
+        setMessages(prev => [...prev, {
+          id: `sys-${Date.now()}`,
+          role: 'assistant',
+          text: `Orden ${newOtm.otm_code} creada exitosamente en tiempo real.`,
+          timestamp: new Date(),
+          cardType: 'otm-created',
+          cardData: {
+            code: newOtm.otm_code,
+            description: newOtm.description,
+            location: newOtm.exact_location || newOtm.area_sector,
+            specialty: newOtm.failure_type
+          }
+        }]);
+
+        speakText(`Listo, la orden de trabajo ${newOtm.otm_code} ha sido creada exitosamente.`);
+        setActiveDraft(null);
+      } catch (err) {
+        console.error('Error creating OTM:', err);
+        alert('Error al crear la orden de trabajo.');
+      }
+    } else if (draftToExecute.type === 'modify' && draftToExecute.targetOtmId) {
+      try {
+        const targetId = draftToExecute.targetOtmId;
+        const otm = otms.find(o => o.id === targetId);
+        if (!otm) return;
+
+        const fieldsToUpdate: Partial<OTMRequest> = {};
+        if (draftToExecute.data.description) fieldsToUpdate.description = draftToExecute.data.description;
+        if (draftToExecute.data.area_sector) fieldsToUpdate.area_sector = draftToExecute.data.area_sector;
+        if (draftToExecute.data.exact_location) fieldsToUpdate.exact_location = draftToExecute.data.exact_location;
+        if (draftToExecute.data.failure_type) fieldsToUpdate.failure_type = draftToExecute.data.failure_type;
+        if (draftToExecute.data.urgency) fieldsToUpdate.urgency = draftToExecute.data.urgency;
+        if (draftToExecute.data.supervisor_notes) fieldsToUpdate.supervisor_notes = draftToExecute.data.supervisor_notes;
+
+        if (Object.keys(fieldsToUpdate).length > 0) {
+          updateOTMFields(targetId, fieldsToUpdate);
+        }
+
+        if (draftToExecute.data.status && draftToExecute.data.status !== otm.status) {
+          updateOTMStatus(targetId, draftToExecute.data.status, draftToExecute.data.supervisor_notes || 'Actualizado por Megan');
+        }
+
+        if (draftToExecute.data.technician_ids && draftToExecute.data.technician_ids.length > 0) {
+          const schedDate = draftToExecute.data.scheduled_date || (otm.scheduled_date ? otm.scheduled_date.slice(0, 10) : new Date().toISOString().slice(0, 10));
+          await assignOTM(targetId, draftToExecute.data.technician_ids, schedDate, draftToExecute.data.supervisor_notes || undefined);
+        } else if (draftToExecute.data.scheduled_date && draftToExecute.data.scheduled_date !== (otm.scheduled_date ? otm.scheduled_date.slice(0, 10) : null)) {
+          updateOTMFields(targetId, { scheduled_date: draftToExecute.data.scheduled_date });
+        }
+
+        setMessages(prev => [...prev, {
+          id: `sys-${Date.now()}`,
+          role: 'assistant',
+          text: `Orden ${draftToExecute.targetOtmCode || otm.otm_code} actualizada exitosamente en tiempo real.`,
+          timestamp: new Date(),
+          cardType: 'otm-assigned',
+          cardData: {
+            code: draftToExecute.targetOtmCode || otm.otm_code,
+            techName: draftToExecute.data.technician_names?.join(', ') || 'Sin cambios de técnico',
+            date: draftToExecute.data.scheduled_date || (otm.scheduled_date ? otm.scheduled_date.slice(0, 10) : 'Sin fecha'),
+            notes: draftToExecute.data.supervisor_notes || 'Modificación realizada por Megan'
+          }
+        }]);
+
+        speakText(`Listo, la orden ${draftToExecute.targetOtmCode || otm.otm_code} ha sido modificada.`);
+        setActiveDraft(null);
+      } catch (err) {
+        console.error('Error modifying OTM:', err);
+        alert('Error al modificar la orden de trabajo.');
+      }
+    }
+  };
+
+  const handleSelectCandidate = (candidate: OTMRequest) => {
+    setActiveDraft(prev => ({
+      type: 'modify',
+      targetOtmId: candidate.id,
+      targetOtmCode: candidate.otm_code,
+      data: {
+        ...(prev?.data || {}),
+        area_sector: candidate.area_sector,
+        failure_type: candidate.failure_type,
+        description: candidate.description,
+        urgency: candidate.urgency,
+        scheduled_date: candidate.scheduled_date ? candidate.scheduled_date.slice(0, 10) : undefined,
+        status: candidate.status
+      },
+      missingFields: [],
+      isReadyToConfirm: true,
+      candidateOtms: undefined
+    }));
+  };
+
+  const handleAttachPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setActiveDraft(prev => prev ? {
+        ...prev,
+        data: {
+          ...prev.data,
+          photo_url: base64,
+          photo_name: file.name
+        }
+      } : null);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const getRolePrompt = (role: string, userQuery = '') => {
     const isMaintMgmt = role === 'supervisor' || role === 'admin' || (role === 'jefatura' && user?.area_sector === '22. MANTENIMIENTO');
 
@@ -549,9 +872,9 @@ PLAN DE MANTENIMIENTO PREVENTIVO INTERNO (OTIs):
 CONOCIMIENTO DE PRESUPUESTO (INFORMACIÓN CRÍTICA ACTUALIZADA):
 - Presupuesto OPEX Total Aprobado: $${totalOpex.toLocaleString()}
 - Presupuesto CAPEX Total Aprobado: $${totalCapex.toLocaleString()}
-Top Centros de Costo (OPEX):
+Top Centros de Costo con mayor presupuesto OPEX:
 ${topOpex}
-- Si el usuario te pregunta sobre montos de presupuesto o saldos, responde usando estos datos reales y exactos.
+- Si el usuario te pregunta por presupuestos, montos disponibles, OPEX o CAPEX, responde con total precisión usando estos datos.
 `;
 
       // Compile working hours for technicians
@@ -625,23 +948,58 @@ ${myOtmsText}
 `;
     } else {
       // Prompt for Supervisors/Admins
-      return `
-Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es dar soporte al personal de gestión de Mantenimiento (Supervisores, Administradores, Jefatura de Mantenimiento). Debes responder bajo el nombre de Megan (no saludes ni repitas "Hola, soy Megan" en cada respuesta, solo responde la consulta directamente ya que el saludo inicial de bienvenida ya se dio).
+      const activeDraftContext = activeDraft ? `
+ESTADO ACTUAL DEL BORRADOR ACTIVO EN PANTALLA:
+Tipo: ${activeDraft.type}
+${activeDraft.targetOtmCode ? `OTM Objetivo: ${activeDraft.targetOtmCode}` : ''}
+Datos acumulados: ${JSON.stringify(activeDraft.data)}
+Campos faltantes: ${JSON.stringify(activeDraft.missingFields)}
+Listo para confirmar: ${activeDraft.isReadyToConfirm ? 'SÍ' : 'NO'}
+- Si el usuario te proporciona datos adicionales, incorpóralos manteniendo los datos previos y emite el bloque [ACCION_OTM: ...].
+` : '';
 
-REGLAS DE COMPORTAMIENTO ESTRICTAS:
-1. Tu rol es puramente INFORMATIVO y de CONSULTA.
-2. NO debes realizar ninguna acción en el sistema: no puedes asignar OTMs, no puedes crear OTMs, no puedes finalizar trabajos. No uses formatos de comando \`[ACCION: ...]\`. Toda asignación o modificación debe hacerla el supervisor manualmente.
-3. Responde a preguntas y consultas sobre el estado de las OTMs, los técnicos asignados, o estadísticas generales del sistema, basándote en la información provista.
-4. Tienes acceso completo a la información presupuestaria actualizada (OPEX y CAPEX). Responde consultas financieras sobre saldos, montos asignados o ejecutados con total precisión.
-5. Tienes acceso completo a las horas de trabajo del personal técnico. Si te preguntan sobre las horas acumuladas, horas de ejecución o tareas realizadas por técnico, responde con total precisión usando los datos reales.
-6. Tienes acceso al registro de repuestos y compras (RQ Log) y al plan preventivo interno (OTIs).
-7. Sé carismática, atenta y profesional. Nunca uses emojis. Responde de forma muy concisa y directa.
+      return `
+Eres Megan, la Asistente de IA de Mantenimiento CRL para el personal de gestión (Supervisores y Administradores). Debes responder bajo el nombre de Megan (no repitas saludos ni "Hola, soy Megan", responde directamente).
+
+CAPACIDADES INTERACTIVAS EN TIEMPO REAL:
+Tienes habilitada la capacidad de CREAR, MODIFICAR y ASIGNAR órdenes de trabajo (OTMs) en tiempo real mediante un diálogo asistido y una Tarjeta Viva interactiva.
+
+REGLAS DE ACCIÓN:
+1. CREAR NUEVAS OTMs:
+   - Si te piden crear o reportar una orden de trabajo (ej: "crea una OTM para reparar la fuga en el baño del gimnasio"):
+   - Extrae los campos: area_sector (del catálogo de áreas), failure_type (especialidad del catálogo), description (problema), urgency ('baja'|'media'|'alta'|'critica'), exact_location (opcional).
+   - Si falta algún campo obligatorio (área, especialidad o descripción), pídelo amablemente en tu texto.
+   - SIEMPRE que haya intención de crear una orden, DEBES incluir al final de tu mensaje un bloque JSON:
+     [ACCION_OTM: {"type": "create", "data": {"area_sector": "...", "failure_type": "...", "description": "...", "urgency": "alta|media|baja|critica", "exact_location": "..."}}]
+
+2. MODIFICAR O REPROGRAMAR OTMs EXISTENTES:
+   - Si te piden modificar, reprogramar, reasignar técnico o cambiar estado de una orden (ej: "modifica la OTM2901 y cámbiale la fecha al 20 de mayo con el técnico Carlos"):
+   - Identifica el código de la OTM (ej: OTM2901) o términos de búsqueda.
+   - Extrae los cambios: scheduled_date (formato YYYY-MM-DD), technician_name (nombre de técnico registrado), status ('pending'|'scheduled'|'in_progress'|'closed'|'cancelled'), urgency, supervisor_notes, description, etc.
+   - Incluye al final de tu mensaje:
+     [ACCION_OTM: {"type": "modify", "query": "OTM2901", "data": {"scheduled_date": "...", "technician_name": "...", "status": "...", "supervisor_notes": "..."}}]
+
+3. BÚSQUEDA Y SELECCIÓN:
+   - Si el usuario dice "modifica la orden de la cerradura" y no indica el código:
+     [ACCION_OTM: {"type": "search", "query": "cerradura"}]
+
+4. CONFIRMAR O CANCELAR:
+   - Si el usuario dice "sí", "confirmo", "guarda", "procede" para el borrador en pantalla:
+     [ACCION_OTM: {"type": "confirm"}]
+   - Si el usuario dice "cancela", "descarta", "olvídalo":
+     [ACCION_OTM: {"type": "cancel"}]
+
+5. CONSULTAS INFORMATIVAS:
+   - Si el usuario solo hace una consulta sobre presupuestos, horas trabajadas de técnicos, repuestos RQ o estado de una OTM sin pedir crear ni editar, responde de forma concisa y NO agregues ninguna etiqueta [ACCION_OTM: ...].
+
+6. NUNCA uses emojis. Sé concisa, amable y profesional.
 
 Catálogos y Datos:
 - Áreas: ${JSON.stringify(areas)}
 - Ubicaciones: ${JSON.stringify(locations)}
 - Especialidades: ${JSON.stringify(specialties)}
 - Técnicos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+${activeDraftContext}
 ${otmsInfo}
 ${rqInfo}
 ${otiInfo}
@@ -707,7 +1065,38 @@ ${personnelHoursInfo}
         }
       } else {
         // Supervisor / Admin
-        if (cleanText.includes('rq') || cleanText.includes('repuesto') || cleanText.includes('compra') || cleanText.includes('material')) {
+        if (cleanText.includes('confirmar') || cleanText.includes('guardar') || cleanText.includes('procede') || cleanText === 'si' || cleanText === 'sí') {
+          answerText = '¡Entendido! Procedo a confirmar y guardar la operación en el sistema. [ACCION_OTM: {"type": "confirm"}]';
+        } else if (cleanText.includes('cancelar') || cleanText.includes('descartar') || cleanText.includes('olvidalo')) {
+          answerText = 'He cancelado el borrador actual. ¿En qué más puedo colaborarte? [ACCION_OTM: {"type": "cancel"}]';
+        } else if (cleanText.includes('crear') || cleanText.includes('nueva') || cleanText.includes('reportar')) {
+          const matchedArea = areas.find(a => cleanText.includes(a.toLowerCase())) || areas[0] || '01. SEDE PRINCIPAL';
+          let matchedSpec = specialties.find(s => cleanText.includes(s.toLowerCase())) || '';
+          if (!matchedSpec) {
+            if (cleanText.includes('agua') || cleanText.includes('fuga') || cleanText.includes('tuber') || cleanText.includes('inodoro')) matchedSpec = 'Gasfitería';
+            else if (cleanText.includes('luz') || cleanText.includes('cable') || cleanText.includes('electric') || cleanText.includes('luminaria')) matchedSpec = 'Electricidad';
+            else if (cleanText.includes('puerta') || cleanText.includes('madera') || cleanText.includes('carpinter')) matchedSpec = 'Carpintería';
+            else if (cleanText.includes('pint')) matchedSpec = 'Pintura';
+            else matchedSpec = 'General';
+          }
+          let matchedUrg: Urgency = 'medium';
+          if (cleanText.includes('alta') || cleanText.includes('urgente') || cleanText.includes('critica')) matchedUrg = 'high';
+          else if (cleanText.includes('baja')) matchedUrg = 'low';
+
+          const desc = userText.replace(/crear|nueva|solicitud|otm|por favor|reportar/gi, '').trim() || 'Trabajo de mantenimiento reportado';
+
+          answerText = `He preparado el borrador para la nueva orden de trabajo con la descripción "${desc}". Revisa la tarjeta viva abajo y confirma para registrarla en el sistema en tiempo real. [ACCION_OTM: {"type": "create", "data": {"area_sector": "${matchedArea}", "failure_type": "${matchedSpec}", "description": "${desc}", "urgency": "${matchedUrg}"}}]`;
+        } else if (cleanText.includes('modificar') || cleanText.includes('cambiar') || cleanText.includes('asignar') || cleanText.includes('reprogramar')) {
+          const codeMatchInText = cleanText.match(/otm\s*(\d+)/i);
+          const targetCode = codeMatchInText ? `OTM${codeMatchInText[1]}` : (otms[0]?.otm_code || 'OTM2901');
+          const tech = users.find(u => u.role === 'technician' && cleanText.includes(u.full_name.toLowerCase().split(' ')[0]));
+          const dateMatch = cleanText.match(/\d{4}-\d{2}-\d{2}/);
+
+          const techPart = tech ? `"technician_name": "${tech.full_name}",` : '';
+          const datePart = dateMatch ? `"scheduled_date": "${dateMatch[0]}",` : `"scheduled_date": "${new Date().toISOString().slice(0, 10)}",`;
+
+          answerText = `He ubicado la orden ${targetCode} y actualizado los cambios en la tarjeta viva. ¿Deseas confirmar la actualización? [ACCION_OTM: {"type": "modify", "query": "${targetCode}", "data": {${techPart}${datePart}"supervisor_notes": "Modificado vía Megan"}}]`;
+        } else if (cleanText.includes('rq') || cleanText.includes('repuesto') || cleanText.includes('compra') || cleanText.includes('material')) {
           const inApproval = rqs.filter(r => r.status === 'in_approval').length;
           const inLogistics = rqs.filter(r => r.status === 'in_logistics').length;
           const attended = rqs.filter(r => r.status === 'attended').length;
@@ -744,8 +1133,11 @@ ${personnelHoursInfo}
       }
     }
 
+    const { cleanText: cleanSimText, updatedDraft, shouldExecuteConfirm } = processActionIntent(answerText, activeDraft);
+    const textToStream = cleanSimText;
+
     // Simulate word-by-word streaming effect
-    const words = answerText.split(' ');
+    const words = textToStream.split(' ');
     let current = '';
     for (let i = 0; i < words.length; i++) {
       current += (i === 0 ? '' : ' ') + words[i];
@@ -753,6 +1145,13 @@ ${personnelHoursInfo}
       if (words.length > 1 && i % 2 === 0) {
         await new Promise(r => setTimeout(r, 20));
       }
+    }
+
+    if (updatedDraft !== undefined) {
+      setActiveDraft(updatedDraft);
+    }
+    if (shouldExecuteConfirm) {
+      await executeConfirmedAction(updatedDraft || activeDraft);
     }
 
     setIsLoading(false);
@@ -838,6 +1237,18 @@ ${personnelHoursInfo}
 
       setIsLoading(false);
       setActiveModel('groq');
+
+      const { cleanText: cleanGroqText, updatedDraft: groqDraft, shouldExecuteConfirm: groqConfirm } = processActionIntent(accumulatedText, activeDraft);
+      if (cleanGroqText !== accumulatedText) {
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: cleanGroqText } : m));
+      }
+      if (groqDraft !== undefined) {
+        setActiveDraft(groqDraft);
+      }
+      if (groqConfirm) {
+        await executeConfirmedAction(groqDraft || activeDraft);
+      }
+
       return true;
     } catch (err) {
       console.error('Groq fetch error:', err);
@@ -908,6 +1319,17 @@ ${personnelHoursInfo}
       }
 
       setIsLoading(false);
+
+      const { cleanText: cleanGemText, updatedDraft: gemDraft, shouldExecuteConfirm: gemConfirm } = processActionIntent(accumulatedText, activeDraft);
+      if (cleanGemText !== accumulatedText) {
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: cleanGemText } : m));
+      }
+      if (gemDraft !== undefined) {
+        setActiveDraft(gemDraft);
+      }
+      if (gemConfirm) {
+        await executeConfirmedAction(gemDraft || activeDraft);
+      }
     } catch (err: any) {
       console.error('Gemini SDK Error:', err);
       
@@ -1464,6 +1886,244 @@ ${personnelHoursInfo}
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Hidden File Input for attaching photo to OTM Draft */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        accept="image/*" 
+        style={{ display: 'none' }} 
+        onChange={handleAttachPhoto} 
+      />
+
+      {/* Candidate OTMs Picker (Disambiguation) */}
+      {activeDraft?.candidateOtms && activeDraft.candidateOtms.length > 0 && (
+        <div style={{
+          padding: '12px 16px',
+          background: 'rgba(15, 23, 42, 0.95)',
+          borderTop: '1px solid rgba(59, 130, 246, 0.3)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)'
+        }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            🔍 Encontré varias órdenes relacionadas. Selecciona cuál deseas modificar:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }} className="hide-scrollbar">
+            {activeDraft.candidateOtms.map(cand => (
+              <div 
+                key={cand.id}
+                onClick={() => handleSelectCandidate(cand)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  background: 'rgba(30, 41, 59, 0.8)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={e => e.currentTarget.style.borderColor = '#38bdf8'}
+                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+              >
+                <div>
+                  <span style={{ fontWeight: 700, color: '#60a5fa', fontSize: '0.8rem' }}>{cand.otm_code}</span>
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginLeft: 8 }}>{cand.area_sector}</span>
+                  <div style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: 2 }}>{cand.description?.slice(0, 60)}...</div>
+                </div>
+                <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: 6, background: '#1e3a8a', color: '#93c5fd', fontWeight: 600 }}>
+                  Elegir ➔
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Live Interactive Action Card (Draft Preview & Real-Time Confirmation) */}
+      {activeDraft && (!activeDraft.candidateOtms || activeDraft.candidateOtms.length === 0) && (
+        <div style={{
+          padding: '12px 16px',
+          background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))',
+          borderTop: '2px solid #3b82f6',
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                padding: '2px 8px',
+                borderRadius: 6,
+                background: activeDraft.type === 'create' ? '#059669' : '#d97706',
+                color: 'white'
+              }}>
+                {activeDraft.type === 'create' ? 'Nueva OTM (Borrador)' : `Modificando ${activeDraft.targetOtmCode || 'OTM'}`}
+              </span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f8fafc' }}>
+                Tarjeta Viva en Tiempo Real
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveDraft(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                padding: 2
+              }}
+              title="Descartar borrador"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Fields Preview */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: 6,
+            fontSize: '0.72rem'
+          }}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Área / Sector:</span>
+              <strong style={{ color: activeDraft.data.area_sector ? '#38bdf8' : '#f59e0b' }}>
+                {activeDraft.data.area_sector || '⚠️ Falta indicar'}
+              </strong>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Especialidad:</span>
+              <strong style={{ color: activeDraft.data.failure_type ? '#a78bfa' : '#f59e0b' }}>
+                {activeDraft.data.failure_type || '⚠️ Falta indicar'}
+              </strong>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Urgencia:</span>
+              <strong style={{
+                color: activeDraft.data.urgency === 'high' ? '#ef4444' : activeDraft.data.urgency === 'medium' ? '#f59e0b' : '#10b981',
+                textTransform: 'capitalize'
+              }}>
+                {activeDraft.data.urgency === 'high' ? 'Alta' : activeDraft.data.urgency === 'low' ? 'Baja' : 'Media'}
+              </strong>
+            </div>
+
+            {activeDraft.data.technician_names && activeDraft.data.technician_names.length > 0 && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Técnico:</span>
+                <strong style={{ color: '#34d399' }}>{activeDraft.data.technician_names.join(', ')}</strong>
+              </div>
+            )}
+
+            {activeDraft.data.scheduled_date && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Fecha Prog.:</span>
+                <strong style={{ color: '#60a5fa' }}>{activeDraft.data.scheduled_date}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Description snippet */}
+          {activeDraft.data.description && (
+            <div style={{ fontSize: '0.72rem', color: '#cbd5e1', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: 6, borderLeft: '3px solid #3b82f6' }}>
+              <strong>Problema:</strong> {activeDraft.data.description}
+            </div>
+          )}
+
+          {/* Optional Photo & Missing warning */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <div>
+              {activeDraft.data.photo_url ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <img 
+                    src={activeDraft.data.photo_url} 
+                    alt="Adjunto" 
+                    style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', border: '1px solid #3b82f6' }} 
+                  />
+                  <span style={{ fontSize: '0.68rem', color: '#38bdf8' }}>📷 Foto adjuntada</span>
+                  <button
+                    onClick={() => setActiveDraft(prev => prev ? { ...prev, data: { ...prev.data, photo_url: undefined, photo_name: undefined } } : null)}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem' }}
+                    title="Quitar foto"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#94a3b8',
+                    border: '1px dashed rgba(255,255,255,0.2)',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    fontSize: '0.68rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  📷 Adjuntar foto (Opcional)
+                </button>
+              )}
+            </div>
+
+            {activeDraft.missingFields.length > 0 && (
+              <div style={{ fontSize: '0.68rem', color: '#f59e0b', fontWeight: 600 }}>
+                ⚠️ Falta: {activeDraft.missingFields.join(', ')}
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+            <button
+              onClick={() => setActiveDraft(null)}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                color: '#94a3b8',
+                border: 'none',
+                borderRadius: 8,
+                padding: '6px 12px',
+                fontSize: '0.72rem',
+                cursor: 'pointer'
+              }}
+            >
+              Descartar
+            </button>
+            <button
+              onClick={() => executeConfirmedAction(activeDraft)}
+              disabled={!activeDraft.isReadyToConfirm}
+              style={{
+                background: activeDraft.isReadyToConfirm ? '#2563eb' : '#334155',
+                color: activeDraft.isReadyToConfirm ? 'white' : '#64748b',
+                border: 'none',
+                borderRadius: 8,
+                padding: '6px 14px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: activeDraft.isReadyToConfirm ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              ✅ {activeDraft.type === 'create' ? 'Confirmar y Crear OTM' : 'Confirmar Cambios'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quick Pills */}
       {messages.length > 0 && (
