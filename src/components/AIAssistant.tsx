@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { useAuth } from '../context/AuthContext';
 import { useOTM } from '../context/OTMContext';
+import { useRQ } from '../context/RQContext';
 import { OTMRequest, Profile } from '../types';
 
 interface Message {
@@ -17,6 +18,7 @@ export default function AIAssistant() {
   const { user } = useAuth();
   const { 
     otms, 
+    otis,
     users, 
     createOTM, 
     assignOTM, 
@@ -29,6 +31,7 @@ export default function AIAssistant() {
     opexBudget,
     capexBudget
   } = useOTM();
+  const { rqs } = useRQ();
 
   if (!user || user.role === 'technician') return null;
 
@@ -152,15 +155,17 @@ export default function AIAssistant() {
     }
   }, [isOpen, messages.length, user]);
 
-  // Trigger text-to-speech for the last assistant message
+  // Trigger text-to-speech only once after streaming/loading completes
+  const prevLoadingRef = useRef(false);
   useEffect(() => {
-    if (messages.length > 0) {
+    if (prevLoadingRef.current && !isLoading && messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg.role === 'assistant' && lastMsg.id !== 'welcome') {
+      if (lastMsg.role === 'assistant' && lastMsg.text && lastMsg.id !== 'welcome') {
         speakText(lastMsg.text);
       }
     }
-  }, [messages, voiceEnabled]);
+    prevLoadingRef.current = isLoading;
+  }, [isLoading, messages, voiceEnabled]);
 
   // Cleanup speech synthesis and cooldown timer on unmount
   useEffect(() => {
@@ -348,12 +353,130 @@ export default function AIAssistant() {
     return match ? match[1].toUpperCase() : null;
   };
 
-  const getRolePrompt = (role: string) => {
+  // Helper to extract and format relevant OTMs for prompt context
+  const getRelevantOTMsText = (query: string): string => {
+    const q = query.toLowerCase().trim();
+    const otmCodeMatch = query.match(/(OTM[A-Z0-9-]*\d{3,4})/i);
+    const codeSearched = otmCodeMatch ? otmCodeMatch[1].toUpperCase() : null;
+
+    let selected: OTMRequest[] = [];
+
+    if (codeSearched) {
+      selected = otms.filter(o => o.otm_code.toUpperCase().includes(codeSearched));
+    }
+
+    if (selected.length === 0) {
+      const stopwords = new Set(['de', 'la', 'el', 'en', 'y', 'a', 'los', 'del', 'las', 'por', 'un', 'una', 'con', 'para', 'que', 'esta', 'quien', 'como', 'cual']);
+      const words = q.split(/\s+/).map(w => w.replace(/[^a-záéíóúüñ0-9]/gi, '')).filter(w => w.length > 2 && !stopwords.has(w));
+
+      if (words.length > 0) {
+        const scored = otms.map(o => {
+          let score = 0;
+          const desc = (o.description || '').toLowerCase();
+          const code = (o.otm_code || '').toLowerCase();
+          const loc = (o.location || '').toLowerCase();
+          const spec = (o.failure_type || '').toLowerCase();
+          const tech = (o.assigned_technicians?.map(t => t.technician?.full_name).join(' ') || '').toLowerCase();
+
+          for (const w of words) {
+            if (code.includes(w)) score += 10;
+            if (desc.includes(w)) score += 5;
+            if (loc.includes(w)) score += 3;
+            if (spec.includes(w)) score += 3;
+            if (tech.includes(w)) score += 4;
+          }
+          return { otm: o, score };
+        }).filter(item => item.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 12)
+          .map(item => item.otm);
+
+        if (scored.length > 0) selected = scored;
+      }
+    }
+
+    if (selected.length === 0) {
+      selected = otms.slice(0, 10);
+    }
+
+    const statusLabels: Record<string, string> = {
+      pending: 'Pendiente de Asignación',
+      scheduled: 'Programada',
+      in_progress: 'En Proceso (Ejecutándose)',
+      rq: 'En Espera de Repuestos (RQ)',
+      awaiting_supervisor: 'Esperando Aprobación de Supervisor',
+      awaiting_conformity: 'Esperando Conformidad del Solicitante',
+      closed: 'Completada / Cerrada',
+      cancelled: 'Cancelada',
+      derived: 'Derivada'
+    };
+
+    const lines = selected.map(o => {
+      const techNames = o.assigned_technicians?.map(t => t.technician?.full_name).filter(Boolean).join(', ') 
+        || users.find(u => u.id === o.technician_id)?.full_name 
+        || (o.assignment_type === 'contractor' ? (o.contractor_name || 'Contratista') : 'Sin asignar');
+      const sched = o.scheduled_date ? o.scheduled_date.slice(0, 10) : 'Sin fecha definida';
+      return `- ${o.otm_code} [${statusLabels[o.status] || o.status}]: "${o.description}". Ubicación: ${o.location || o.area_sector}. Especialidad: ${o.failure_type || 'General'}. Técnico: ${techNames}. Fecha: ${sched}. Urgencia: ${o.urgency}.`;
+    });
+
+    const pendingCount = otms.filter(o => o.status === 'pending').length;
+    const inProgCount = otms.filter(o => o.status === 'in_progress' || o.status === 'scheduled').length;
+    const closedCount = otms.filter(o => o.status === 'closed').length;
+    const rqCount = otms.filter(o => o.status === 'rq').length;
+
+    return `
+ESTADÍSTICAS GENERALES DE OTMS:
+- Total en sistema: ${otms.length} (Pendientes: ${pendingCount}, En Proceso/Programadas: ${inProgCount}, Con RQ pendiente: ${rqCount}, Cerradas: ${closedCount})
+
+DETALLE DE OTMs RELEVANTES PARA ESTA CONSULTA:
+${lines.join('\n')}
+- Si el usuario te pregunta por alguna de estas órdenes o problemas, responde con exactitud sobre su estado, técnico, fechas y lugar.
+`;
+  };
+
+  const getRQInfoText = (): string => {
+    if (!rqs || rqs.length === 0) return '';
+    const inApproval = rqs.filter(r => r.status === 'in_approval').length;
+    const inLogistics = rqs.filter(r => r.status === 'in_logistics').length;
+    const attended = rqs.filter(r => r.status === 'attended').length;
+    const rejected = rqs.filter(r => r.status === 'rejected').length;
+
+    const sample = rqs.slice(0, 6).map(r => {
+      const mats = r.materials?.map(m => `${m.name} (${m.quantity} ${m.unit})`).join(', ') || 'Materiales varios';
+      return `- RQ #${r.rq_number || r.item_number} [OTM ${r.otm_code}, Estado: ${r.status}]: ${r.description}. Materiales: ${mats}. Solicitante/Sup: ${r.supervisor_name}.`;
+    }).join('\n');
+
+    return `
+ESTADO DE REQUERIMIENTOS Y REPUESTOS (RQ LOG):
+- Resumen global de compras/suministros: ${rqs.length} RQs en total (${inApproval} en Aprobación, ${inLogistics} en Proceso Logístico, ${attended} Atendidas/Entregadas, ${rejected} Rechazadas).
+RQs destacadas:
+${sample}
+- Si el usuario te pregunta por compras, requerimientos, repuestos o materiales pendientes (RQ), responde con estos datos.
+`;
+  };
+
+  const getOTIInfoText = (): string => {
+    if (!otis || otis.length === 0) return '';
+    const total = otis.length;
+    const completed = otis.filter(o => o.status === 'completed').length;
+    const inProgress = otis.filter(o => o.status === 'in_progress').length;
+    const scheduled = otis.filter(o => o.status === 'scheduled').length;
+
+    return `
+PLAN DE MANTENIMIENTO PREVENTIVO INTERNO (OTIs):
+- Total planes OTI: ${total} (${completed} completados, ${inProgress} en proceso, ${scheduled} programados).
+`;
+  };
+
+  const getRolePrompt = (role: string, userQuery = '') => {
     const isMaintMgmt = role === 'supervisor' || role === 'admin' || (role === 'jefatura' && user?.area_sector === '22. MANTENIMIENTO');
 
     // Calculate budget totals for Mantenimiento Management roles
     let budgetInfo = '';
     let personnelHoursInfo = '';
+    let otmsInfo = '';
+    let rqInfo = '';
+    let otiInfo = '';
     
     if (isMaintMgmt) {
       const totalOpex = opexBudget.reduce((acc, i) => acc + Math.abs(i.importeEEFF || 0), 0);
@@ -419,15 +542,25 @@ CONOCIMIENTO DE HORAS DE TRABAJO DEL PERSONAL TÉCNICO (INFORMACIÓN EN TIEMPO R
 ${formattedTechHours}
 - Si el usuario te pregunta sobre las horas de trabajo acumuladas, horas de ejecución, tareas realizadas o pendientes por técnico, responde usando esta información exacta y concisa.
 `;
+
+      otmsInfo = getRelevantOTMsText(userQuery);
+      rqInfo = getRQInfoText();
+      otiInfo = getOTIInfoText();
     }
 
     if (role === 'requester' || (role === 'jefatura' && user?.area_sector !== '22. MANTENIMIENTO')) {
       // Prompt for requesters and jefaturas of other areas
+      const myOtms = otms.filter(o => o.requester_id === user?.id || (userQuery && o.otm_code.toUpperCase().includes(userQuery.toUpperCase())));
+      const myOtmsText = myOtms.length > 0 
+        ? `Tus Solicitudes Registradas en el Club:\n` + myOtms.slice(0, 8).map(o => `- ${o.otm_code} [Estado: ${o.status}]: "${o.description}". Especialidad: ${o.failure_type || 'General'}. Fecha: ${o.created_at.slice(0, 10)}.`).join('\n')
+        : 'El usuario no tiene solicitudes activas registradas aún.';
+
       return `
 Eres Megan, la Asistente de IA de Mantenimiento CRL. Tu objetivo es ayudar a los Solicitantes y Jefaturas de otras áreas a resolver dudas específicas sobre solicitudes de mantenimiento en el club. Debes responder bajo el nombre de Megan (no saludes ni repitas "Hola, soy Megan" en cada respuesta, solo responde la consulta directamente ya que el saludo inicial de bienvenida ya se dio).
 
 REGLAS DE COMPORTAMIENTO ESTRICTAS:
 1. SOLO debes responder preguntas relacionadas con:
+   - Consultas sobre el estado de sus propias solicitudes registradas (puedes indicarle en qué estado se encuentra su orden basándote en la lista provista abajo).
    - Solicitudes de trabajo de mantenimiento (OTM), el flujo del proceso de solicitudes, o dudas sobre a qué especialidad (Electricidad, Gasfitería, Pintura, Carpintería, Albañilería, Equipos Electromecánicos, Aire Acondicionado) corresponde un problema.
    - Si un trabajo pertenece al área de Servicios Generales / Maestranza (limpieza profunda, traslado de muebles, basura, toldos, desinfección, jardinería). En este caso, debes indicarle textualmente: "Comprendo, pero los trabajos de limpieza o movimiento de mobiliario pertenecen al área de Servicios Generales (Maestranza). Por favor, comunícate directamente con ellos para que te asistan."
 2. Si el usuario realiza preguntas de cultura general, chistes, preguntas técnicas complejas no relacionadas al club, o cualquier tema fuera de la solicitud de mantenimiento y sus especialidades, dile con cortesía: "Lo siento, como Megan, tu asistente de mantenimiento, solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza."
@@ -437,6 +570,8 @@ REGLAS DE COMPORTAMIENTO ESTRICTAS:
 6. Áreas del Club: ${JSON.stringify(areas)}
 7. Ubicaciones: ${JSON.stringify(locations)}
 8. Especialidades: ${JSON.stringify(specialties)}
+
+${myOtmsText}
 `;
     } else {
       // Prompt for Supervisors/Admins
@@ -449,13 +584,17 @@ REGLAS DE COMPORTAMIENTO ESTRICTAS:
 3. Responde a preguntas y consultas sobre el estado de las OTMs, los técnicos asignados, o estadísticas generales del sistema, basándote en la información provista.
 4. Tienes acceso completo a la información presupuestaria actualizada (OPEX y CAPEX). Responde consultas financieras sobre saldos, montos asignados o ejecutados con total precisión.
 5. Tienes acceso completo a las horas de trabajo del personal técnico. Si te preguntan sobre las horas acumuladas, horas de ejecución o tareas realizadas por técnico, responde con total precisión usando los datos reales.
-6. Sé carismática, atenta y profesional. Nunca uses emojis. Responde de forma muy concisa.
+6. Tienes acceso al registro de repuestos y compras (RQ Log) y al plan preventivo interno (OTIs).
+7. Sé carismática, atenta y profesional. Nunca uses emojis. Responde de forma muy concisa y directa.
 
 Catálogos y Datos:
 - Áreas: ${JSON.stringify(areas)}
 - Ubicaciones: ${JSON.stringify(locations)}
 - Especialidades: ${JSON.stringify(specialties)}
 - Técnicos: ${JSON.stringify(users.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.full_name })))}
+${otmsInfo}
+${rqInfo}
+${otiInfo}
 ${budgetInfo}
 ${personnelHoursInfo}
 `;
@@ -463,223 +602,131 @@ ${personnelHoursInfo}
   };
 
   // ----------------------------------------------------
-  // SIMULATION ENGINE (DEMO FALLBACK)
+  // SIMULATION ENGINE (DEMO FALLBACK WITH STREAMING)
   // ----------------------------------------------------
-  const runSimulation = async (userText: string) => {
+  const runSimulation = async (userText: string, assistantMsgId: string) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     const cleanText = userText.toLowerCase().trim();
-    const timestamp = new Date();
-    const id = `msg-${Date.now()}`;
+    let answerText = '';
 
-    // A. Role check: Solicitante (Requester) or Jefaturas de otras áreas
     const isMaintMgmt = user?.role === 'supervisor' || user?.role === 'admin' || (user?.role === 'jefatura' && user?.area_sector === '22. MANTENIMIENTO');
 
-    if (!isMaintMgmt) {
-      // 1. Check for Servicios Generales / Maestranza keywords
-      if (cleanText.includes('limpieza') || cleanText.includes('basura') || cleanText.includes('toldo') || cleanText.includes('muebles') || cleanText.includes('traslado') || cleanText.includes('jardin') || cleanText.includes('desinfecc')) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Comprendo, pero los trabajos de limpieza o movimiento de mobiliario pertenecen al área de Servicios Generales (Maestranza). Por favor, comunícate directamente con ellos para que te asistan.',
-          timestamp
-        }]);
-        return;
+    // 1. Direct OTM code match
+    const codeMatch = userText.match(/(OTM[A-Z0-9-]*\d{3,4})/i);
+    if (codeMatch) {
+      const code = codeMatch[1].toUpperCase();
+      const foundOtm = otms.find(o => o.otm_code.toUpperCase().includes(code));
+      if (foundOtm) {
+        const techNames = foundOtm.assigned_technicians?.map(t => t.technician?.full_name).filter(Boolean).join(', ') 
+          || users.find(u => u.id === foundOtm.technician_id)?.full_name 
+          || (foundOtm.assignment_type === 'contractor' ? (foundOtm.contractor_name || 'Contratista') : 'Sin asignar');
+        const statusMap: Record<string, string> = {
+          pending: 'Pendiente',
+          scheduled: 'Programada',
+          in_progress: 'En Proceso (Ejecutándose)',
+          rq: 'En Espera de Repuestos (RQ)',
+          awaiting_supervisor: 'Esperando Aprobación de Supervisor',
+          awaiting_conformity: 'Esperando Conformidad',
+          closed: 'Culminada / Cerrada',
+          cancelled: 'Cancelada'
+        };
+        const sched = foundOtm.scheduled_date ? foundOtm.scheduled_date.slice(0, 10) : 'por definir';
+        answerText = `La orden ${foundOtm.otm_code} sobre "${foundOtm.description}" en ${foundOtm.location || foundOtm.area_sector} se encuentra actualmente en estado "${statusMap[foundOtm.status] || foundOtm.status}". Está asignada al técnico ${techNames} con fecha programada ${sched}.`;
       }
-
-      // 2. Check for specialty doubts
-      if (cleanText.includes('fuga') || cleanText.includes('agua') || cleanText.includes('tuber') || cleanText.includes('caño') || cleanText.includes('inodoro')) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Eso corresponde a la especialidad de Gasfitería. Para registrar la solicitud, por favor dirígete a la sección "Nueva Solicitud" del menú lateral, rellena los campos y adjunta la fotografía obligatoria.',
-          timestamp
-        }]);
-        return;
-      }
-      if (cleanText.includes('luz') || cleanText.includes('toma') || cleanText.includes('cable') || cleanText.includes('electric') || cleanText.includes('lampara') || cleanText.includes('luminaria') || cleanText.includes('enchufe')) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Esa incidencia corresponde a la especialidad de Electricidad. Recuerda rellenar el formulario de "Nueva Solicitud" para reportarlo oficialmente.',
-          timestamp
-        }]);
-        return;
-      }
-      if (cleanText.includes('pintar') || cleanText.includes('pared') || cleanText.includes('pintura')) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Eso corresponde a la especialidad de Pintura. Por favor completa la solicitud manualmente para programar la atención.',
-          timestamp
-        }]);
-        return;
-      }
-      if (cleanText.includes('puerta') || cleanText.includes('cerradura') || cleanText.includes('madera') || cleanText.includes('mueble roto') || cleanText.includes('carpinter')) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'Este requerimiento corresponde a la especialidad de Carpintería. Utiliza el formulario de "Nueva Solicitud" para reportarlo.',
-          timestamp
-        }]);
-        return;
-      }
-
-      // 3. Fallback check for general/maintenance questions
-      if (cleanText.includes('proceso') || cleanText.includes('como funciona') || cleanText.includes('ayuda') || cleanText.includes('solicitud') || cleanText.includes('crear') || cleanText.includes('otm')) {
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: 'El proceso es sencillo: debes ingresar al apartado "Nueva Solicitud", ingresar la ubicación general y específica, seleccionar la especialidad del trabajo, describir el problema y subir la fotografía obligatoria. Los técnicos se encargarán de ejecutarlo una vez el supervisor lo programe.',
-          timestamp
-        }]);
-        return;
-      }
-
-      // 4. Deny out-of-scope questions
-      setIsLoading(false);
-      setMessages(prev => [...prev, {
-        id,
-        role: 'assistant',
-        text: 'Lo siento, como Megan, tu asistente de mantenimiento, solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza.',
-        timestamp
-      }]);
-      return;
-    } else {
-      // B. Supervisor/Admin Flow
-      // 1. Budget questions
-      if (cleanText.includes('presupuesto') || cleanText.includes('monto') || cleanText.includes('opex') || cleanText.includes('capex') || cleanText.includes('disponible') || cleanText.includes('saldo')) {
-        const totalOpex = opexBudget.reduce((acc, i) => acc + Math.abs(i.importeEEFF || 0), 0);
-        const totalCapex = capexBudget.reduce((acc, i) => acc + (i.importe || 0), 0);
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `¡Claro! El presupuesto OPEX total aprobado es de $${totalOpex.toLocaleString()} y para CAPEX el monto total es de $${totalCapex.toLocaleString()}.`,
-          timestamp
-        }]);
-        return;
-      }
-
-      // 2. Personnel hours questions
-      if (cleanText.includes('hora') || cleanText.includes('trabajo') || cleanText.includes('técnico') || cleanText.includes('tecnico') || cleanText.includes('personal') || cleanText.includes('tiempo')) {
-        const technicians = users.filter(u => u.role === 'technician');
-        const techHoursList = technicians.map(tech => {
-          const techOtms = otms.filter(o => 
-            o.technician_id === tech.id || 
-            (o.assigned_technicians && o.assigned_technicians.some(at => at.technician_id === tech.id))
-          );
-          const finishedOtms = techOtms.filter(o => ['closed', 'awaiting_supervisor', 'awaiting_conformity'].includes(o.status));
-          const totalFinishedHours = finishedOtms.reduce((sum, o) => {
-            let hrs = 0;
-            if (o.net_execution_time !== null && o.net_execution_time !== undefined) {
-              hrs = o.net_execution_time / 60;
-            } else if (o.job_start_time && o.job_end_time) {
-              const start = new Date(o.job_start_time).getTime();
-              const end = new Date(o.job_end_time).getTime();
-              hrs = Math.max(0, (end - start) / 3600000);
-            }
-            return sum + hrs;
-          }, 0);
-          const activeOtms = techOtms.filter(o => ['in_progress', 'scheduled'].includes(o.status));
-          return `- ${tech.full_name} (${tech.position || 'Técnico'}): ${totalFinishedHours.toFixed(1)} horas (${finishedOtms.length} tareas completadas, ${activeOtms.length} en curso)`;
-        });
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `Las horas de trabajo registradas por técnico son:\n\n${techHoursList.join('\n')}\n\n¿Deseas consultar el detalle de algún técnico en particular?`,
-          timestamp
-        }]);
-        return;
-      }
-
-      // 3. General OTM stats
-      if (cleanText.includes('otm') || cleanText.includes('ordenes') || cleanText.includes('trabajos') || cleanText.includes('retras') || cleanText.includes('pendiente')) {
-        const total = otms.length;
-        const pending = otms.filter(o => o.status === 'pending').length;
-        const scheduled = otms.filter(o => o.status === 'scheduled' || o.status === 'in_progress').length;
-        const closed = otms.filter(o => o.status === 'closed').length;
-
-        setIsLoading(false);
-        setMessages(prev => [...prev, {
-          id,
-          role: 'assistant',
-          text: `Actualmente en el sistema hay registradas ${total} OTMs en total: ${pending} se encuentran Pendientes por revisar, ${scheduled} están en Programadas/En Progreso de ejecución y ${closed} han sido Completadas/Cerradas de forma exitosa.`,
-          timestamp
-        }]);
-        return;
-      }
-
-      // 4. Fallback for Supervisor
-      setIsLoading(false);
-      setMessages(prev => [...prev, {
-        id,
-        role: 'assistant',
-        text: 'Hola, soy Megan, tu asistente virtual. Puedo brindarte información en tiempo real sobre el estado de las OTMs, el presupuesto OPEX/CAPEX y las horas de trabajo del personal técnico del club. ¿En qué consulta te puedo asistir hoy?',
-        timestamp
-      }]);
     }
-  };
 
-  // Helper to parse arguments from action tags
-  const parseActionArgs = (argsStr: string) => {
-    const args: any = {};
-    const regex = /(\w+)\s*=\s*(?:'([^']*)'|"([^"]*)"|(\[.*?\])|([\w\-.]+))/g;
-    let match;
-    while ((match = regex.exec(argsStr)) !== null) {
-      const key = match[1];
-      let val: any = match[2] || match[3] || match[5];
-      const arrayVal = match[4];
-      
-      if (arrayVal) {
-        try {
-          val = JSON.parse(arrayVal.replace(/'/g, '"'));
-        } catch {
-          val = [];
+    if (!answerText) {
+      if (!isMaintMgmt) {
+        // Solicitante / Jefatura externa
+        if (cleanText.includes('limpieza') || cleanText.includes('basura') || cleanText.includes('toldo') || cleanText.includes('muebles') || cleanText.includes('traslado') || cleanText.includes('jardin') || cleanText.includes('desinfecc')) {
+          answerText = 'Comprendo, pero los trabajos de limpieza o movimiento de mobiliario pertenecen al área de Servicios Generales (Maestranza). Por favor, comunícate directamente con ellos para que te asistan.';
+        } else if (cleanText.includes('fuga') || cleanText.includes('agua') || cleanText.includes('tuber') || cleanText.includes('caño') || cleanText.includes('inodoro')) {
+          answerText = 'Eso corresponde a la especialidad de Gasfitería. Para registrar la solicitud, por favor dirígete a la sección "Nueva Solicitud" del menú lateral, completa los campos requeridos y adjunta la fotografía obligatoria.';
+        } else if (cleanText.includes('luz') || cleanText.includes('toma') || cleanText.includes('cable') || cleanText.includes('electric') || cleanText.includes('lampara') || cleanText.includes('luminaria') || cleanText.includes('enchufe')) {
+          answerText = 'Esa incidencia corresponde a la especialidad de Electricidad. Recuerda rellenar el formulario de "Nueva Solicitud" en el menú para reportarlo oficialmente.';
+        } else if (cleanText.includes('pintar') || cleanText.includes('pared') || cleanText.includes('pintura')) {
+          answerText = 'Eso corresponde a la especialidad de Pintura. Por favor completa la solicitud manualmente para programar la atención.';
+        } else if (cleanText.includes('puerta') || cleanText.includes('cerradura') || cleanText.includes('madera') || cleanText.includes('carpinter')) {
+          answerText = 'Este requerimiento corresponde a la especialidad de Carpintería. Utiliza el formulario de "Nueva Solicitud" para reportarlo.';
+        } else if (cleanText.includes('proceso') || cleanText.includes('como funciona') || cleanText.includes('ayuda') || cleanText.includes('solicitud') || cleanText.includes('crear') || cleanText.includes('otm')) {
+          answerText = 'El proceso es sencillo: debes ingresar al apartado "Nueva Solicitud", ingresar la ubicación general y específica, seleccionar la especialidad del trabajo, describir el problema y subir la fotografía obligatoria.';
+        } else {
+          answerText = 'Lo siento, como Megan, tu asistente de mantenimiento, solo puedo responder dudas sobre solicitudes de mantenimiento, asignación de especialidades, o redireccionamiento de trabajos a Servicios Generales/Maestranza.';
         }
-      } else if (val === 'true') {
-        val = true;
-      } else if (val === 'false') {
-        val = false;
-      } else if (!isNaN(Number(val))) {
-        val = Number(val);
+      } else {
+        // Supervisor / Admin
+        if (cleanText.includes('rq') || cleanText.includes('repuesto') || cleanText.includes('compra') || cleanText.includes('material')) {
+          const inApproval = rqs.filter(r => r.status === 'in_approval').length;
+          const inLogistics = rqs.filter(r => r.status === 'in_logistics').length;
+          const attended = rqs.filter(r => r.status === 'attended').length;
+          const rejected = rqs.filter(r => r.status === 'rejected').length;
+          answerText = `Actualmente hay ${rqs.length} requerimientos (RQ) registrados: ${inApproval} en Aprobación, ${inLogistics} en Proceso Logístico, ${attended} Atendidas y ${rejected} Rechazadas.`;
+        } else if (cleanText.includes('preventiv') || cleanText.includes('oti')) {
+          const total = otis.length;
+          const completed = otis.filter(o => o.status === 'completed').length;
+          const inProg = otis.filter(o => o.status === 'in_progress').length;
+          answerText = `En el Plan Preventivo Interno (OTIs) tenemos ${total} planes registrados: ${completed} completados y ${inProg} en ejecución.`;
+        } else if (cleanText.includes('presupuesto') || cleanText.includes('monto') || cleanText.includes('opex') || cleanText.includes('capex') || cleanText.includes('disponible') || cleanText.includes('saldo')) {
+          const totalOpex = opexBudget.reduce((acc, i) => acc + Math.abs(i.importeEEFF || 0), 0);
+          const totalCapex = capexBudget.reduce((acc, i) => acc + (i.importe || 0), 0);
+          answerText = `El presupuesto OPEX total aprobado es de $${totalOpex.toLocaleString()} y para CAPEX el monto total es de $${totalCapex.toLocaleString()}. ¿Deseas consultar algún centro de costo específico?`;
+        } else if (cleanText.includes('hora') || cleanText.includes('trabajo') || cleanText.includes('tecnico') || cleanText.includes('técnico') || cleanText.includes('personal')) {
+          const technicians = users.filter(u => u.role === 'technician');
+          const techHoursList = technicians.slice(0, 6).map(tech => {
+            const techOtms = otms.filter(o => o.technician_id === tech.id || (o.assigned_technicians && o.assigned_technicians.some(at => at.technician_id === tech.id)));
+            const finishedOtms = techOtms.filter(o => ['closed', 'awaiting_supervisor', 'awaiting_conformity'].includes(o.status));
+            const totalFinishedHours = finishedOtms.reduce((sum, o) => {
+              if (o.net_execution_time !== null && o.net_execution_time !== undefined) return sum + (o.net_execution_time / 60);
+              return sum + 1.5;
+            }, 0);
+            return `• ${tech.full_name}: ${totalFinishedHours.toFixed(1)} hrs (${finishedOtms.length} tareas completadas)`;
+          });
+          answerText = `Las horas acumuladas de ejecución registradas por técnico son:\n\n${techHoursList.join('\n')}\n\n¿Deseas consultar el detalle de algún técnico en particular?`;
+        } else {
+          const total = otms.length;
+          const pending = otms.filter(o => o.status === 'pending').length;
+          const scheduled = otms.filter(o => o.status === 'scheduled' || o.status === 'in_progress').length;
+          const closed = otms.filter(o => o.status === 'closed').length;
+          answerText = `Actualmente en el sistema hay registradas ${total} OTMs en total: ${pending} se encuentran Pendientes por revisar, ${scheduled} están Programadas/En Progreso y ${closed} han sido Completadas. ¿Deseas consultar alguna orden específica o detalle de personal?`;
+        }
       }
-      args[key] = val;
     }
-    return args;
+
+    // Simulate word-by-word streaming effect
+    const words = answerText.split(' ');
+    let current = '';
+    for (let i = 0; i < words.length; i++) {
+      current += (i === 0 ? '' : ' ') + words[i];
+      setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: current } : m));
+      if (words.length > 1 && i % 2 === 0) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+    }
+
+    setIsLoading(false);
   };
 
   // ----------------------------------------------------
-  // GROQ CLOUD FALLBACK (LLAMA 3 FAST INFERENCE)
+  // GROQ CLOUD FALLBACK (LLAMA 3.3 70B FAST STREAMING)
   // ----------------------------------------------------
-  const runGroqAPI = async (userText: string): Promise<boolean> => {
+  const runGroqAPI = async (userText: string, assistantMsgId: string): Promise<boolean> => {
     if (!groqKey) {
       console.log('No Groq key configured. Skipping fallback.');
       return false;
     }
 
     setIsLoading(true);
-    const timestamp = new Date();
-    const id = `msg-${Date.now()}`;
     
     const messagesHistory = messages
-      .filter(m => m.id !== 'welcome')
+      .filter(m => m.id !== 'welcome' && m.id !== assistantMsgId)
       .map(m => ({
         role: m.role === 'assistant' ? 'assistant' : 'user',
         content: m.text
       }));
 
-    const groqSystemPrompt = getRolePrompt(user?.role || '');
+    const groqSystemPrompt = getRolePrompt(user?.role || '', userText);
 
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -689,13 +736,14 @@ ${personnelHoursInfo}
           'Authorization': `Bearer ${groqKey}`
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.3-70b-versatile',
           messages: [
             { role: 'system', content: groqSystemPrompt },
             ...messagesHistory,
             { role: 'user', content: userText }
           ],
-          temperature: 0.3
+          temperature: 0.3,
+          stream: true
         })
       });
 
@@ -703,25 +751,42 @@ ${personnelHoursInfo}
         throw new Error('Groq API Error: ' + response.statusText);
       }
 
-      const data = await response.json();
-      let responseText = data.choices[0].message?.content || '';
-      console.log('Groq Response:', responseText);
+      if (!response.body) {
+        throw new Error('No response body from Groq stream');
+      }
 
-      let cardType: any = undefined;
-      let cardData: any = null;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let accumulatedText = '';
+      let buffer = '';
 
-      // Strip action tag if any was generated
-      responseText = responseText.replace(/\[ACCION:[^\]]*\]/g, '').trim();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const delta = json.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                accumulatedText += delta;
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: accumulatedText } : m));
+              }
+            } catch (e) {
+              // ignore partial chunk
+            }
+          }
+        }
+      }
 
       setIsLoading(false);
-      setMessages(prev => [...prev, {
-        id,
-        role: 'assistant',
-        text: responseText,
-        timestamp,
-        cardType,
-        cardData
-      }]);
       setActiveModel('groq');
       return true;
     } catch (err) {
@@ -731,34 +796,26 @@ ${personnelHoursInfo}
   };
 
   // ----------------------------------------------------
-  // GEMINI LIVE API INTEGRATION (WITH FUNCTION CALLING)
+  // GEMINI LIVE API INTEGRATION (STREAMING WITH FALLBACK)
   // ----------------------------------------------------
-  const runGeminiAPI = async (userText: string, retryCount = 0) => {
+  const runGeminiAPI = async (userText: string, assistantMsgId: string, retryCount = 0) => {
     setIsLoading(true);
-    const timestamp = new Date();
-    const id = `msg-${Date.now()}`;
 
     if (apiKeys.length === 0) {
       setIsLoading(false);
-      setMessages(prev => [...prev, { id, role: 'assistant', text: 'No hay API Keys de Gemini configuradas.', timestamp, cardType: 'error' }]);
+      setMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+        ...m,
+        text: 'No hay API Keys de Gemini configuradas.',
+        cardType: 'error'
+      } : m));
       return;
     }
 
     const currentKey = apiKeys[currentKeyIndex];
-
-    // OTMs summary for context awareness
-    const otmsSummary = otms.slice(0, 30).map(o => ({
-      code: o.otm_code,
-      status: o.status,
-      desc: o.description?.substring(0, 60),
-      location: o.location,
-      area: o.area_sector
-    }));
-
-    const systemPrompt = getRolePrompt(user?.role || '');
+    const systemPrompt = getRolePrompt(user?.role || '', userText);
 
     const contents = messages
-      .filter(m => m.id !== 'welcome')
+      .filter(m => m.id !== 'welcome' && m.id !== assistantMsgId)
       .map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.text }]
@@ -771,7 +828,7 @@ ${personnelHoursInfo}
 
     try {
       const ai = new GoogleGenAI({ apiKey: currentKey });
-      const response = await ai.models.generateContent({
+      const responseStream = await ai.models.generateContentStream({
         model: 'gemini-2.5-flash',
         contents,
         config: {
@@ -779,10 +836,6 @@ ${personnelHoursInfo}
         }
       });
 
-      const candidate = response.candidates?.[0];
-      const modelParts = candidate?.content?.parts || [];
-      
-      // Gemini responded successfully — confirm active model and clear any cooldown
       setActiveModel('gemini');
       geminiBlockedUntilRef.current = 0;
       if (geminiCooldownRef.current) {
@@ -790,14 +843,21 @@ ${personnelHoursInfo}
         geminiCooldownRef.current = null;
       }
 
-      let aiText = response.text || '';
+      let accumulatedText = '';
+      for await (const chunk of responseStream) {
+        const textChunk = chunk.text || '';
+        if (textChunk) {
+          accumulatedText += textChunk;
+          setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: accumulatedText } : m));
+        }
+      }
+
+      if (!accumulatedText) {
+        accumulatedText = 'Entendido, ¿deseas realizar otra consulta?';
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: accumulatedText } : m));
+      }
+
       setIsLoading(false);
-      setMessages(prev => [...prev, {
-        id,
-        role: 'assistant',
-        text: aiText || 'Entendido, ¿deseas realizar otra consulta?',
-        timestamp
-      }]);
     } catch (err: any) {
       console.error('Gemini SDK Error:', err);
       
@@ -812,20 +872,17 @@ ${personnelHoursInfo}
         const nextIndex = (currentKeyIndex + 1) % apiKeys.length;
         console.log(`⚡ Gemini Key ${currentKeyIndex + 1} falló. Rotando a la llave ${nextIndex + 1}...`);
         setCurrentKeyIndex(nextIndex);
-        // Reintenta automáticamente
-        runGeminiAPI(userText, retryCount + 1);
+        runGeminiAPI(userText, assistantMsgId, retryCount + 1);
         return;
       }
 
-      // Si todas las llaves fallaron (por Rate Limit, Network Error, etc.), pasamos a Groq
-      console.log('⚡ Todas las llaves de Gemini fallaron. Pasando a Groq Cloud (Llama 3)...');
+      // Si todas las llaves fallaron, pasamos a Groq Cloud con streaming
+      console.log('⚡ Todas las llaves de Gemini fallaron. Pasando a Groq Cloud (Llama 3.3 70B)...');
       setActiveModel('groq');
-      const groqSuccess = await runGroqAPI(userText);
+      const groqSuccess = await runGroqAPI(userText, assistantMsgId);
       if (groqSuccess) return;
 
-      // Si Groq TAMBIÉN falla, bloqueamos Gemini por 60s y mostramos error final
-      geminiBlockedUntilRef.current = Date.now() + 60000; // block for 60s
-      
+      geminiBlockedUntilRef.current = Date.now() + 60000;
       if (geminiCooldownRef.current) clearTimeout(geminiCooldownRef.current);
       geminiCooldownRef.current = setTimeout(() => {
         console.log('🔄 Gemini cooldown expired. Rehabilitando llaves.');
@@ -834,22 +891,13 @@ ${personnelHoursInfo}
       }, 60000);
 
       setIsLoading(false);
-      
       let errorText = 'Lo siento, no pude conectar con el servidor de IA (ni Gemini ni Groq respondieron). Asegúrate de que tu conexión sea estable y tus API Keys sean correctas.';
-                          
       if (isAuthError) {
         errorText = `Parece que hay un inconveniente de autenticación con la API Key actual (Llave ${currentKeyIndex + 1}). Verifica que la clave sea válida en Google AI Studio.`;
       }
-
       errorText += '\n\n*¿Deseas activar el **Modo Simulado** (en el botón de configuración de arriba) para probar el flujo sin usar la API?*';
 
-      setMessages(prev => [...prev, {
-        id,
-        role: 'assistant',
-        text: errorText,
-        timestamp,
-        cardType: 'error'
-      }]);
+      setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: errorText, cardType: 'error' } : m));
     }
   };
 
@@ -858,7 +906,13 @@ ${personnelHoursInfo}
   // ----------------------------------------------------
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputVal).trim();
-    if (!text) return;
+    if (!text || isLoading) return;
+
+    // Immediately stop speech synthesis when user sends a new message
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
 
     const userMsg: Message = {
       id: `user-${Date.now()}`,
@@ -867,33 +921,39 @@ ${personnelHoursInfo}
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const assistantMsgId = `asst-${Date.now()}`;
+    const assistantPlaceholder: Message = {
+      id: assistantMsgId,
+      role: 'assistant',
+      text: '',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMsg, assistantPlaceholder]);
     setInputVal('');
 
     if (useSimulated) {
-      runSimulation(text);
+      runSimulation(text, assistantMsgId);
     } else {
-      // Check if Gemini is currently rate-limited (all keys blocked)
       const isGeminiBlocked = geminiBlockedUntilRef.current > Date.now();
       
       if (isGeminiBlocked) {
-        console.log('⏳ Gemini still in cooldown. Routing to Groq Cloud...');
+        console.log('⏳ Gemini still in cooldown. Routing to Groq Cloud (Llama 3.3 70B)...');
         setActiveModel('groq');
-        const groqSuccess = await runGroqAPI(text);
+        const groqSuccess = await runGroqAPI(text, assistantMsgId);
         if (groqSuccess) return;
         
-        setMessages(prev => [...prev, {
-          id: `sys-${Date.now()}`,
-          role: 'assistant',
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+          ...m,
           text: '⚠️ Las cuentas de Gemini siguen en periodo de enfriamiento y Groq no respondió. Por favor, espera.',
-          timestamp: new Date(),
           cardType: 'error'
-        }]);
+        } : m));
+        setIsLoading(false);
         return;
       }
       
       setActiveModel('gemini');
-      runGeminiAPI(text);
+      runGeminiAPI(text, assistantMsgId);
     }
   };
 
@@ -1006,7 +1066,7 @@ ${personnelHoursInfo}
                 animation: 'pulse 2s ease-in-out infinite',
                 transition: 'all 0.4s ease'
               }}>
-                {activeModel === 'gemini' ? `GEMINI ${apiKeys.length > 1 ? `(${currentKeyIndex + 1}/${apiKeys.length})` : ''}` : 'GROQ ⚡'}
+                {activeModel === 'gemini' ? `GEMINI ${apiKeys.length > 1 ? `(${currentKeyIndex + 1}/${apiKeys.length})` : ''}` : 'GROQ 70B ⚡'}
               </span>
             </div>
             <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
@@ -1066,7 +1126,13 @@ ${personnelHoursInfo}
             </button>
           )}
           <button 
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+              }
+              setIsSpeaking(false);
+              setIsOpen(false);
+            }}
             style={{
               background: 'none',
               border: 'none',
