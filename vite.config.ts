@@ -5,6 +5,27 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: 'tts-api-dev',
+      configureServer(server) {
+        server.middlewares.use(async (req, res, next) => {
+          if (req.url && req.url.startsWith('/api/tts')) {
+            try {
+              const { default: handler } = await import('./api/tts.js');
+              await handler(req, res);
+            } catch (err) {
+              console.error('Dev TTS error:', err);
+              if (!res.headersSent) {
+                res.statusCode = 500;
+                res.end('TTS Error');
+              }
+            }
+          } else {
+            next();
+          }
+        });
+      }
+    },
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {

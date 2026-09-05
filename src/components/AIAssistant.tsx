@@ -69,12 +69,14 @@ export default function AIAssistant() {
 
   // Voice States
   const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('crl_ai_voice_enabled') === 'true');
+  const [selectedVoice, setSelectedVoice] = useState(() => localStorage.getItem('crl_ai_selected_voice') || 'es-PE-CamilaNeural');
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -167,48 +169,99 @@ export default function AIAssistant() {
     prevLoadingRef.current = isLoading;
   }, [isLoading, messages, voiceEnabled]);
 
-  // Cleanup speech synthesis and cooldown timer on unmount
+  // Stop any active audio playback or speech synthesis
+  const stopSpeaking = () => {
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      } catch (e) {}
+      currentAudioRef.current = null;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+  };
+
+  // Cleanup speech and cooldown timer on unmount
   useEffect(() => {
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeaking();
       if (geminiCooldownRef.current) {
         clearTimeout(geminiCooldownRef.current);
       }
     };
   }, []);
 
-  // Text to Speech (with premium voice selection)
-  const speakText = (text: string) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) return;
+  // Text to Speech: Neural Edge-TTS (Camila/Dalia/etc.) with automatic Browser Speech fallback
+  const speakText = async (text: string) => {
+    if (!voiceEnabled) return;
+
+    stopSpeaking();
+
+    // Clean markdown formatting so the voice doesn't read symbols
+    let cleanText = text
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/#{1,6}\s?/g, '')
+      .replace(/`{1,3}[^`]*`{1,3}/g, '') // remove code blocks
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // keep text inside markdown links
+      .replace(/•/g, ',')
+      .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // remove emojis if any
+      .replace(/\n{2,}/g, '. ')
+      .replace(/\n/g, ', ')
+      .trim();
+
+    if (!cleanText) return;
+
+    // If browser voice is explicitly chosen, use Web Speech API directly
+    if (selectedVoice === 'browser') {
+      speakWithBrowser(cleanText);
+      return;
+    }
+
+    // Try Neural Edge-TTS via server endpoint (/api/tts)
+    try {
+      setIsSpeaking(true);
+      const textToSpeak = cleanText.length > 700 ? cleanText.substring(0, 700) + '...' : cleanText;
+      const audioUrl = `/api/tts?voice=${encodeURIComponent(selectedVoice)}&text=${encodeURIComponent(textToSpeak)}`;
+
+      const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+
+      audio.onplay = () => setIsSpeaking(true);
+      audio.onended = () => {
+        setIsSpeaking(false);
+        currentAudioRef.current = null;
+      };
+      audio.onerror = (e) => {
+        console.warn('Neural TTS failed, falling back to browser speech:', e);
+        currentAudioRef.current = null;
+        speakWithBrowser(cleanText);
+      };
+
+      await audio.play();
+    } catch (err) {
+      console.warn('Audio playback error, falling back to browser speech:', err);
+      speakWithBrowser(cleanText);
+    }
+  };
+
+  // Fallback to local browser Web Speech API
+  const speakWithBrowser = (cleanText: string) => {
+    if (!('speechSynthesis' in window)) {
+      setIsSpeaking(false);
+      return;
+    }
 
     try {
-      window.speechSynthesis.cancel(); // stop current speech
-      
-      // Clean markdown formatting so the voice doesn't read symbols
-      let cleanText = text
-        .replace(/\*\*/g, '')
-        .replace(/\*/g, '')
-        .replace(/#{1,6}\s?/g, '')
-        .replace(/`{1,3}[^`]*`{1,3}/g, '') // remove code blocks
-        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // keep text inside markdown links
-        .replace(/•/g, ',')
-        .replace(/\n{2,}/g, '. ')
-        .replace(/\n/g, ', ')
-        .trim();
-
-      // Limit length to avoid browser speech timeout
-      if (cleanText.length > 800) {
-        cleanText = cleanText.substring(0, 800) + '...';
-      }
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(cleanText.substring(0, 600));
       utterance.lang = 'es-PE';
-      utterance.rate = 1.05; // Slightly faster for natural rhythm
+      utterance.rate = 1.05;
       utterance.pitch = 1.0;
 
-      // Use the best pre-selected voice
       if (bestVoiceRef.current) {
         utterance.voice = bestVoiceRef.current;
       }
@@ -219,7 +272,7 @@ export default function AIAssistant() {
 
       window.speechSynthesis.speak(utterance);
     } catch (err) {
-      console.error('Speech synthesis error:', err);
+      console.error('Browser speech error:', err);
       setIsSpeaking(false);
     }
   };
@@ -233,10 +286,7 @@ export default function AIAssistant() {
     }
 
     // Stop speaking if active
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
+    stopSpeaking();
 
     try {
       const recognition = new SpeechRecognition();
@@ -908,11 +958,8 @@ ${personnelHoursInfo}
     const text = (textToSend || inputVal).trim();
     if (!text || isLoading) return;
 
-    // Immediately stop speech synthesis when user sends a new message
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
+    // Immediately stop speech playback when user sends a new message
+    stopSpeaking();
 
     const userMsg: Message = {
       id: `user-${Date.now()}`,
@@ -1083,10 +1130,7 @@ ${personnelHoursInfo}
               setVoiceEnabled(nextVal);
               localStorage.setItem('crl_ai_voice_enabled', String(nextVal));
               if (!nextVal) {
-                if ('speechSynthesis' in window) {
-                  window.speechSynthesis.cancel();
-                }
-                setIsSpeaking(false);
+                stopSpeaking();
               }
             }}
             style={{
@@ -1127,10 +1171,7 @@ ${personnelHoursInfo}
           )}
           <button 
             onClick={() => {
-              if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-              }
-              setIsSpeaking(false);
+              stopSpeaking();
               setIsOpen(false);
             }}
             style={{
@@ -1220,6 +1261,61 @@ ${personnelHoursInfo}
                   boxSizing: 'border-box'
                 }}
               />
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🎙️ Voz Neuronal de Megan (Voz Realista IA)
+                <span style={{ fontSize: '0.62rem', background: '#059669', color: 'white', padding: '1px 6px', borderRadius: 4 }}>GRATIS</span>
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                Voz natural ultra realista para cualquier navegador y celular (Chrome, Edge, Safari, Android).
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <select 
+                  value={selectedVoice}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setSelectedVoice(v);
+                    localStorage.setItem('crl_ai_selected_voice', v);
+                  }}
+                  style={{
+                    flex: 1,
+                    background: '#0f172a',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    color: 'white',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <option value="es-PE-CamilaNeural">🇵🇪 Camila Neural (Perú - Femenina) [Recomendada]</option>
+                  <option value="es-MX-DaliaNeural">🇲🇽 Dalia Neural (México - Femenina)</option>
+                  <option value="es-CO-SalomeNeural">🇨🇴 Salomé Neural (Colombia - Femenina)</option>
+                  <option value="es-ES-ElviraNeural">🇪🇸 Elvira Neural (España - Femenina)</option>
+                  <option value="es-PE-AlexNeural">🇵🇪 Alex Neural (Perú - Masculina)</option>
+                  <option value="browser">🌐 Voz local del navegador (Estándar)</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => speakText("Hola, soy Megan. Esta es mi nueva voz natural.")}
+                  style={{
+                    background: '#334155',
+                    color: '#f8fafc',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 14px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Escuchar muestra de voz"
+                >
+                  ▶ Probar
+                </button>
+              </div>
             </div>
           </div>
 
