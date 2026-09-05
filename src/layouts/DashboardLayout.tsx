@@ -69,14 +69,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'users', label: 'Configuración Maestra', icon: '⚙️', roles: ['admin'] },
       { id: 'ai-rules', label: 'Reglas de IA', icon: '🤖', roles: ['admin'] },
     ]
-  },
-  {
-    id: 'proyectos',
-    title: 'Proyectos I+D',
-    roles: ['admin'],
-    items: [
-      { id: 'germinador', label: 'Simulador Germinador UTP', icon: '🌱', roles: ['admin'] },
-    ]
   }
 ];
 
@@ -111,7 +103,6 @@ export function isViewPermitted(viewId: string, user: { role: string; area_secto
       return isMaintMgmt || user.role === 'technician';
     case 'users':
     case 'ai-rules':
-    case 'germinador':
       return user.role === 'admin';
     default:
       return false;
